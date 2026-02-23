@@ -72,14 +72,14 @@ Melhorar a experiência de gestão de ativos através de:
 
 ## 🏗 Estrutura do Projeto
 
-GLPI-Control-Center/
-│
-├── frontend/ → Interface do painel
-├── backend/ → Proxy para API do GLPI (proteção de tokens)
-├── deploy/ → Configuração de servidor
-├── docs/ → Documentação e screenshots
-├── README.md
-└── .gitignore
+- GLPI-Control-Center/
+- │
+- ├── frontend/ → Interface do painel
+- ├── backend/ → Proxy para API do GLPI (proteção de tokens)
+- ├── deploy/ → Configuração de servidor
+- ├── docs/ → Documentação e screenshots
+- ├── README.md
+- └── .gitignore
 
 
 ---
