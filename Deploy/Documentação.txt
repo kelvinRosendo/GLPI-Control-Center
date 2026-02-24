@@ -1,0 +1,3 @@
+Deploy/
+Arquivos de configuração para publicação (ex.: nginx).
+Serve para documentar como hospedar o painel em rede interna.

@@ -1,0 +1,3 @@
+Backend/
+Reservado para o proxy/API que conversa com o GLPI de verdade.
+Objetivo: esconder tokens, iniciar sessão e devolver dados “limpos” pro Frontend.
