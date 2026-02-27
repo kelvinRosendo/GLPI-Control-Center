@@ -6,3 +6,789 @@
     Responsividade e estados hover/focus
     Estilos de rolagem das listas nos carrinhos */
 
+/* ==========================================================================
+   GLPI Control Center - styles.css
+   --------------------------------------------------------------------------
+   Objetivo:
+   - Centralizar todo o estilo visual do painel (tema dark + layout + componentes)
+   - Separar aparência do comportamento (JS)
+   - Facilitar manutenção, evolução e padronização
+   ========================================================================== */
+
+
+/* ==========================================================================
+   1) Tema / Design Tokens (variáveis globais)
+   --------------------------------------------------------------------------
+   - Cores base do tema (background, superfícies, bordas)
+   - Cores de status (ativo, manutenção, emprestado)
+   - Tipografia e radius (bordas arredondadas)
+   - Alterar aqui muda o sistema inteiro com consistência
+   ========================================================================== */
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface2: #222535;
+  --surface3: #2a2e42;
+  --border: #2e3347;
+
+  --accent: #4f7ef7;
+  --accent2: #6c5ce7;
+
+  --green: #00c896;
+  --yellow: #ffc107;
+  --red: #ff5555;
+
+  --text: #e8eaf6;
+  --text2: #9299b8;
+  --text3: #5a6080;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+
+/* ==========================================================================
+   2) Reset / Base
+   --------------------------------------------------------------------------
+   - Remove margens/paddings padrão do browser
+   - Define box-sizing consistente para layout previsível
+   ========================================================================== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+
+/* ==========================================================================
+   3) Estrutura global do body
+   --------------------------------------------------------------------------
+   - Define fonte principal
+   - Aplica tema dark e cor do texto
+   - Evita scroll horizontal inesperado
+   ========================================================================== */
+body {
+  font-family: "DM Sans", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+
+/* ==========================================================================
+   4) Tela de Login (overlay)
+   --------------------------------------------------------------------------
+   - Tela fixa cobrindo tudo
+   - Centraliza card no meio
+   - Mantém acima do app (z-index alto)
+   ========================================================================== */
+#login-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+/* Card de login (container principal do formulário) */
+.login-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 48px 40px;
+  width: 380px;
+  text-align: center;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.5);
+}
+
+/* Ícone/Logo do login (badge com gradiente) */
+.login-logo {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin: 0 auto 20px;
+}
+
+/* Título e texto descritivo do login */
+.login-card h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.login-card p {
+  color: var(--text2);
+  font-size: 14px;
+  margin-bottom: 32px;
+}
+
+/* Inputs de usuário/senha */
+.login-input {
+  width: 100%;
+  padding: 13px 16px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s;
+  margin-bottom: 12px;
+}
+.login-input:focus {
+  border-color: var(--accent);
+}
+
+/* Botão principal do login */
+.login-btn {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 8px;
+}
+.login-btn:hover {
+  opacity: 0.9;
+}
+
+/* Mensagem de erro (inicialmente escondida) */
+.login-error {
+  color: var(--red);
+  font-size: 13px;
+  margin-top: 10px;
+  display: none;
+}
+
+
+/* ==========================================================================
+   5) Container principal do App
+   --------------------------------------------------------------------------
+   - Por padrão fica escondido (até login)
+   - Estrutura em coluna (topbar + tabs + conteúdo)
+   ========================================================================== */
+#app {
+  display: none;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+
+/* ==========================================================================
+   6) Topbar (header superior fixo)
+   --------------------------------------------------------------------------
+   - Barra superior com logo, status, avatar e logout
+   - Sticky para ficar sempre no topo quando rolar
+   ========================================================================== */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* Logo / nome do app no canto esquerdo */
+.topbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* Ícone pequeno do logo na topbar */
+.topbar-logo span {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+/* Área direita (status, avatar e logout) */
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Avatar (inicial do usuário) */
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+/* Botão de logout */
+.logout-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text2);
+  font-family: inherit;
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.logout-btn:hover {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+
+/* ==========================================================================
+   7) Tabs (barra de abas)
+   --------------------------------------------------------------------------
+   - Contém botões para trocar de categoria
+   - Pode rolar horizontalmente caso tenha muitas abas
+   ========================================================================== */
+.tabs-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+/* Botão de cada aba */
+.tab-btn {
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 14px 18px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+.tab-btn:hover {
+  color: var(--text);
+}
+
+/* Aba ativa (destaque e sublinhado) */
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* Badge com contagem (ex: número de ativos) */
+.tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface3);
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 20px;
+  margin-left: 6px;
+}
+.tab-btn.active .tab-count {
+  background: rgba(79, 126, 247, 0.2);
+  color: var(--accent);
+}
+
+
+/* ==========================================================================
+   8) Área de Conteúdo
+   --------------------------------------------------------------------------
+   - Container principal das telas (home, listas, carrinhos)
+   - Inclui animação leve de entrada
+   ========================================================================== */
+.content {
+  flex: 1;
+  padding: 28px;
+  animation: slideUp 0.3s ease;
+}
+
+
+/* ==========================================================================
+   9) Filtros e Busca
+   --------------------------------------------------------------------------
+   - Linha com input de busca + selects de filtro
+   - Usado em listas por categoria e na aba Apoio
+   ========================================================================== */
+.filters-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  align-items: center;
+}
+
+/* Wrapper do input de busca (para posicionar o ícone) */
+.search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 240px;
+}
+
+/* Ícone dentro do campo de busca */
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text3);
+  font-size: 16px;
+  pointer-events: none;
+}
+
+/* Campo de busca */
+.search-input {
+  width: 100%;
+  padding: 11px 16px 11px 42px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s;
+}
+.search-input:focus {
+  border-color: var(--accent);
+}
+
+/* Select de filtro (status, repartição) + seta customizada */
+.filter-select {
+  padding: 11px 36px 11px 14px;
+  appearance: none;
+  background: var(--surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239299b8' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E")
+    no-repeat right 12px center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  outline: none;
+  transition: border 0.2s;
+}
+.filter-select:focus {
+  border-color: var(--accent);
+}
+
+
+/* ==========================================================================
+   10) Home (cards de resumo)
+   --------------------------------------------------------------------------
+   - Grid com cards por categoria (Computadores, Apoio etc)
+   - Cada card mostra total e pequenos indicadores
+   ========================================================================== */
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+/* Card clicável da home */
+.home-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 20px;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Barra superior colorida do card */
+.home-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--card-accent, var(--accent));
+}
+
+/* Efeito hover do card */
+.home-card:hover {
+  border-color: var(--card-accent, var(--accent));
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* Ícone, total, label e subtexto */
+.home-card-icon {
+  font-size: 28px;
+  margin-bottom: 16px;
+}
+.home-card-total {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.home-card-label {
+  font-size: 13px;
+  color: var(--text2);
+  font-weight: 500;
+}
+.home-card-sub {
+  font-size: 12px;
+  color: var(--text3);
+  margin-top: 8px;
+}
+
+
+/* ==========================================================================
+   11) Legenda de Status (pílulas e pontos)
+   --------------------------------------------------------------------------
+   - Útil na home e em outras telas como legenda visual
+   ========================================================================== */
+.status-pills {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text2);
+}
+
+/* Pontos coloridos para status */
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dot.green {
+  background: var(--green);
+}
+.dot.yellow {
+  background: var(--yellow);
+}
+.dot.red {
+  background: var(--red);
+}
+
+
+/* ==========================================================================
+   12) Lista de Ativos (grid + cards)
+   --------------------------------------------------------------------------
+   - Utilizado nas abas de categorias tradicionais (Computadores, Projetores etc)
+   ========================================================================== */
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+/* Card de ativo */
+.asset-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  transition: all 0.2s;
+}
+.asset-card:hover {
+  border-color: var(--surface3);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+/* Cabeçalho do card: nome + badge de status */
+.asset-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+.asset-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+/* Badge de status (ativo/manutenção/emprestado) */
+.status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.status-badge.ativo {
+  background: rgba(0, 200, 150, 0.15);
+  color: var(--green);
+}
+.status-badge.manutencao {
+  background: rgba(255, 85, 85, 0.15);
+  color: var(--red);
+}
+.status-badge.emprestado {
+  background: rgba(255, 193, 7, 0.15);
+  color: var(--yellow);
+}
+
+/* Metadados (serial, patrimônio, repartição) em fonte mono */
+.asset-meta {
+  font-size: 12px;
+  color: var(--text2);
+  font-family: "JetBrains Mono", monospace;
+  margin-bottom: 4px;
+}
+.asset-meta span {
+  color: var(--text3);
+}
+
+/* Botão para abrir o item no GLPI */
+.glpi-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  margin-top: 14px;
+  transition: opacity 0.2s;
+  width: 100%;
+  justify-content: center;
+}
+.glpi-btn:hover {
+  opacity: 0.88;
+}
+
+
+/* ==========================================================================
+   13) Chromebooks Apoio (Carrinhos)
+   --------------------------------------------------------------------------
+   - Layout em colunas (cada coluna = um carrinho)
+   - Dentro de cada coluna: lista de devices
+   ========================================================================== */
+.carrinhos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 18px;
+}
+
+/* Coluna do carrinho */
+.carrinho-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* Cabeçalho da coluna (título e contagem) */
+.carrinho-header {
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface2);
+}
+.carrinho-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+.carrinho-count {
+  font-size: 12px;
+  color: var(--text2);
+  background: var(--surface3);
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* Container de cards dentro do carrinho */
+.carrinho-cards {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Item individual dentro do carrinho */
+.carrinho-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  transition: all 0.2s;
+}
+.carrinho-item:hover {
+  border-color: var(--accent);
+}
+
+/* Cabeçalho do item (nome + status) */
+.carrinho-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.carrinho-item-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+/* Metadados do item */
+.carrinho-meta {
+  font-size: 11px;
+  color: var(--text2);
+  font-family: "JetBrains Mono", monospace;
+  margin-bottom: 3px;
+}
+
+/* Botão menor para abrir no GLPI */
+.mini-glpi-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(79, 126, 247, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(79, 126, 247, 0.25);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  margin-top: 10px;
+  transition: all 0.2s;
+}
+.mini-glpi-btn:hover {
+  background: rgba(79, 126, 247, 0.25);
+}
+
+
+/* ==========================================================================
+   14) Estado vazio (nenhum resultado)
+   --------------------------------------------------------------------------
+   - Usado quando não há itens para listar (busca/filtro sem match)
+   ========================================================================== */
+.empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text3);
+}
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+.empty h3 {
+  font-size: 16px;
+  color: var(--text2);
+  margin-bottom: 8px;
+}
+
+
+/* ==========================================================================
+   15) Título de seção
+   --------------------------------------------------------------------------
+   - Cabeçalho de telas e blocos (ex: "Visão Geral", "Computadores")
+   ========================================================================== */
+.section-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-title small {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text2);
+}
+
+
+/* ==========================================================================
+   16) Animação
+   --------------------------------------------------------------------------
+   - Efeito leve de entrada (fade + deslocamento)
+   ========================================================================== */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ==========================================================================
+   17) Opcional: Scroll interno nos carrinhos (lista rolável)
+   --------------------------------------------------------------------------
+   - Deixa as colunas com altura controlada e scroll interno
+   - Bom quando há muitos chromebooks em um carrinho
+   ========================================================================== */
+/*
+.carrinho-cards {
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.carrinho-cards::-webkit-scrollbar {
+  width: 8px;
+}
+
+.carrinho-cards::-webkit-scrollbar-thumb {
+  background: var(--surface3);
+  border-radius: 999px;
+  border: 2px solid var(--surface2);
+}
+*/

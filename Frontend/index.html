@@ -5,3 +5,61 @@ Contém o layout base: tela de login e container do app
 Carrega CSS e JS
 Define os “pontos de montagem” (ex.: #tabs-bar, #main-content) -->
 
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GLPI Control Center</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="./css/styles.css" />
+</head>
+
+<body>
+  <!-- LOGIN -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="login-logo">🖥️</div>
+      <h2>GLPI Control Center</h2>
+      <p>Entre com suas credenciais para acessar</p>
+
+      <input class="login-input" type="text" id="login-user" placeholder="Usuário" />
+      <input class="login-input" type="password" id="login-pass" placeholder="Senha" />
+
+      <button class="login-btn" id="login-btn">Entrar</button>
+      <p class="login-error" id="login-error">Usuário ou senha incorretos</p>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="app">
+    <div class="topbar">
+      <a class="topbar-logo" href="#">
+        <span>🖥️</span>
+        GLPI Control Center
+      </a>
+
+      <div class="topbar-right">
+        <span id="glpi-status" class="glpi-status">● Conectado ao GLPI</span>
+        <div class="avatar" id="user-avatar">A</div>
+        <button class="logout-btn" id="logout-btn">Sair</button>
+      </div>
+    </div>
+
+    <div class="tabs-bar" id="tabs-bar"></div>
+    <div class="content" id="main-content"></div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="./javascript/data.js"></script>
+  <script src="./javascript/state.js"></script>
+  <script src="./javascript/auth.js"></script>
+  <script src="./javascript/glpi.client.js"></script>
+  <script src="./javascript/ui.render.js"></script>
+  <script src="./javascript/app.js"></script>
+</body>
+</html>
