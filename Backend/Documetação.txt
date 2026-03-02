@@ -1,3 +1,24 @@
 Backend/
 Reservado para o proxy/API que conversa com o GLPI de verdade.
 Objetivo: esconder tokens, iniciar sessão e devolver dados “limpos” pro Frontend.
+
+Backend/
+├── api/
+│   ├── index.php              # roteador simples (um arquivo que direciona endpoints)
+│   ├── glpi/
+│   │   ├── client.php          # funções de request pro GLPI (initSession, get, killSession)
+│   │   ├── endpoints.php       # handlers (computers, printers, etc.)
+│   │   └── mappers.php         # mapeia JSON do GLPI -> formato do painel
+│   └── utils/
+│       ├── response.php        # helpers: json(), error()
+│       └── env.php             # carrega variáveis do .env (ou config.php)
+├── config/
+│   └── config.php              # configurações (GLPI_URL, tokens) (NÃO subir tokens no git)
+├── .env.example                # exemplo de variáveis
+└── README_BACKEND.md           # doc do backend (opcional )
+
+Como isso conversa com o frontend
+
+No glpi.client.js, em vez de chamar o GLPI direto, você faz:
+
+fetch("http://seu-servidor/api/assets/computers")
