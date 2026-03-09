@@ -28,7 +28,7 @@ No futuro, esse arquivo pode virar só “mock”, e o real vir do glpi.client.j
 
 window.CONFIG = {
   // Troque para o endereço do seu GLPI quando estiver rodando na rede
-  glpiUrl: "http://seu-glpi.interno",
+  glpiUrl: "https://192.168.1.20/glpi",
 
   // Usuários mock pra testar o login
   users: {
