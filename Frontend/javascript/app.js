@@ -1,12 +1,12 @@
 /*
         app.js — Bootstrap / Inicialização
 
-    É o “orquestrador”.
+    É o "orquestrador".
     Inicializa a aplicação
     Faz o primeiro render da tela
     Liga os módulos (auth + ui + state + data)
     Define fluxo de start: login → app → tabs
-    Pensa nele como o “main()” do projeto.
+    Pensa nele como o "main()" do projeto.
 */
 
 /**
@@ -52,8 +52,18 @@ window.App = {
   /**
    * Inicializa a aplicação.
    * Chamado assim que o DOM termina de carregar.
+   *
+   * Agora é async para buscar os dados reais do backend antes de renderizar.
+   * Fluxo:
+   *   1. Mostra tela de login
+   *   2. Inicializa Auth
+   *   3. Busca dados reais do backend via GlpiClient
+   *   4. Substitui window.DEMO pelos dados reais
+   *   5. Renderiza a UI
+   *
+   * Se o backend estiver offline, cai no catch e usa os dados mockados normalmente.
    */
-  init() {
+  async init() {
     debug("Inicializando app...");
 
     // Garantias visuais iniciais (antes do login)
@@ -63,6 +73,23 @@ window.App = {
     // Auth cuida de login/logout (e chama App.render() após login)
     if (window.Auth && typeof window.Auth.init === "function") {
       window.Auth.init();
+    }
+
+    // Busca dados reais do backend e substitui o DEMO
+    try {
+      const computers = await window.GlpiClient.fetchComputers();
+      if (computers.length > 0) {
+        // Separa computadores (CS- e CO-) dos Chromebooks Geekiees (Chrome G-)
+        window.DEMO.computadores = computers.filter(c =>
+          c.nome.startsWith("CS-") || c.nome.startsWith("CO-")
+        );
+        window.DEMO.chromebooksGeekiees = computers.filter(c =>
+          c.nome.startsWith("Chrome G-")
+        );
+        console.log("[App] Dados reais carregados:", computers.length, "ativos");
+      }
+    } catch (err) {
+      console.warn("[App] Backend indisponível, usando dados mock.", err);
     }
 
     // Renderiza a barra de abas (mesmo antes do login, pra já ficar pronto)

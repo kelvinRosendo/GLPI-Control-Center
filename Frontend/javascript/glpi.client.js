@@ -1,14 +1,30 @@
-/*
-        glpi.client.js — Cliente de integração com GLPI
-        Responsável por buscar dados reais (quando você ligar o backend).
-    faz fetch() para endpoints internos tipo /api/...
-    transforma resposta do GLPI para o formato do painel
-    concentra regras tipo mapeamento de status e campos
+/**
+ * glpi.client.js — Cliente HTTP do Frontend
+ * -----------------------------------------------------------------------------
+ * Responsável por buscar dados reais do backend PHP.
+ * O backend fica em localhost:8080 e é ele quem fala com o GLPI de verdade.
+ *
+ * Nunca chamamos o GLPI diretamente daqui — sempre passamos pelo backend.
+ */
 
-        Exemplos:
-    fetchComputadores()
-    fetchChromebooksApoio()
-    fetchProjetores()
+window.GlpiClient = {
 
-    Importante: nunca colocar token aqui no frontend. Token fica no Backend.
-*/
+  // Endereço do backend PHP
+  baseUrl: "http://localhost:8080",
+
+  /**
+   * Busca todos os computadores do GLPI via backend.
+   * Retorna array no formato que o painel já espera.
+   */
+  async fetchComputers() {
+    const res = await fetch(`${this.baseUrl}/api/assets/computers`);
+    const json = await res.json();
+
+    if (!json.ok) {
+      console.error("[GlpiClient] Erro ao buscar computadores:", json.error);
+      return [];
+    }
+
+    return json.data;
+  },
+};
