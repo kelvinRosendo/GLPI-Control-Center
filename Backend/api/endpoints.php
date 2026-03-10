@@ -2,26 +2,27 @@
 /**
  * api/endpoints.php
  * -----------------------------------------------------------------------------
- * Roteador simples + endpoints do backend.
+ * Roteador + endpoints do backend.
  *
- * Rotas:
- * - GET /api/health
- * - GET /api/assets/computers
+ * Rotas disponíveis:
+ *   GET /api/health
+ *   GET /api/assets/computers
+ *   GET /api/assets/chromebooks-geekiees
+ *   GET /api/assets/chromebooks-apoio
+ *   GET /api/assets/projetores
+ *   GET /api/assets/impressoras
  */
 
 declare(strict_types=1);
 
-// Utils
-require_once __DIR__ . '/utils/env.php';
-require_once __DIR__ . '/utils/responde.php';
+require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/responde.php';
 
-// Carrega .env (fica em Backend/.env)s
 Env::load(__DIR__ . '/../.env');
 
-// Config
-$config = require __DIR__ . '/../config/config.php';
+$config = require __DIR__ . '/../config.php';
 
-// CORS (básico)
+// CORS
 header('Access-Control-Allow-Origin: ' . ($config['cors']['origin'] ?? '*'));
 header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -31,30 +32,46 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   exit;
 }
 
-// Módulos GLPI
 require_once __DIR__ . '/client.php';
 require_once __DIR__ . '/mappers.php';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Grupos do GLPI (groups_id numérico com expand_dropdowns=false)
+// OU nome do grupo (com expand_dropdowns=true).
+// Ajuste os IDs abaixo conforme os grupos reais do seu GLPI.
+// Use GET /api/Group para listar os grupos e descobrir os IDs.
+// ─────────────────────────────────────────────────────────────────────────────
+define('GROUP_GEEKIEES_NAMES', ['Geekie', 'Geekie > Carrinho', 'Geekie > Carrinho > Carrinho 1',
+  'Geekie > Carrinho > Carrinho 2', 'Geekie > Carrinho > Carrinho 3', 'Geekie > Carrinho > Carrinho 4']);
+
+define('GROUP_APOIO_NAMES', ['Apoio', 'Apoio > Eduinfo', 'Apoio > HBB',
+  'Geekie > Carrinho > Carrinho 1', 'Geekie > Carrinho > Carrinho 2',
+  'Geekie > Carrinho > Carrinho 3', 'Geekie > Carrinho > Carrinho 4']);
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 final class Endpoints
 {
+  // ── health ──────────────────────────────────────────────────────────────
+
   public static function health(): void
   {
     Responde::ok([
       'service' => 'glpi-control-center-backend',
-      'time' => date('c'),
+      'time'    => date('c'),
     ]);
   }
 
+  // ── computers ───────────────────────────────────────────────────────────
+
   public static function computers(array $config): void
   {
-    $glpi = new GlpiClient($config['glpi'] ?? []);
-
+    $glpi    = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
 
-    // range pode ser aumentado depois
-    $raw = $glpi->get('/Computer?range=0-200&expand_dropdowns=true', $session);
-
+    $raw   = $glpi->get('/Computer?range=0-500&expand_dropdowns=true', $session);
     $items = [];
+
     foreach ($raw as $c) {
       if (is_array($c)) {
         $items[] = Mappers::computer($c);
@@ -62,39 +79,136 @@ final class Endpoints
     }
 
     $glpi->killSession($session);
+    Responde::ok(['data' => $items, 'count' => count($items)]);
+  }
 
+  // ── chromebooks geekiees ─────────────────────────────────────────────────
+
+  public static function chromebooksGeekiees(array $config): void
+  {
+    $glpi    = new GlpiClient($config['glpi'] ?? []);
+    $session = $glpi->initSession();
+
+    // Busca todos os computadores do tipo Chromebook
+    $raw = $glpi->get(
+      '/Computer?range=0-500&expand_dropdowns=true&searchText[computertypes_id]=Chromebook',
+      $session
+    );
+
+    $items = [];
+    foreach ($raw as $c) {
+      if (!is_array($c)) continue;
+
+      $grupo = is_string($c['groups_id'] ?? null) ? $c['groups_id'] : '';
+
+      // Inclui apenas os que têm "Geekie" no grupo mas NÃO "Apoio" nem "Carrinho"
+      if (str_contains($grupo, 'Geekie') && !str_contains($grupo, 'Apoio')) {
+        $items[] = Mappers::chromebookGeekiee($c);
+      }
+    }
+
+    $glpi->killSession($session);
+    Responde::ok(['data' => $items, 'count' => count($items)]);
+  }
+
+  // ── chromebooks apoio (carrinhos) ────────────────────────────────────────
+
+  public static function chromebooksApoio(array $config): void
+  {
+    $glpi    = new GlpiClient($config['glpi'] ?? []);
+    $session = $glpi->initSession();
+
+    $raw = $glpi->get(
+      '/Computer?range=0-500&expand_dropdowns=true&searchText[computertypes_id]=Chromebook',
+      $session
+    );
+
+    $apoioItems = [];
+    foreach ($raw as $c) {
+      if (!is_array($c)) continue;
+
+      $grupo = is_string($c['groups_id'] ?? null) ? $c['groups_id'] : '';
+
+      // Inclui apenas grupos de Carrinho (Apoio do colégio)
+      if (str_contains($grupo, 'Carrinho') || str_contains($grupo, 'Apoio')) {
+        $apoioItems[] = $c;
+      }
+    }
+
+    $carrinhos = Mappers::chromebooksApoioAgrupados($apoioItems);
+
+    $glpi->killSession($session);
     Responde::ok([
-      'data' => $items,
-      'count' => count($items),
+      'data'  => $carrinhos,
+      'count' => count($apoioItems),
     ]);
+  }
+
+  // ── projetores ───────────────────────────────────────────────────────────
+
+  public static function projetores(array $config): void
+  {
+    $glpi    = new GlpiClient($config['glpi'] ?? []);
+    $session = $glpi->initSession();
+
+    // Projetores ficam em /Computer com tipo PROJETOR
+    $raw = $glpi->get(
+      '/Computer?range=0-200&expand_dropdowns=true&searchText[computertypes_id]=PROJETOR',
+      $session
+    );
+
+    $items = [];
+    foreach ($raw as $c) {
+      if (is_array($c)) {
+        $items[] = Mappers::projetor($c);
+      }
+    }
+
+    $glpi->killSession($session);
+    Responde::ok(['data' => $items, 'count' => count($items)]);
+  }
+
+  // ── impressoras ──────────────────────────────────────────────────────────
+
+  public static function impressoras(array $config): void
+  {
+    $glpi    = new GlpiClient($config['glpi'] ?? []);
+    $session = $glpi->initSession();
+
+    // Impressoras têm endpoint próprio no GLPI
+    $raw = $glpi->get('/Printer?range=0-200&expand_dropdowns=true', $session);
+
+    $items = [];
+    foreach ($raw as $p) {
+      if (is_array($p)) {
+        $items[] = Mappers::impressora($p);
+      }
+    }
+
+    $glpi->killSession($session);
+    Responde::ok(['data' => $items, 'count' => count($items)]);
   }
 }
 
-/**
- * -----------------------------------------------------------------------------
- * ROTEAMENTO
- * -----------------------------------------------------------------------------
- */
+// ─────────────────────────────────────────────────────────────────────────────
+// ROTEAMENTO
+// ─────────────────────────────────────────────────────────────────────────────
 
-$uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
-$uri = rtrim($uri, '/');
-
-// Como você pode acessar /api/endpoints.php, vamos permitir os 2 formatos:
-// - /api/health
-// - /api/endpoints.php/api/health
+$uri        = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+$uri        = rtrim($uri, '/');
 $normalized = str_replace('/api/endpoints.php', '', $uri);
-$path = $normalized ?: '/';
+$path       = $normalized ?: '/';
 
 try {
-  if ($path === '/api/health') {
-    Endpoints::health();
-  }
-
-  if ($path === '/api/assets/computers') {
-    Endpoints::computers($config);
-  }
-
-  Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]);
+  match ($path) {
+    '/api/health'                       => Endpoints::health(),
+    '/api/assets/computers'             => Endpoints::computers($config),
+    '/api/assets/chromebooks-geekiees'  => Endpoints::chromebooksGeekiees($config),
+    '/api/assets/chromebooks-apoio'     => Endpoints::chromebooksApoio($config),
+    '/api/assets/projetores'            => Endpoints::projetores($config),
+    '/api/assets/impressoras'           => Endpoints::impressoras($config),
+    default                             => Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]),
+  };
 } catch (Throwable $e) {
   Responde::erro('Erro interno no backend.', 500, [
     'message' => $e->getMessage(),
