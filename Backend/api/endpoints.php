@@ -18,9 +18,9 @@ declare(strict_types=1);
 require_once __DIR__ . '/utils/env.php';
 require_once __DIR__ . '/utils/responde.php';
 
-Env::load(__DIR__ . '/../../.env');
+Env::load(__DIR__ . '/../.env');
 
-$config = require __DIR__ . '/../../config/config.php';
+$config = require __DIR__ . '/../config/config.php';
 
 // CORS
 header('Access-Control-Allow-Origin: ' . ($config['cors']['origin'] ?? '*'));
