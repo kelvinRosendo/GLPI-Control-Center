@@ -75,20 +75,9 @@ window.Auth = {
     const errorEl = document.getElementById("login-error");
     if (errorEl) errorEl.style.display = "none";
 
-    // Atualiza avatar com inicial do usuário
-    const avatar = document.getElementById("user-avatar");
-    if (avatar) {
-      avatar.textContent = username.charAt(0).toUpperCase();
-    }
-
-    // Mostra aplicação
-    if (window.App?.showAppScreen) {
-      window.App.showAppScreen();
-    }
-
-    // Renderiza tela inicial
-    if (window.App?.render) {
-      window.App.render();
+    // Delega ao App (que mostra a tela e carrega os dados reais do GLPI)
+    if (window.App?.onLoginSuccess) {
+      window.App.onLoginSuccess(username);
     }
   },
 

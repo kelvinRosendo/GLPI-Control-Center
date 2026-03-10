@@ -1,228 +1,169 @@
-/*
-        app.js — Bootstrap / Inicialização
-
-    É o "orquestrador".
-    Inicializa a aplicação
-    Faz o primeiro render da tela
-    Liga os módulos (auth + ui + state + data)
-    Define fluxo de start: login → app → tabs
-    Pensa nele como o "main()" do projeto.
-*/
-
 /**
  * GLPI Control Center - app.js
  * -----------------------------------------------------------------------------
- * Ponto de entrada (entrypoint) do Frontend.
+ * Orquestrador principal. Fluxo:
  *
- * Responsabilidades:
- * - Inicializar a aplicação quando o DOM estiver pronto
- * - Conectar os módulos (Auth, UI, State, GLPI Client)
- * - Centralizar a troca de abas e re-renderização
- * - Definir o fluxo principal: Login -> App -> Logout
- *
- * Observação:
- * - Este projeto usa "Vanilla JS modular por arquivos".
- * - Cada arquivo expõe um objeto global em window (ex: window.Auth, window.UI).
+ *   1. DOM pronto → App.init()
+ *   2. Usuário faz login → Auth chama App.onLoginSuccess()
+ *   3. App mostra loading e chama GlpiClient.loadAll()
+ *   4. Dados carregados → App.render() com dados reais
+ *   5. Erros → App mostra tela de erro com botão de retry
  */
 
-/* ============================================================================
- * 1) Utilitários simples (helper functions)
- * ========================================================================== */
-
-/**
- * Retorna um elemento do DOM pelo id.
- * Mantém o código mais limpo e evita repetir document.getElementById.
- */
-function $(id) {
-  return document.getElementById(id);
-}
-
-/**
- * Pequeno log de debug (desative ou remova se quiser).
- */
-function debug(...args) {
-  // console.log("[GLPI Control Center]", ...args);
-}
-
-/* ============================================================================
- * 2) App Controller (objeto principal)
- * ========================================================================== */
+function $(id) { return document.getElementById(id); }
 
 window.App = {
-  /**
-   * Inicializa a aplicação.
-   * Chamado assim que o DOM termina de carregar.
-   *
-   * Agora é async para buscar os dados reais do backend antes de renderizar.
-   * Fluxo:
-   *   1. Mostra tela de login
-   *   2. Inicializa Auth
-   *   3. Busca dados reais do backend via GlpiClient
-   *   4. Substitui window.DEMO pelos dados reais
-   *   5. Renderiza a UI
-   *
-   * Se o backend estiver offline, cai no catch e usa os dados mockados normalmente.
-   */
-  async init() {
-    debug("Inicializando app...");
 
-    // Garantias visuais iniciais (antes do login)
+  /* ==========================================================================
+     1) Inicialização
+     ========================================================================== */
+
+  init() {
     this.showLoginScreen();
 
-    // Inicializa módulos
-    // Auth cuida de login/logout (e chama App.render() após login)
-    if (window.Auth && typeof window.Auth.init === "function") {
-      window.Auth.init();
-    }
+    if (window.Auth?.init) window.Auth.init();
 
-    // Busca dados reais do backend e substitui o DEMO
-    try {
-      const computers = await window.GlpiClient.fetchComputers();
-      if (computers.length > 0) {
-        // Separa computadores (CS- e CO-) dos Chromebooks Geekiees (Chrome G-)
-        window.DEMO.computadores = computers.filter(c =>
-          c.nome.startsWith("CS-") || c.nome.startsWith("CO-")
-        );
-        window.DEMO.chromebooksGeekiees = computers.filter(c =>
-          c.nome.startsWith("Chrome G-")
-        );
-        console.log("[App] Dados reais carregados:", computers.length, "ativos");
-      }
-    } catch (err) {
-      console.warn("[App] Backend indisponível, usando dados mock.", err);
-    }
+    // Renderiza tabs vazias para ficar pronto
+    if (window.UI?.renderTabs) window.UI.renderTabs();
+  },
 
-    // Renderiza a barra de abas (mesmo antes do login, pra já ficar pronto)
-    if (window.UI && typeof window.UI.renderTabs === "function") {
-      window.UI.renderTabs();
-    }
 
-    // Render inicial do conteúdo (pode ser home vazia/placeholder)
-    this.render();
+  /* ==========================================================================
+     2) Fluxo pós-login
+     ========================================================================== */
+
+  /**
+   * Chamado pelo Auth após validar credenciais.
+   * Mostra o app e dispara o carregamento real dos dados.
+   */
+  async onLoginSuccess(username) {
+    // Atualiza avatar
+    const avatar = $('user-avatar');
+    if (avatar) avatar.textContent = username.charAt(0).toUpperCase();
+
+    this.showAppScreen();
+    await this.reloadData();
   },
 
   /**
-   * Renderiza a tela com base no estado global (window.STATE).
-   * É o método central que "refaz" a UI sempre que algo muda.
+   * Carrega (ou recarrega) todos os dados do backend.
+   * Exibe loading → dados → ou tela de erro.
    */
-  render() {
-    // Renderiza tabs (destaca a aba ativa)
-    if (window.UI && typeof window.UI.renderTabs === "function") {
-      window.UI.renderTabs();
+  async reloadData() {
+    // Mostra loading imediatamente
+    const main = $('main-content');
+    if (main && window.UI?.renderLoading) {
+      main.innerHTML = window.UI.renderLoading();
     }
 
-    // Decide qual tela mostrar
-    const tab = window.STATE?.tab || "home";
-    debug("Renderizando tab:", tab);
+    // Atualiza status na topbar
+    this.setGlpiStatus('connecting');
 
-    const main = $("main-content");
+    const result = await window.GlpiClient.loadAll();
+
+    if (result.ok) {
+      this.setGlpiStatus('connected');
+      this.render();
+    } else {
+      this.setGlpiStatus('error');
+      if (main && window.UI?.renderError) {
+        main.innerHTML = window.UI.renderError(result.errors ?? []);
+      }
+    }
+  },
+
+
+  /* ==========================================================================
+     3) Renderização
+     ========================================================================== */
+
+  render() {
+    if (window.UI?.renderTabs) window.UI.renderTabs();
+
+    const tab  = window.STATE?.tab ?? 'home';
+    const main = $('main-content');
     if (!main) return;
 
-    // Cada tela retorna HTML (string) para ser injetado no container principal.
-    // A lógica de criação do HTML fica concentrada em ui.render.js
-    switch (tab) {
-      case "home":
-        main.innerHTML = window.UI?.renderHome?.() ?? this.renderFallback("Home");
-        break;
+    const views = {
+      home:         () => window.UI?.renderHome?.(),
+      computadores: () => window.UI?.renderComputadores?.(),
+      geekiees:     () => window.UI?.renderGeekiees?.(),
+      apoio:        () => window.UI?.renderCarrinhos?.(),
+      projetores:   () => window.UI?.renderProjetores?.(),
+      impressoras:  () => window.UI?.renderImpressoras?.(),
+    };
 
-      case "computadores":
-        main.innerHTML =
-          window.UI?.renderComputadores?.() ??
-          this.renderFallback("Computadores");
-        break;
-
-      case "geekiees":
-        main.innerHTML =
-          window.UI?.renderGeekiees?.() ??
-          this.renderFallback("Chromebooks (Geekiees)");
-        break;
-
-      case "apoio":
-        main.innerHTML = window.UI?.renderCarrinhos?.() ?? this.renderFallback("Chromebooks (Apoio)");
-        break;
-
-      case "projetores":
-        main.innerHTML =
-          window.UI?.renderProjetores?.() ??
-          this.renderFallback("Projetores");
-        break;
-
-      case "impressoras":
-        main.innerHTML =
-          window.UI?.renderImpressoras?.() ??
-          this.renderFallback("Impressoras");
-        break;
-
-      default:
-        main.innerHTML = this.renderFallback("Tela");
-        break;
-    }
+    main.innerHTML = views[tab]?.() ?? this.renderFallback(tab);
   },
 
-  /**
-   * Troca a aba atual e re-renderiza.
-   * Esse método é o padrão pra navegação no app.
-   */
-  go(tabId) {
-    window.STATE.tab = tabId;
-    this.resetFilters(); // opcional: zera busca/filtros quando trocar de aba
-    this.render();
-  },
-
-  /**
-   * Reseta busca e filtros ao trocar de aba.
-   * Mantém UX limpa (sem filtros "vazando" para outras abas).
-   */
-  resetFilters() {
-    if (!window.STATE) return;
-    window.STATE.search = "";
-    window.STATE.status = "todos";
-    window.STATE.reparticao = "todas";
-  },
-
-  /**
-   * Mostra a tela de login e esconde o app.
-   */
-  showLoginScreen() {
-    const login = $("login-screen");
-    const app = $("app");
-
-    if (login) login.style.display = "flex";
-    if (app) app.style.display = "none";
-  },
-
-  /**
-   * Mostra o app e esconde o login.
-   * Normalmente chamado pelo auth.js depois de validar credenciais.
-   */
-  showAppScreen() {
-    const login = $("login-screen");
-    const app = $("app");
-
-    if (login) login.style.display = "none";
-    if (app) app.style.display = "flex";
-  },
-
-  /**
-   * Placeholder caso algum método do UI não exista ainda.
-   * Ajuda você a desenvolver por partes sem quebrar tudo.
-   */
   renderFallback(title) {
     return `
       <div class="empty">
         <div class="empty-icon">🛠️</div>
         <h3>${title} em construção</h3>
-        <p style="margin-top:8px;color:var(--text3);font-size:13px;">
-          Essa tela ainda não foi implementada no <code>ui.render.js</code>.
-        </p>
       </div>
     `;
+  },
+
+
+  /* ==========================================================================
+     4) Navegação
+     ========================================================================== */
+
+  go(tabId) {
+    window.STATE.tab = tabId;
+    this.resetFilters();
+    this.render();
+  },
+
+  resetFilters() {
+    if (!window.STATE) return;
+    window.STATE.search     = '';
+    window.STATE.status     = 'todos';
+    window.STATE.reparticao = 'todas';
+  },
+
+
+  /* ==========================================================================
+     5) Controle de telas (login / app)
+     ========================================================================== */
+
+  showLoginScreen() {
+    const login = $('login-screen');
+    const app   = $('app');
+    if (login) login.style.display = 'flex';
+    if (app)   app.style.display   = 'none';
+  },
+
+  showAppScreen() {
+    const login = $('login-screen');
+    const app   = $('app');
+    if (login) login.style.display = 'none';
+    if (app)   app.style.display   = 'flex';
+  },
+
+
+  /* ==========================================================================
+     6) Status do GLPI na topbar
+     ========================================================================== */
+
+  setGlpiStatus(state) {
+    const el = $('glpi-status');
+    if (!el) return;
+
+    const map = {
+      connected:  { text: '● Conectado ao GLPI',    color: 'var(--green)'  },
+      connecting: { text: '● Conectando ao GLPI…',  color: 'var(--yellow)' },
+      error:      { text: '● Erro ao conectar GLPI', color: 'var(--red)'   },
+    };
+
+    const s = map[state] ?? map.connected;
+    el.textContent    = s.text;
+    el.style.color    = s.color;
   },
 };
 
 /* ============================================================================
- * 3) Boot (inicialização automática quando DOM carregar)
+ * Boot
  * ========================================================================== */
-window.addEventListener("DOMContentLoaded", () => {
-  window.App.init();
-});
+window.addEventListener('DOMContentLoaded', () => window.App.init());
