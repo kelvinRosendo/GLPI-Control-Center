@@ -15,12 +15,12 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/env.php';
-require_once __DIR__ . '/responde.php';
+require_once __DIR__ . '/utils/env.php';
+require_once __DIR__ . '/utils/responde.php';
 
-Env::load(__DIR__ . '/../.env');
+Env::load(__DIR__ . '/../../.env');
 
-$config = require __DIR__ . '/../config.php';
+$config = require __DIR__ . '/../../config/config.php';
 
 // CORS
 header('Access-Control-Allow-Origin: ' . ($config['cors']['origin'] ?? '*'));
@@ -34,19 +34,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 require_once __DIR__ . '/client.php';
 require_once __DIR__ . '/mappers.php';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Grupos do GLPI (groups_id numérico com expand_dropdowns=false)
-// OU nome do grupo (com expand_dropdowns=true).
-// Ajuste os IDs abaixo conforme os grupos reais do seu GLPI.
-// Use GET /api/Group para listar os grupos e descobrir os IDs.
-// ─────────────────────────────────────────────────────────────────────────────
-define('GROUP_GEEKIEES_NAMES', ['Geekie', 'Geekie > Carrinho', 'Geekie > Carrinho > Carrinho 1',
-  'Geekie > Carrinho > Carrinho 2', 'Geekie > Carrinho > Carrinho 3', 'Geekie > Carrinho > Carrinho 4']);
-
-define('GROUP_APOIO_NAMES', ['Apoio', 'Apoio > Eduinfo', 'Apoio > HBB',
-  'Geekie > Carrinho > Carrinho 1', 'Geekie > Carrinho > Carrinho 2',
-  'Geekie > Carrinho > Carrinho 3', 'Geekie > Carrinho > Carrinho 4']);
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -89,7 +76,6 @@ final class Endpoints
     $glpi    = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
 
-    // Busca todos os computadores do tipo Chromebook
     $raw = $glpi->get(
       '/Computer?range=0-500&expand_dropdowns=true&searchText[computertypes_id]=Chromebook',
       $session
@@ -101,7 +87,6 @@ final class Endpoints
 
       $grupo = is_string($c['groups_id'] ?? null) ? $c['groups_id'] : '';
 
-      // Inclui apenas os que têm "Geekie" no grupo mas NÃO "Apoio" nem "Carrinho"
       if (str_contains($grupo, 'Geekie') && !str_contains($grupo, 'Apoio')) {
         $items[] = Mappers::chromebookGeekiee($c);
       }
@@ -129,7 +114,6 @@ final class Endpoints
 
       $grupo = is_string($c['groups_id'] ?? null) ? $c['groups_id'] : '';
 
-      // Inclui apenas grupos de Carrinho (Apoio do colégio)
       if (str_contains($grupo, 'Carrinho') || str_contains($grupo, 'Apoio')) {
         $apoioItems[] = $c;
       }
@@ -151,7 +135,6 @@ final class Endpoints
     $glpi    = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
 
-    // Projetores ficam em /Computer com tipo PROJETOR
     $raw = $glpi->get(
       '/Computer?range=0-200&expand_dropdowns=true&searchText[computertypes_id]=PROJETOR',
       $session
@@ -175,7 +158,6 @@ final class Endpoints
     $glpi    = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
 
-    // Impressoras têm endpoint próprio no GLPI
     $raw = $glpi->get('/Printer?range=0-200&expand_dropdowns=true', $session);
 
     $items = [];
@@ -201,13 +183,13 @@ $path       = $normalized ?: '/';
 
 try {
   match ($path) {
-    '/api/health'                       => Endpoints::health(),
-    '/api/assets/computers'             => Endpoints::computers($config),
-    '/api/assets/chromebooks-geekiees'  => Endpoints::chromebooksGeekiees($config),
-    '/api/assets/chromebooks-apoio'     => Endpoints::chromebooksApoio($config),
-    '/api/assets/projetores'            => Endpoints::projetores($config),
-    '/api/assets/impressoras'           => Endpoints::impressoras($config),
-    default                             => Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]),
+    '/api/health'                      => Endpoints::health(),
+    '/api/assets/computers'            => Endpoints::computers($config),
+    '/api/assets/chromebooks-geekiees' => Endpoints::chromebooksGeekiees($config),
+    '/api/assets/chromebooks-apoio'    => Endpoints::chromebooksApoio($config),
+    '/api/assets/projetores'           => Endpoints::projetores($config),
+    '/api/assets/impressoras'          => Endpoints::impressoras($config),
+    default                            => Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]),
   };
 } catch (Throwable $e) {
   Responde::erro('Erro interno no backend.', 500, [
