@@ -1,18 +1,12 @@
 <?php
 /**
  * api/mappers.php
- * -----------------------------------------------------------------------------
- * Mapeadores: GLPI (formato bruto) -> formato padronizado do painel.
  */
 
 declare(strict_types=1);
 
 final class Mappers
 {
-  // ──────────────────────────────────────────────────────────────────────────
-  // COMPUTADORES
-  // ──────────────────────────────────────────────────────────────────────────
-
   public static function computer(array $c): array
   {
     return [
@@ -21,13 +15,9 @@ final class Mappers
       'serial'     => $c['serial']       ?? '',
       'patrimonio' => $c['otherserial']  ?? '',
       'status'     => self::status($c),
-      'reparticao' => $c['locations_id'] ?? null,
+      'reparticao' => is_string($c['locations_id'] ?? null) ? $c['locations_id'] : null,
     ];
   }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // CHROMEBOOKS GEEKIEES
-  // ──────────────────────────────────────────────────────────────────────────
 
   public static function chromebookGeekiee(array $c): array
   {
@@ -41,39 +31,6 @@ final class Mappers
     ];
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // CHROMEBOOKS APOIO — retorna { "Carrinho 1": [...], ... }
-  // ──────────────────────────────────────────────────────────────────────────
-
-  public static function chromebooksApoioAgrupados(array $items): array
-  {
-    $carrinhos = [
-      'Carrinho 1' => [],
-      'Carrinho 2' => [],
-      'Carrinho 3' => [],
-      'Carrinho 4' => [],
-      'Apoio Geral' => [],
-    ];
-
-    foreach ($items as $c) {
-      $grupo = is_string($c['groups_id'] ?? null) ? $c['groups_id'] : '';
-
-      if (str_contains($grupo, 'Carrinho 1')) {
-        $carrinhos['Carrinho 1'][] = self::chromebookApoio($c);
-      } elseif (str_contains($grupo, 'Carrinho 2')) {
-        $carrinhos['Carrinho 2'][] = self::chromebookApoio($c);
-      } elseif (str_contains($grupo, 'Carrinho 3')) {
-        $carrinhos['Carrinho 3'][] = self::chromebookApoio($c);
-      } elseif (str_contains($grupo, 'Carrinho 4')) {
-        $carrinhos['Carrinho 4'][] = self::chromebookApoio($c);
-      } else {
-        $carrinhos['Apoio Geral'][] = self::chromebookApoio($c);
-      }
-    }
-
-    return array_filter($carrinhos, fn($v) => count($v) > 0);
-  }
-
   public static function chromebookApoio(array $c): array
   {
     return [
@@ -85,9 +42,40 @@ final class Mappers
     ];
   }
 
-  // ──────────────────────────────────────────────────────────────────────────
-  // PROJETORES
-  // ──────────────────────────────────────────────────────────────────────────
+  /**
+   * Agrupa Chromebooks de Apoio por carrinho.
+   * Tenta usar groups_id (se vier como string do GLPI).
+   * Se não tiver grupo, coloca tudo em "Apoio Geral".
+   */
+  public static function chromebooksApoioAgrupados(array $items): array
+  {
+    $carrinhos = [
+      'Carrinho 1'  => [],
+      'Carrinho 2'  => [],
+      'Carrinho 3'  => [],
+      'Carrinho 4'  => [],
+      'Apoio Geral' => [],
+    ];
+
+    foreach ($items as $c) {
+      $grupo = is_string($c['groups_id'] ?? null) ? $c['groups_id'] : '';
+
+      if (str_contains($grupo, 'Carrinho 1') || str_contains($grupo, 'carrinho 1')) {
+        $carrinhos['Carrinho 1'][] = self::chromebookApoio($c);
+      } elseif (str_contains($grupo, 'Carrinho 2') || str_contains($grupo, 'carrinho 2')) {
+        $carrinhos['Carrinho 2'][] = self::chromebookApoio($c);
+      } elseif (str_contains($grupo, 'Carrinho 3') || str_contains($grupo, 'carrinho 3')) {
+        $carrinhos['Carrinho 3'][] = self::chromebookApoio($c);
+      } elseif (str_contains($grupo, 'Carrinho 4') || str_contains($grupo, 'carrinho 4')) {
+        $carrinhos['Carrinho 4'][] = self::chromebookApoio($c);
+      } else {
+        $carrinhos['Apoio Geral'][] = self::chromebookApoio($c);
+      }
+    }
+
+    // Remove carrinhos vazios
+    return array_filter($carrinhos, fn($v) => count($v) > 0);
+  }
 
   public static function projetor(array $c): array
   {
@@ -97,15 +85,9 @@ final class Mappers
       'serial'     => $c['serial']       ?? '',
       'patrimonio' => $c['otherserial']  ?? '',
       'status'     => self::status($c),
-      'reparticao' => $c['locations_id'] ?? null,
-      'modelo'     => is_string($c['computermodels_id'] ?? null)
-                        ? $c['computermodels_id'] : null,
+      'reparticao' => is_string($c['locations_id'] ?? null) ? $c['locations_id'] : null,
     ];
   }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // IMPRESSORAS
-  // ──────────────────────────────────────────────────────────────────────────
 
   public static function impressora(array $p): array
   {
@@ -115,16 +97,9 @@ final class Mappers
       'serial'     => $p['serial']       ?? '',
       'patrimonio' => $p['otherserial']  ?? '',
       'status'     => self::status($p),
-      'reparticao' => $p['locations_id'] ?? null,
-      'modelo'     => is_string($p['printermodels_id'] ?? null)
-                        ? $p['printermodels_id'] : null,
+      'reparticao' => is_string($p['locations_id'] ?? null) ? $p['locations_id'] : null,
     ];
   }
-
-  // ──────────────────────────────────────────────────────────────────────────
-  // HELPER — mapeia states_id -> status legível
-  // Ajuste os IDs conforme Configuração > Listas suspensas > Estados no GLPI
-  // ──────────────────────────────────────────────────────────────────────────
 
   private static function status(array $item): string
   {

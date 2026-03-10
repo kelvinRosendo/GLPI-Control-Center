@@ -1,16 +1,6 @@
 <?php
 /**
  * api/endpoints.php
- * -----------------------------------------------------------------------------
- * Roteador + endpoints do backend.
- *
- * Rotas disponíveis:
- *   GET /api/health
- *   GET /api/assets/computers
- *   GET /api/assets/chromebooks-geekiees
- *   GET /api/assets/chromebooks-apoio
- *   GET /api/assets/projetores
- *   GET /api/assets/impressoras
  */
 
 declare(strict_types=1);
@@ -22,7 +12,6 @@ Env::load(__DIR__ . '/../.env');
 
 $config = require __DIR__ . '/../config/config.php';
 
-// CORS
 header('Access-Control-Allow-Origin: ' . ($config['cors']['origin'] ?? '*'));
 header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -34,6 +23,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 require_once __DIR__ . '/client.php';
 require_once __DIR__ . '/mappers.php';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers de classificação por nome
+// Ajuste os prefixos conforme os nomes reais do seu GLPI
+// ─────────────────────────────────────────────────────────────────────────────
+
+function isComputador(string $nome): bool {
+  return preg_match('/^(CS-|CO-)/i', $nome) === 1;
+}
+
+function isGeekiee(string $nome): bool {
+  // Chrome G-001 até Chrome G-NNN
+  return preg_match('/^Chrome\s+G-/i', $nome) === 1;
+}
+
+function isApoio(string $nome): bool {
+  // Chrome-NNN (sem o "G-"), Chrome-EDU, Chrome-M, etc.
+  return preg_match('/^Chrome-/i', $nome) === 1;
+}
+
+function isProjetor(string $nome): bool {
+  return preg_match('/^Projetor/i', $nome) === 1;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -49,23 +61,31 @@ final class Endpoints
     ]);
   }
 
+  // ── busca todos os computadores de uma vez (reutilizável) ────────────────
+
+  private static function getAllComputers(array $config): array
+  {
+    $glpi    = new GlpiClient($config['glpi'] ?? []);
+    $session = $glpi->initSession();
+    $raw     = $glpi->get('/Computer?range=0-999&expand_dropdowns=true', $session);
+    $glpi->killSession($session);
+    return array_filter($raw, 'is_array');
+  }
+
   // ── computers ───────────────────────────────────────────────────────────
 
   public static function computers(array $config): void
   {
-    $glpi    = new GlpiClient($config['glpi'] ?? []);
-    $session = $glpi->initSession();
-
-    $raw   = $glpi->get('/Computer?range=0-500&expand_dropdowns=true', $session);
+    $all   = self::getAllComputers($config);
     $items = [];
 
-    foreach ($raw as $c) {
-      if (is_array($c)) {
+    foreach ($all as $c) {
+      $nome = trim($c['name'] ?? '');
+      if (isComputador($nome)) {
         $items[] = Mappers::computer($c);
       }
     }
 
-    $glpi->killSession($session);
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
 
@@ -73,55 +93,35 @@ final class Endpoints
 
   public static function chromebooksGeekiees(array $config): void
   {
-    $glpi    = new GlpiClient($config['glpi'] ?? []);
-    $session = $glpi->initSession();
-
-    $raw = $glpi->get(
-      '/Computer?range=0-500&expand_dropdowns=true&searchText[computertypes_id]=Chromebook',
-      $session
-    );
-
+    $all   = self::getAllComputers($config);
     $items = [];
-    foreach ($raw as $c) {
-      if (!is_array($c)) continue;
 
-      $grupo = is_string($c['groups_id'] ?? null) ? $c['groups_id'] : '';
-
-      if (str_contains($grupo, 'Geekie') && !str_contains($grupo, 'Apoio')) {
+    foreach ($all as $c) {
+      $nome = trim($c['name'] ?? '');
+      if (isGeekiee($nome)) {
         $items[] = Mappers::chromebookGeekiee($c);
       }
     }
 
-    $glpi->killSession($session);
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
 
-  // ── chromebooks apoio (carrinhos) ────────────────────────────────────────
+  // ── chromebooks apoio ────────────────────────────────────────────────────
 
   public static function chromebooksApoio(array $config): void
   {
-    $glpi    = new GlpiClient($config['glpi'] ?? []);
-    $session = $glpi->initSession();
-
-    $raw = $glpi->get(
-      '/Computer?range=0-500&expand_dropdowns=true&searchText[computertypes_id]=Chromebook',
-      $session
-    );
-
+    $all        = self::getAllComputers($config);
     $apoioItems = [];
-    foreach ($raw as $c) {
-      if (!is_array($c)) continue;
 
-      $grupo = is_string($c['groups_id'] ?? null) ? $c['groups_id'] : '';
-
-      if (str_contains($grupo, 'Carrinho') || str_contains($grupo, 'Apoio')) {
+    foreach ($all as $c) {
+      $nome = trim($c['name'] ?? '');
+      if (isApoio($nome)) {
         $apoioItems[] = $c;
       }
     }
 
     $carrinhos = Mappers::chromebooksApoioAgrupados($apoioItems);
 
-    $glpi->killSession($session);
     Responde::ok([
       'data'  => $carrinhos,
       'count' => count($apoioItems),
@@ -132,22 +132,16 @@ final class Endpoints
 
   public static function projetores(array $config): void
   {
-    $glpi    = new GlpiClient($config['glpi'] ?? []);
-    $session = $glpi->initSession();
-
-    $raw = $glpi->get(
-      '/Computer?range=0-200&expand_dropdowns=true&searchText[computertypes_id]=PROJETOR',
-      $session
-    );
-
+    $all   = self::getAllComputers($config);
     $items = [];
-    foreach ($raw as $c) {
-      if (is_array($c)) {
+
+    foreach ($all as $c) {
+      $nome = trim($c['name'] ?? '');
+      if (isProjetor($nome)) {
         $items[] = Mappers::projetor($c);
       }
     }
 
-    $glpi->killSession($session);
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
 
@@ -157,8 +151,8 @@ final class Endpoints
   {
     $glpi    = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-
-    $raw = $glpi->get('/Printer?range=0-200&expand_dropdowns=true', $session);
+    $raw     = $glpi->get('/Printer?range=0-200&expand_dropdowns=true', $session);
+    $glpi->killSession($session);
 
     $items = [];
     foreach ($raw as $p) {
@@ -167,7 +161,6 @@ final class Endpoints
       }
     }
 
-    $glpi->killSession($session);
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
 }
