@@ -1,0 +1,130 @@
+<svg width="760" height="420" viewBox="0 0 760 420" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace, 'Cascadia Code', 'Segoe UI Mono', monospace">
+
+  <!-- Background -->
+  <rect width="760" height="420" rx="12" fill="#0d1117"/>
+
+  <!-- Title -->
+  <text x="380" y="38" text-anchor="middle" font-size="15" font-weight="600" fill="#e6edf3" font-family="ui-sans-serif, system-ui, sans-serif">GLPI Control Center — Arquitetura</text>
+
+  <!-- ── BROWSER BOX ── -->
+  <rect x="30" y="60" width="160" height="80" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="30" y="60" width="160" height="22" rx="8" fill="#21262d"/>
+  <rect x="30" y="70" width="160" height="12" fill="#21262d"/>
+  <circle cx="46" cy="71" r="4" fill="#ff5f57"/>
+  <circle cx="60" cy="71" r="4" fill="#febc2e"/>
+  <circle cx="74" cy="71" r="4" fill="#28c840"/>
+  <text x="110" y="105" text-anchor="middle" font-size="11" fill="#8b949e">Navegador</text>
+  <text x="110" y="122" text-anchor="middle" font-size="12" font-weight="600" fill="#58a6ff">Frontend JS</text>
+
+  <!-- ── BACKEND BOX ── -->
+  <rect x="290" y="55" width="180" height="295" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="290" y="55" width="180" height="26" rx="8" fill="#21262d"/>
+  <rect x="290" y="69" width="180" height="12" fill="#21262d"/>
+  <text x="380" y="74" text-anchor="middle" font-size="11" fill="#8b949e">Backend PHP :8080</text>
+
+  <!-- .env pill -->
+  <rect x="310" y="92" width="140" height="22" rx="4" fill="#1f2937" stroke="#374151" stroke-width="1"/>
+  <text x="380" y="107" text-anchor="middle" font-size="10" fill="#f59e0b">🔐  .env  (tokens seguros)</text>
+
+  <!-- steps inside backend -->
+  <rect x="308" y="122" width="144" height="20" rx="3" fill="#0d2137" stroke="#1d4ed8" stroke-width="0.5"/>
+  <text x="380" y="135" text-anchor="middle" font-size="10" fill="#93c5fd">initSession()</text>
+
+  <rect x="308" y="148" width="144" height="20" rx="3" fill="#0d2137" stroke="#1d4ed8" stroke-width="0.5"/>
+  <text x="380" y="161" text-anchor="middle" font-size="10" fill="#93c5fd">GET /Computer · /Printer</text>
+
+  <rect x="308" y="174" width="144" height="20" rx="3" fill="#0d2137" stroke="#1d4ed8" stroke-width="0.5"/>
+  <text x="380" y="187" text-anchor="middle" font-size="10" fill="#93c5fd">mappers.php</text>
+
+  <rect x="308" y="200" width="144" height="20" rx="3" fill="#0d2137" stroke="#1d4ed8" stroke-width="0.5"/>
+  <text x="380" y="213" text-anchor="middle" font-size="10" fill="#93c5fd">killSession()</text>
+
+  <!-- divider -->
+  <line x1="308" y1="228" x2="462" y2="228" stroke="#30363d" stroke-width="0.8" stroke-dasharray="3 3"/>
+
+  <rect x="308" y="235" width="144" height="20" rx="3" fill="#0d1f1a" stroke="#166534" stroke-width="0.5"/>
+  <text x="380" y="248" text-anchor="middle" font-size="10" fill="#86efac">POST /Ticket</text>
+
+  <rect x="308" y="261" width="144" height="20" rx="3" fill="#0d1f1a" stroke="#166534" stroke-width="0.5"/>
+  <text x="380" y="274" text-anchor="middle" font-size="10" fill="#86efac">POST /Item_Ticket</text>
+
+  <!-- divider 2 -->
+  <line x1="308" y1="289" x2="462" y2="289" stroke="#30363d" stroke-width="0.8" stroke-dasharray="3 3"/>
+
+  <rect x="308" y="296" width="144" height="20" rx="3" fill="#1a0d2e" stroke="#7e22ce" stroke-width="0.5"/>
+  <text x="380" y="309" text-anchor="middle" font-size="10" fill="#d8b4fe">Gemini API proxy</text>
+
+  <rect x="308" y="322" width="144" height="20" rx="3" fill="#1a0d2e" stroke="#7e22ce" stroke-width="0.5"/>
+  <text x="380" y="335" text-anchor="middle" font-size="10" fill="#d8b4fe">systemInstruction (horários)</text>
+
+  <!-- ── GLPI BOX ── -->
+  <rect x="570" y="100" width="160" height="100" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="570" y="100" width="160" height="22" rx="8" fill="#21262d"/>
+  <rect x="570" y="110" width="160" height="12" fill="#21262d"/>
+  <text x="650" y="115" text-anchor="middle" font-size="11" fill="#8b949e">GLPI REST API</text>
+  <text x="650" y="148" text-anchor="middle" font-size="22">🗄️</text>
+  <text x="650" y="178" text-anchor="middle" font-size="11" fill="#6e7681">192.168.1.20/glpi</text>
+
+  <!-- ── GEMINI BOX ── -->
+  <rect x="570" y="230" width="160" height="100" rx="8" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="570" y="230" width="160" height="22" rx="8" fill="#21262d"/>
+  <rect x="570" y="240" width="160" height="12" fill="#21262d"/>
+  <text x="650" y="245" text-anchor="middle" font-size="11" fill="#8b949e">Gemini API</text>
+  <text x="650" y="278" text-anchor="middle" font-size="22">🤖</text>
+  <text x="650" y="308" text-anchor="middle" font-size="11" fill="#6e7681">gemini-1.5-flash</text>
+
+  <!-- ── ARROWS ── -->
+
+  <!-- Browser → Backend (request) -->
+  <line x1="190" y1="100" x2="288" y2="100" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+  <text x="239" y="94" text-anchor="middle" font-size="9" fill="#58a6ff">fetch</text>
+
+  <!-- Backend → Browser (response) -->
+  <line x1="288" y1="115" x2="190" y2="115" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arr-green)"/>
+  <text x="239" y="130" text-anchor="middle" font-size="9" fill="#3fb950">JSON</text>
+
+  <!-- Backend → GLPI -->
+  <line x1="470" y1="155" x2="568" y2="155" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+  <text x="519" y="149" text-anchor="middle" font-size="9" fill="#58a6ff">cURL</text>
+
+  <!-- GLPI → Backend -->
+  <line x1="568" y1="170" x2="470" y2="170" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arr-green)"/>
+  <text x="519" y="185" text-anchor="middle" font-size="9" fill="#3fb950">JSON</text>
+
+  <!-- Backend → Gemini -->
+  <line x1="470" y1="310" x2="568" y2="285" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arr-purple)"/>
+  <text x="519" y="290" text-anchor="middle" font-size="9" fill="#a855f7">cURL</text>
+
+  <!-- Gemini → Backend -->
+  <line x1="568" y1="300" x2="470" y2="325" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arr-purple)"/>
+  <text x="519" y="322" text-anchor="middle" font-size="9" fill="#a855f7">resposta IA</text>
+
+  <!-- ── LEGEND ── -->
+  <rect x="30" y="355" width="700" height="50" rx="6" fill="#161b22" stroke="#30363d" stroke-width="0.8"/>
+  <line x1="55" y1="380" x2="85" y2="380" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr-blue)"/>
+  <text x="92" y="384" font-size="10" fill="#8b949e">requisição</text>
+  <line x1="165" y1="380" x2="195" y2="380" stroke="#3fb950" stroke-width="1.5" marker-end="url(#arr-green)"/>
+  <text x="202" y="384" font-size="10" fill="#8b949e">resposta</text>
+  <line x1="275" y1="380" x2="305" y2="380" stroke="#a855f7" stroke-width="1.5" marker-end="url(#arr-purple)"/>
+  <text x="312" y="384" font-size="10" fill="#8b949e">IA</text>
+  <rect x="360" y="373" width="10" height="10" rx="2" fill="#0d2137" stroke="#1d4ed8" stroke-width="0.5"/>
+  <text x="376" y="384" font-size="10" fill="#8b949e">ativos GLPI</text>
+  <rect x="450" y="373" width="10" height="10" rx="2" fill="#0d1f1a" stroke="#166534" stroke-width="0.5"/>
+  <text x="466" y="384" font-size="10" fill="#8b949e">chamados</text>
+  <rect x="540" y="373" width="10" height="10" rx="2" fill="#1a0d2e" stroke="#7e22ce" stroke-width="0.5"/>
+  <text x="556" y="384" font-size="10" fill="#8b949e">assistente IA</text>
+
+  <!-- ── ARROW MARKERS ── -->
+  <defs>
+    <marker id="arr-blue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#58a6ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arr-green" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#3fb950" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arr-purple" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M2 1L8 5L2 9" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+</svg>
