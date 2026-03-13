@@ -2,7 +2,7 @@
 
 > Painel moderno de gestão de ativos de TI integrado à API REST do GLPI — rápido, visual e seguro.
 
-![Status](https://img.shields.io/badge/status-v0.2%20em%20andamento-blue?style=flat-square)
+![Status](https://img.shields.io/badge/status-v0.2%20conclu%C3%ADdo-brightgreen?style=flat-square)
 ![PHP](https://img.shields.io/badge/PHP-8.x-777BB4?style=flat-square&logo=php&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
 ![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
@@ -175,7 +175,7 @@ Acesse o painel em: **http://localhost:3000**
 
 ---
 
-## Estado Atual — v0.2
+## Estado Atual — v0.2 ✅
 
 Resultado dos testes com dados reais do ambiente de produção:
 
@@ -192,13 +192,13 @@ Todos os endpoints estão operacionais. O painel exibe dados reais do GLPI com f
 
 ## Roadmap
 
-### v0.2 — Em andamento
+### v0.2 — Concluído ✅
 - [x] Backend PHP proxy funcional
 - [x] Endpoints para Computadores e Chromebooks Geekiees
 - [x] Endpoint para Chromebooks Apoio com agrupamento por carrinho
 - [x] Endpoints para Projetores e Impressoras
 - [x] Links diretos para cada ativo no GLPI
-- [ ] Filtros de busca e status com dados reais em todas as abas
+- [x] Filtros de busca e status com dados reais em todas as abas
 
 ### v1.0 — Consolidação
 - [ ] Controle de permissões integrado ao backend
