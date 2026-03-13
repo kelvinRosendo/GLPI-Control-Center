@@ -1,12 +1,20 @@
-# GLPI Control Center
+<div align="center">
 
-> Painel moderno de gestão de ativos de TI integrado à API REST do GLPI — rápido, visual e seguro.
+# 🖥️ GLPI Control Center
 
-![Status](https://img.shields.io/badge/status-v0.2%20em%20andamento-blue?style=flat-square)
-![PHP](https://img.shields.io/badge/PHP-8.x-777BB4?style=flat-square&logo=php&logoColor=white)
-![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
-![Gemini](https://img.shields.io/badge/Gemini%20API-gratuita-4285F4?style=flat-square&logo=google&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+### Painel moderno de gestão de ativos de TI integrado à API REST do GLPI
+
+*Rápido · Visual · Seguro*
+
+<br/>
+
+![Status](https://img.shields.io/badge/status-v0.2%20em%20andamento-2563eb?style=for-the-badge)
+![PHP](https://img.shields.io/badge/PHP-8.x-777BB4?style=for-the-badge&logo=php&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
+![Gemini](https://img.shields.io/badge/Gemini_API-gratuita-4285F4?style=for-the-badge&logo=google&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)
+
+</div>
 
 ---
 
@@ -34,34 +42,25 @@ O **GLPI Control Center** é um painel frontend dedicado que consome a API REST 
 
 ## Arquitetura
 
-O projeto é deliberadamente dividido em duas camadas. Os tokens do GLPI e a chave da Gemini API **nunca chegam ao navegador** — ficam exclusivamente no servidor PHP.
+Os tokens do GLPI e a chave da Gemini API **nunca chegam ao navegador** — ficam exclusivamente no servidor PHP.
 
-```
-Navegador
-    │
-    ▼
-Frontend (JS)  ──fetch──▶  Backend PHP (porta 8080)
-                                    │
-                              lê .env (tokens)
-                                    │
-                    ┌───────────────┼───────────────┐
-                    │               │               │
-             initSession()    GEMINI_API_KEY   (futuro: outros)
-                    │               │
-              GET /Computer    POST /Gemini
-              POST /Ticket          │
-              POST /Item_Ticket     │
-                    │               │
-              killSession()         │
-                    │               │
-                    └───────────────┘
-                            │
-                     ◀── JSON limpo ──
-```
+![Arquitetura do GLPI Control Center](docs/architecture.svg)
 
 ---
 
 ## Funcionalidades
+
+<div align="center">
+
+![Ativos](https://img.shields.io/badge/🏠_Home-cards_por_categoria-1e3a5f?style=for-the-badge)
+![Abas](https://img.shields.io/badge/📂_Abas-5_tipos_de_ativo-1e3a5f?style=for-the-badge)
+![Busca](https://img.shields.io/badge/🔍_Busca-nome_·_serial_·_patrimônio-1e3a5f?style=for-the-badge)
+![Chat](https://img.shields.io/badge/🤖_Assistente_IA-Gemini_gratuito-4c1d95?style=for-the-badge)
+![Chamados](https://img.shields.io/badge/🎫_Chamados-nativo_no_GLPI-14532d?style=for-the-badge)
+
+</div>
+
+<br/>
 
 ### 🏠 Painel Home
 - Cards com totais por categoria (Computadores, Chromebooks, Projetores, Impressoras)
@@ -80,18 +79,18 @@ Frontend (JS)  ──fetch──▶  Backend PHP (porta 8080)
 - Botão **Abrir no GLPI** — redireciona diretamente para o ativo
 
 ### 🤖 Assistente IA (Gemini API)
-- Chat integrado diretamente no painel — sem redirecionar para nenhuma plataforma externa
+- Chat integrado no painel — sem redirecionar para nenhuma plataforma externa
 - Consulta de horários de utilização dos carrinhos de Chromebooks por sala e turno
 - Contexto fixo: documento de horários inserido como `systemInstruction` no backend
 - Chave da API protegida no servidor — nunca exposta ao browser
-- Tier gratuito: 15 req/min, 1M tokens/dia — suficiente para uso escolar
+- Tier gratuito: 15 req/min · 1 M tokens/dia — suficiente para uso escolar
 
-### 🎫 Sistema de Chamados (em implementação)
-- Botão **Abrir chamado** em cada card de ativo — abre modal com o ativo já pré-vinculado
+### 🎫 Sistema de Chamados
+- Botão **Abrir chamado** em cada card de ativo — modal com o ativo já pré-vinculado
 - Formulário nativo: título, descrição, prioridade e categoria
-- Ao salvar, o backend cria o ticket via `POST /Ticket` e o vincula via `POST /Item_Ticket`
+- O backend cria o ticket via `POST /Ticket` e o vincula via `POST /Item_Ticket`
 - O chamado aparece instantaneamente no GLPI, associado ao equipamento correto
-- Aba **Chamados** com lista geral de todos os tickets, filtráveis por status
+- Aba **Chamados** com lista geral de todos os tickets filtráveis por status
 
 ---
 
@@ -102,7 +101,7 @@ GLPI-Control-Center/
 ├── Backend/
 │   ├── .env                  ← tokens (nunca sobe pro Git)
 │   ├── config/
-│   │   └── config.php        ← lê o .env, expõe as configs
+│   │   └── config.php
 │   └── api/
 │       ├── endpoints.php     ← roteador da API
 │       ├── client.php        ← cliente cURL → GLPI
@@ -110,8 +109,8 @@ GLPI-Control-Center/
 │       ├── chat.php          ← proxy Gemini API
 │       ├── tickets.php       ← criação e consulta de chamados
 │       └── utils/
-│           ├── env.php       ← loader do .env
-│           └── responde.php  ← respostas JSON padronizadas
+│           ├── env.php
+│           └── responde.php
 │
 └── Frontend/
     ├── index.html
@@ -131,6 +130,14 @@ GLPI-Control-Center/
 
 ## Endpoints da API Backend
 
+<div align="center">
+
+![GLPI](https://img.shields.io/badge/GLPI-ativos-1d4ed8?style=flat-square)
+![Chat](https://img.shields.io/badge/Gemini-chat-7e22ce?style=flat-square)
+![Tickets](https://img.shields.io/badge/GLPI-chamados-166534?style=flat-square)
+
+</div>
+
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | `GET` | `/api/health` | Verifica se o backend está no ar |
@@ -144,13 +151,10 @@ GLPI-Control-Center/
 | `GET` | `/api/tickets/asset/{id}` | Chamados de um ativo específico |
 | `POST` | `/api/tickets` | Cria chamado e vincula ao ativo automaticamente |
 
-### Formato de resposta
+### Formato de resposta padrão
 
 ```json
-// Sucesso
-{ "ok": true, "data": [...], "count": 201 }
-
-// Erro
+{ "ok": true,  "data": [...], "count": 201 }
 { "ok": false, "error": "mensagem", "meta": {} }
 ```
 
@@ -159,27 +163,28 @@ GLPI-Control-Center/
 ```json
 // POST /api/tickets
 {
-  "titulo": "Monitor sem sinal",
+  "titulo":    "Monitor sem sinal",
   "descricao": "Monitor do CS-021 não liga após reinicialização.",
   "prioridade": 3,
-  "categoria": 1,
-  "glpiId": 21,
-  "itemtype": "Computer"
+  "categoria":  1,
+  "glpiId":    21,
+  "itemtype":  "Computer"
 }
 
 // Resposta
 { "ok": true, "data": { "ticketId": 42 } }
 ```
 
-> O backend executa duas chamadas internas em sequência: `POST /Ticket` para criar o ticket e `POST /Item_Ticket` para vincular ao ativo. Sem a segunda chamada, o chamado existe no GLPI mas sem vínculo com nenhum equipamento.
+> **Importante:** a criação de um chamado vinculado exige duas chamadas internas em sequência — `POST /Ticket` para criar e obter o `ticketId`, e `POST /Item_Ticket` para vincular ao ativo. Sem a segunda, o chamado existe no GLPI mas sem vínculo com nenhum equipamento.
 
 ---
 
 ## Como Rodar Localmente (Windows)
 
 ### 1. Pré-requisitos
-- PHP 8.x com extensão `curl` ativada
-- Visual C++ Redistributable 2022 (x64)
+
+![PHP](https://img.shields.io/badge/PHP-8.x_+_ext_curl-777BB4?style=flat-square&logo=php&logoColor=white)
+![VC++](https://img.shields.io/badge/Visual_C++-Redistributable_2022-0078d4?style=flat-square&logo=visualstudio&logoColor=white)
 
 ### 2. Configurar o `.env`
 
@@ -195,13 +200,11 @@ APP_ENV=dev
 GLPI_SSL_INSECURE=1
 ```
 
-> **Atenção:** nunca versione o `.env`. Ele está no `.gitignore`.
+> ⚠️ **Nunca versione o `.env`.** Ele está no `.gitignore`.
 >
-> A `GEMINI_API_KEY` é gratuita e pode ser obtida em [aistudio.google.com](https://aistudio.google.com).
+> A `GEMINI_API_KEY` é gratuita — obtenha em [aistudio.google.com](https://aistudio.google.com).
 
 ### 3. Subir os servidores
-
-Abra dois terminais separados:
 
 ```bash
 # Terminal 1 — Backend (API Proxy)
@@ -221,7 +224,7 @@ Acesse o painel em: **http://localhost:3000**
 
 1. `Configuração > Geral > API` → habilitar **API REST**
 2. Criar um cliente da API → copiar o **App Token** para o `.env`
-3. Acessar preferências do usuário administrador → gerar e copiar o **User Token** para o `.env`
+3. Preferências do usuário administrador → seção API → gerar o **User Token** → copiar para o `.env`
 
 ---
 
@@ -242,12 +245,14 @@ Todos os endpoints de ativos estão operacionais. O painel exibe dados reais do 
 
 ## Roadmap
 
+![v0.1](https://img.shields.io/badge/v0.1-MVP_Visual_%E2%9C%85-22c55e?style=for-the-badge)
+![v0.2](https://img.shields.io/badge/v0.2-Integração_Real_🔄-2563eb?style=for-the-badge)
+![v1.0](https://img.shields.io/badge/v1.0-Consolidação_⏳-6b7280?style=for-the-badge)
+
 ### v0.1 — MVP Visual ✅
 - [x] Estrutura base do projeto
-- [x] Sistema de abas
-- [x] Layout de carrinhos com rolagem
-- [x] Filtros e busca
-- [x] Dados mockados
+- [x] Sistema de abas e layout de carrinhos
+- [x] Filtros, busca e dados mockados
 
 ### v0.2 — Integração Real ✅ + Features em andamento
 - [x] Backend PHP proxy funcional
@@ -255,8 +260,8 @@ Todos os endpoints de ativos estão operacionais. O painel exibe dados reais do 
 - [x] Chromebooks Apoio agrupados por carrinho
 - [x] Links diretos para cada ativo no GLPI
 - [x] Filtros de busca e status com dados reais
-- [ ] Chat assistente com Gemini API (horários dos carrinhos)
-- [ ] Sistema nativo de chamados (abrir + consultar tickets)
+- [ ] Chat assistente com Gemini API
+- [ ] Sistema nativo de chamados
 
 ### v1.0 — Consolidação
 - [ ] Controle de permissões integrado ao backend
@@ -267,6 +272,8 @@ Todos os endpoints de ativos estão operacionais. O painel exibe dados reais do 
 
 ---
 
-## Licença
+<div align="center">
 
 MIT © [Kelvin_iDev](https://github.com/kelvin-idev)
+
+</div>
