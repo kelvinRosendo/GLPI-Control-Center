@@ -64,6 +64,11 @@ window.GlpiClient = {
     return json.data ?? [];
   },
 
+  async fetchTickets() {
+    const json = await this._fetch('/api/tickets');
+    return json.data ?? [];
+  },
+
   /**
    * Carrega TODOS os dados em paralelo e popula window.DATA.
    * Chamado pelo App na inicialização após o login.
@@ -92,11 +97,11 @@ window.GlpiClient = {
 
     // Popula DATA com o que conseguiu buscar (fallback para array vazio)
     window.DATA = {
-      computadores:        comp      ?? [],
-      chromebooksGeekiees: geekiees  ?? [],
-      chromebooksApoio:    apoio     ?? {},
-      projetores:          proj      ?? [],
-      impressoras:         impr      ?? [],
+      computadores: comp ?? [],
+      chromebooksGeekiees: geekiees ?? [],
+      chromebooksApoio: apoio ?? {},
+      projetores: proj ?? [],
+      impressoras: impr ?? [],
     };
 
     return errors.length === 0

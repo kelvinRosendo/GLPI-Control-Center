@@ -113,6 +113,68 @@ public function killSession(string $sessionToken): void
    * Faz GET em qualquer endpoint do GLPI.
    * Ex: $path = "/Computer?range=0-200&expand_dropdowns=true"
    */
+
+  /**
+   * Faz POST em qualquer endpoint do GLPI.
+   * Ex: $path = "/Ticket", $payload = ['input' => [...]]
+   */
+  public function post(string $path, string $sessionToken, array $payload): array
+  {
+    $this->validate();
+
+    $url  = $this->baseUrl . $path;
+    $body = json_encode($payload);
+
+    $ch = curl_init($url);
+
+    curl_setopt_array($ch, [
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_CUSTOMREQUEST  => 'POST',
+      CURLOPT_HTTPHEADER     => [
+        'Session-Token: '  . $sessionToken,
+        'App-Token: '      . $this->appToken,
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen($body),
+      ],
+      CURLOPT_POSTFIELDS => $body,
+      CURLOPT_TIMEOUT    => 25,
+    ]);
+
+    if ($this->sslInsecure) {
+      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    } else {
+      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    }
+
+    $raw  = curl_exec($ch);
+    $err  = curl_error($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($raw === false) {
+      Responde::erro('Erro de rede ao chamar GLPI (POST).', 502, ['curl_error' => $err]);
+    }
+
+    $json = json_decode((string) $raw, true);
+
+    if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
+      Responde::erro('Resposta do GLPI não veio em JSON (POST).', 502, [
+        'http_code'   => $code,
+        'raw_preview' => substr((string) $raw, 0, 350),
+      ]);
+    }
+
+    if ($code >= 400) {
+      Responde::erro('GLPI retornou erro HTTP (POST).', 502, [
+        'http_code' => $code,
+        'response'  => $json,
+      ]);
+    }
+
+    return $json;
+  }
   public function get(string $path, string $sessionToken): array
   {
     $this->validate();

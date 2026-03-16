@@ -13,8 +13,8 @@ window.UI = {
    * Filtra um array de ativos conforme o estado global (busca + status).
    */
   _filtrar(lista) {
-    const q      = (window.STATE.search  || '').toLowerCase().trim();
-    const status = (window.STATE.status  || 'todos');
+    const q = (window.STATE.search || '').toLowerCase().trim();
+    const status = (window.STATE.status || 'todos');
 
     return lista.filter(a => {
       // Filtro de status
@@ -30,6 +30,64 @@ window.UI = {
     });
   },
 
+  // ── Chamados ──────────────────────────────────────────────────────────────
+
+  renderTickets(lista = []) {
+    if (!lista.length) {
+      return `<p class="empty-msg">Nenhum chamado encontrado.</p>`;
+    }
+
+    const statusLabel = {
+      aberto:       'Aberto',
+      em_andamento: 'Em andamento',
+      pendente:     'Pendente',
+      resolvido:    'Resolvido',
+      fechado:      'Fechado',
+    };
+    const statusClass = {
+      aberto:       'status-emprestado',
+      em_andamento: 'status-manutencao',
+      pendente:     'status-manutencao',
+      resolvido:    'status-ativo',
+      fechado:      'status-ativo',
+    };
+    const prioLabel = {
+      muito_baixa: '▽ Muito baixa',
+      baixa:       '▽ Baixa',
+      media:       '— Média',
+      alta:        '△ Alta',
+      muito_alta:  '△△ Muito alta',
+    };
+
+    const base  = (window.CONFIG?.glpiUrl || '').replace(/\/$/, '');
+    const cards = lista.map(t => `
+      <div class="asset-card">
+        <div class="asset-card-header">
+          <span class="asset-name">#${t.id} — ${t.titulo}</span>
+          <span class="asset-status ${statusClass[t.status] || 'status-ativo'}">
+            ${statusLabel[t.status] || t.status}
+          </span>
+        </div>
+        <div class="asset-card-body">
+          ${t.ativo     ? `<span class="asset-meta">Ativo: <strong>${t.ativo}</strong></span>`         : ''}
+          ${t.categoria ? `<span class="asset-meta">Categoria: <strong>${t.categoria}</strong></span>` : ''}
+          <span class="asset-meta">Prioridade: <strong>${prioLabel[t.prioridade] || t.prioridade}</strong></span>
+          ${t.abertura  ? `<span class="asset-meta">Aberto em: <strong>${t.abertura.substring(0, 10)}</strong></span>` : ''}
+        </div>
+        <div class="asset-card-footer">
+          <a class="btn-glpi" href="${base}/front/ticket.form.php?id=${t.id}" target="_blank" rel="noopener">
+            Abrir no GLPI ↗
+          </a>
+        </div>
+      </div>
+    `).join('');
+
+    return `
+      <p class="result-count">${lista.length} chamado${lista.length !== 1 ? 's' : ''}</p>
+      <div class="asset-grid">${cards}</div>
+    `;
+  },
+
   // ── Barra de busca global ──────────────────────────────────────────────────
 
   /**
@@ -37,7 +95,7 @@ window.UI = {
    * É injetada nas abas que têm lista de ativos.
    */
   renderSearchBar(placeholder = 'Buscar por nome, serial ou patrimônio…') {
-    const q      = window.STATE.search || '';
+    const q = window.STATE.search || '';
     const status = window.STATE.status || 'todos';
 
     return `
@@ -57,7 +115,7 @@ window.UI = {
         </div>
 
         <div class="search-filters">
-          ${['todos','ativo','manutencao','emprestado'].map(s => `
+          ${['todos', 'ativo', 'manutencao', 'emprestado'].map(s => `
             <button
               class="filter-btn ${status === s ? 'active' : ''}"
               data-status="${s}"
@@ -88,7 +146,7 @@ window.UI = {
     const statusLabel = { ativo: 'Ativo', manutencao: 'Manutenção', emprestado: 'Emprestado' }[a.status] || 'Ativo';
 
     // Monta o link para o GLPI
-    const base     = (window.CONFIG?.glpiUrl || '').replace(/\/$/, '');
+    const base = (window.CONFIG?.glpiUrl || '').replace(/\/$/, '');
     const formPath = tipo === 'impressora' ? 'front/printer.form.php' : 'front/computer.form.php';
     const glpiLink = a.glpiId ? `${base}/${formPath}?id=${a.glpiId}` : '#';
 
@@ -105,12 +163,16 @@ window.UI = {
           <span class="asset-meta">Serial: <strong>${a.serial || '—'}</strong></span>
           ${a.patrimonio ? `<span class="asset-meta">Patrimônio: <strong>${a.patrimonio}</strong></span>` : ''}
           ${a.reparticao ? `<span class="asset-meta">Local: <strong>${a.reparticao}</strong></span>` : ''}
-          ${a.grupo       ? `<span class="asset-meta">Grupo: <strong>${a.grupo}</strong></span>` : ''}
+          ${a.grupo ? `<span class="asset-meta">Grupo: <strong>${a.grupo}</strong></span>` : ''}
         </div>
-        <div class="asset-card-footer">
+       <div class="asset-card-footer">
           <a class="btn-glpi" href="${glpiLink}" target="_blank" rel="noopener">
             Abrir no GLPI ↗
           </a>
+          ${a.glpiId ? `
+          <button class="btn-ticket" onclick='window.Tickets.openModal(${JSON.stringify(a).replace(/'/g, "&#39;")})'>
+            🎫 Abrir chamado
+          </button>` : ''}
         </div>
       </div>
     `;
@@ -130,12 +192,13 @@ window.UI = {
 
   renderTabs() {
     const tabs = [
-      { id: 'home',      label: '🏠 Home' },
+      { id: 'home', label: '🏠 Home' },
       { id: 'computadores', label: '🖥️ Computadores' },
-      { id: 'geekiees',  label: '📗 Geekiees' },
-      { id: 'apoio',     label: '📘 Apoio' },
-      { id: 'projetores',label: '📽️ Projetores' },
-      { id: 'impressoras',label: '🖨️ Impressoras' },
+      { id: 'geekiees', label: '📗 Geekiees' },
+      { id: 'apoio', label: '📘 Apoio' },
+      { id: 'projetores', label: '📽️ Projetores' },
+      { id: 'impressoras', label: '🖨️ Impressoras' },
+      { id: 'chamados',    label: '🎫 Chamados' },
     ];
 
     return tabs.map(t => `
@@ -151,17 +214,17 @@ window.UI = {
   renderHome() {
     const D = window.DATA;
     const cats = [
-      { label: 'Computadores',   icon: '🖥️', lista: D.computadores },
-      { label: 'Geekiees',       icon: '📗', lista: D.chromebooksGeekiees },
-      { label: 'Apoio',          icon: '📘', lista: Object.values(D.chromebooksApoio || {}).flat() },
-      { label: 'Projetores',     icon: '📽️', lista: D.projetores },
-      { label: 'Impressoras',    icon: '🖨️', lista: D.impressoras },
+      { label: 'Computadores', icon: '🖥️', lista: D.computadores },
+      { label: 'Geekiees', icon: '📗', lista: D.chromebooksGeekiees },
+      { label: 'Apoio', icon: '📘', lista: Object.values(D.chromebooksApoio || {}).flat() },
+      { label: 'Projetores', icon: '📽️', lista: D.projetores },
+      { label: 'Impressoras', icon: '🖨️', lista: D.impressoras },
     ];
 
     const cards = cats.map(cat => {
-      const total      = cat.lista.length;
-      const ativos     = cat.lista.filter(a => a.status === 'ativo').length;
-      const manut      = cat.lista.filter(a => a.status === 'manutencao').length;
+      const total = cat.lista.length;
+      const ativos = cat.lista.filter(a => a.status === 'ativo').length;
+      const manut = cat.lista.filter(a => a.status === 'manutencao').length;
       const emprestado = cat.lista.filter(a => a.status === 'emprestado').length;
 
       return `
@@ -172,7 +235,7 @@ window.UI = {
             <p class="home-card-total">${total} ativos</p>
             <div class="home-card-pills">
               <span class="pill-ativo">${ativos} ativos</span>
-              ${manut      ? `<span class="pill-manut">${manut} manutenção</span>` : ''}
+              ${manut ? `<span class="pill-manut">${manut} manutenção</span>` : ''}
               ${emprestado ? `<span class="pill-emp">${emprestado} emprestado${emprestado > 1 ? 's' : ''}</span>` : ''}
             </div>
           </div>
@@ -207,8 +270,8 @@ window.UI = {
 
   renderCarrinhos() {
     const carrinhos = window.DATA.chromebooksApoio || {};
-    const q         = (window.STATE.search || '').toLowerCase().trim();
-    const status    = window.STATE.status || 'todos';
+    const q = (window.STATE.search || '').toLowerCase().trim();
+    const status = window.STATE.status || 'todos';
 
     // Total real (antes do filtro) — soma todos os carrinhos
     const totalGeral = Object.values(carrinhos).flat().length;

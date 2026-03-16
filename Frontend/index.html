@@ -56,6 +56,49 @@
 <script src="javascript/auth.js"></script>
 <script src="javascript/glpi.client.js"></script>
 <script src="javascript/ui.render.js"></script>
+<script src="javascript/tickets.js"></script>
 <script src="javascript/app.js"></script>
+<!-- MODAL DE CHAMADO -->
+<div id="ticket-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:var(--bg2);border:1px solid var(--b);border-radius:12px;padding:32px;width:100%;max-width:480px;">
+    <h3 style="margin:0 0 4px;font-size:16px;">🎫 Abrir chamado</h3>
+    <p id="modal-asset-name" style="margin:0 0 20px;font-size:13px;opacity:0.6;"></p>
+
+    <input id="ticket-title"
+      placeholder="Título do chamado"
+      style="width:100%;margin-bottom:12px;padding:10px;border-radius:8px;border:1px solid var(--b);background:var(--bg);color:var(--p);font-size:14px;box-sizing:border-box;" />
+
+    <textarea id="ticket-desc"
+      placeholder="Descrição detalhada"
+      style="width:100%;height:100px;margin-bottom:12px;padding:10px;border-radius:8px;border:1px solid var(--b);background:var(--bg);color:var(--p);font-size:14px;box-sizing:border-box;resize:vertical;"></textarea>
+
+    <select id="ticket-priority"
+      style="width:100%;margin-bottom:12px;padding:10px;border-radius:8px;border:1px solid var(--b);background:var(--bg);color:var(--p);font-size:14px;box-sizing:border-box;">
+      <option value="1">▽ Muito baixa</option>
+      <option value="2">▽ Baixa</option>
+      <option value="3" selected>— Média</option>
+      <option value="4">△ Alta</option>
+      <option value="5">△△ Muito alta</option>
+    </select>
+
+    <input id="ticket-category"
+      type="number"
+      placeholder="ID da categoria (opcional)"
+      style="width:100%;margin-bottom:20px;padding:10px;border-radius:8px;border:1px solid var(--b);background:var(--bg);color:var(--p);font-size:14px;box-sizing:border-box;" />
+
+    <div style="display:flex;gap:12px;">
+      <button onclick="window.Tickets.send()"
+        style="flex:1;padding:10px;border-radius:8px;border:none;background:#4ade80;color:#000;font-size:14px;font-weight:600;cursor:pointer;">
+        Salvar no GLPI
+      </button>
+      <button onclick="window.Tickets.closeModal()"
+        style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--b);background:transparent;color:var(--p);font-size:14px;cursor:pointer;">
+        Cancelar
+      </button>
+    </div>
+
+    <p id="ticket-feedback" style="margin:12px 0 0;font-size:13px;text-align:center;display:none;"></p>
+  </div>
+</div>
 </body>
 </html>

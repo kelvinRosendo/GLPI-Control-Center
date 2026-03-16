@@ -24,7 +24,7 @@ window.App = {
 
     // Mostra app, esconde login
     document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').style.display          = 'flex';
+    document.getElementById('app').style.display = 'flex';
 
     // Atualiza status de conexão
     this._setGlpiStatus('carregando');
@@ -51,7 +51,7 @@ window.App = {
 
   showLoginScreen() {
     document.getElementById('login-screen').style.display = 'flex';
-    document.getElementById('app').style.display          = 'none';
+    document.getElementById('app').style.display = 'none';
     window.State.resetFilters();
     window.State.setTab('home');
   },
@@ -67,8 +67,8 @@ window.App = {
   // ── Renderização ───────────────────────────────────────────────────────────
 
   render() {
-    const tabsEl   = document.getElementById('tabs-bar');
-    const mainEl   = document.getElementById('main-content');
+    const tabsEl = document.getElementById('tabs-bar');
+    const mainEl = document.getElementById('main-content');
     if (!tabsEl || !mainEl) return;
 
     // Renderiza abas
@@ -108,7 +108,14 @@ window.App = {
           'impressora'
         );
         break;
+      case 'chamados':
+        mainEl.innerHTML = '<p class="result-count">Carregando chamados…</p>';
+        window.GlpiClient.fetchTickets().then(lista => {
+          mainEl.innerHTML = window.UI.renderTickets(lista);
+        });
+        break;
     }
+
 
     // Anexa eventos após injetar HTML
     this._bindTabEvents();
@@ -126,7 +133,7 @@ window.App = {
   // ── Eventos de busca ───────────────────────────────────────────────────────
 
   _bindSearchEvents() {
-    const input   = document.getElementById('global-search');
+    const input = document.getElementById('global-search');
     const clearBtn = document.getElementById('search-clear');
 
     if (input) {
@@ -195,6 +202,12 @@ window.App = {
           'impressora'
         );
         break;
+      case 'chamados':
+        mainEl.innerHTML = '<p class="result-count">Carregando chamados…</p>';
+        window.GlpiClient.fetchTickets().then(lista => {
+          mainEl.innerHTML = window.UI.renderTickets(lista);
+        });
+        break;
     }
 
     this._bindSearchEvents();
@@ -207,10 +220,10 @@ window.App = {
     if (!el) return;
 
     const map = {
-      carregando: { icon: '⟳', texto: 'Conectando ao GLPI…',    cor: '#888'   },
-      conectado:  { icon: '●', texto: 'Conectado ao GLPI',       cor: '#4ade80' },
-      parcial:    { icon: '◐', texto: 'Parcialmente conectado',   cor: '#facc15' },
-      offline:    { icon: '●', texto: 'Modo offline (mock)',       cor: '#f87171' },
+      carregando: { icon: '⟳', texto: 'Conectando ao GLPI…', cor: '#888' },
+      conectado: { icon: '●', texto: 'Conectado ao GLPI', cor: '#4ade80' },
+      parcial: { icon: '◐', texto: 'Parcialmente conectado', cor: '#facc15' },
+      offline: { icon: '●', texto: 'Modo offline (mock)', cor: '#f87171' },
     };
 
     const s = map[estado] || map.offline;

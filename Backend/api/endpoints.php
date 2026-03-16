@@ -1,4 +1,4 @@
-<?php
+config<?php
 /**
  * api/endpoints.php
  */
@@ -12,7 +12,7 @@ Env::load(__DIR__ . '/../.env');
 
 $config = require __DIR__ . '/../config/config.php';
 
-header('Access-Control-Allow-Origin: ' . ($config['cors']['origin'] ?? '*'));
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
@@ -23,6 +23,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 
 require_once __DIR__ . '/client.php';
 require_once __DIR__ . '/mappers.php';
+require_once __DIR__ . '/tickets.php';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers de classificação por nome
@@ -182,8 +183,19 @@ try {
     '/api/assets/chromebooks-apoio'    => Endpoints::chromebooksApoio($config),
     '/api/assets/projetores'           => Endpoints::projetores($config),
     '/api/assets/impressoras'          => Endpoints::impressoras($config),
-    default                            => Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]),
+        '/api/tickets'                     => match($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+                                            'POST'  => TicketsEndpoint::create($config),
+                                            default => TicketsEndpoint::listAll($config),
+                                          },
+default => (function() use ($path, $config) {
+               if (preg_match('#^/api/tickets/asset/(\d+)$#', $path, $m)) {
+                 TicketsEndpoint::listByAsset($config, (int) $m[1]);
+                 return;
+               }
+               Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]);
+             })(),
   };
+  
 } catch (Throwable $e) {
   Responde::erro('Erro interno no backend.', 500, [
     'message' => $e->getMessage(),
