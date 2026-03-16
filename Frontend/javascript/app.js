@@ -109,6 +109,7 @@ window.App = {
         );
         break;
       case 'chamados':
+        if (mainEl.innerHTML.includes('asset-card') || mainEl.innerHTML.includes('Carregando')) return;
         mainEl.innerHTML = '<p class="result-count">Carregando chamados…</p>';
         window.GlpiClient.fetchTickets().then(lista => {
           mainEl.innerHTML = window.UI.renderTickets(lista);
@@ -203,6 +204,7 @@ window.App = {
         );
         break;
       case 'chamados':
+        if (mainEl.innerHTML.includes('asset-card') || mainEl.innerHTML.includes('Carregando')) return;
         mainEl.innerHTML = '<p class="result-count">Carregando chamados…</p>';
         window.GlpiClient.fetchTickets().then(lista => {
           mainEl.innerHTML = window.UI.renderTickets(lista);

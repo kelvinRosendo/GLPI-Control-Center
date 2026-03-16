@@ -12,8 +12,8 @@ Env::load(__DIR__ . '/../.env');
 
 $config = require __DIR__ . '/../config/config.php';
 
+header('Access-Control-Allow-Origin: ' . ($config['cors']['origin'] ?? '*'));
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
@@ -195,7 +195,7 @@ default => (function() use ($path, $config) {
                Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]);
              })(),
   };
-  
+
 } catch (Throwable $e) {
   Responde::erro('Erro interno no backend.', 500, [
     'message' => $e->getMessage(),
