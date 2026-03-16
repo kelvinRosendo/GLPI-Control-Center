@@ -325,3 +325,88 @@
 .pill-ativo  { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(34,197,94,0.12);  color: #4ade80; }
 .pill-manut  { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(245,158,11,0.12); color: #fbbf24; }
 .pill-emp    { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(59,130,246,0.12); color: #60a5fa; }
+
+/* ── Modal de chamado ────────────────────────────────────────────────── */
+.btn-ticket {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--green, #4ade80);
+  background: rgba(0, 200, 150, 0.08);
+  border: 1px solid rgba(0, 200, 150, 0.25);
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.15s;
+  width: 100%;
+}
+
+.btn-ticket:hover {
+  background: rgba(0, 200, 150, 0.18);
+  border-color: rgba(0, 200, 150, 0.5);
+  color: #fff;
+}
+
+/* ── Modal overlay ───────────────────────────────────────────────────── */
+#ticket-modal {
+  backdrop-filter: blur(4px);
+}
+
+#ticket-modal > div {
+  background: var(--surface, #1e1e2e);
+  border: 1px solid var(--border, #2a2a3e);
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 460px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.2s ease;
+}
+
+#ticket-modal h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text, #e2e2f0);
+  margin: 0 0 4px;
+}
+
+#ticket-modal #modal-asset-name {
+  font-size: 13px;
+  color: var(--accent, #818cf8);
+  margin: 0 0 20px;
+}
+
+#ticket-modal input,
+#ticket-modal textarea,
+#ticket-modal select {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg, #0f1117);
+  border: 1.5px solid var(--border, #2a2a3e);
+  border-radius: 8px;
+  color: var(--text, #e2e2f0);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+  margin-bottom: 12px;
+}
+
+#ticket-modal input:focus,
+#ticket-modal textarea:focus,
+#ticket-modal select:focus {
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+
+#ticket-modal textarea {
+  height: 90px;
+  resize: vertical;
+}
+
+#ticket-modal select option {
+  background: var(--surface, #1e1e2e);
+}

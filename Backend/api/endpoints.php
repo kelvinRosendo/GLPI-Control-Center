@@ -1,4 +1,4 @@
-config<?php
+<?php
 /**
  * api/endpoints.php
  */
