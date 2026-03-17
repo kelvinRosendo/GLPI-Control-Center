@@ -261,7 +261,7 @@ Todos os endpoints de ativos estão operacionais. O painel exibe dados reais do 
 - [x] Links diretos para cada ativo no GLPI
 - [x] Filtros de busca e status com dados reais
 - [ ] Chat assistente com Gemini API
-- [ ] Sistema nativo de chamados
+- [x] Sistema nativo de chamados
 
 ### v1.0 — Consolidação
 - [ ] Controle de permissões integrado ao backend
