@@ -114,6 +114,21 @@ window.App = {
           mainEl.innerHTML = window.UI.renderTickets(lista);
         });
         break;
+
+      case 'assistente':
+        mainEl.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px;">
+            <span style="font-size:48px;">🤖</span>
+            <h3 style="margin:0;font-size:18px;">Assistente de Horários</h3>
+            <p style="margin:0;color:var(--text2,#9299b8);font-size:14px;text-align:center;">
+              Tire dúvidas sobre os horários dos carrinhos de Chromebooks.
+            </p>
+            <button onclick="window.Chat.openPanel()"
+              style="padding:12px 28px;background:var(--accent,#4f7ef7);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">
+              Abrir chat
+            </button>
+          </div>`;
+        break;
     }
 
 
@@ -202,7 +217,7 @@ window.App = {
           'impressora'
         );
         break;
-   case 'chamados':
+      case 'chamados':
         mainEl.innerHTML = '<p class="result-count">Carregando chamados…</p>';
         window.GlpiClient.fetchTickets().then(lista => {
           mainEl.innerHTML = window.UI.renderTickets(lista);

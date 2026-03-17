@@ -199,6 +199,7 @@ window.UI = {
       { id: 'projetores', label: '📽️ Projetores' },
       { id: 'impressoras', label: '🖨️ Impressoras' },
       { id: 'chamados',    label: '🎫 Chamados' },
+      { id: 'assistente', label: '🤖 Assistente' },
     ];
 
     return tabs.map(t => `
