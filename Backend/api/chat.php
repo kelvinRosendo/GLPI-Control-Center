@@ -118,49 +118,47 @@ CONTEXTO;
 
         // ── Payload para a Gemini API ──────────────────────────────────────────
         $payload = [
-            'contents' => [
-                [
-                    'role' => 'user',
-                    'parts' => [['text' => $contexto . "\n\nPergunta do usuário: " . $mensagem]],
-                ],
-            ],
-            'generationConfig' => [
-                'temperature' => 0.3,
-                'maxOutputTokens' => 512,
-            ],
+          'model'    => 'gpt-4o-mini',
+          'messages' => [
+            ['role' => 'system', 'content' => $contexto],
+            ['role' => 'user',   'content' => $mensagem],
+          ],
+          'temperature' => 0.3,
+          'max_tokens'  => 512,
         ];
 
-        // ── Chamada cURL para a Gemini API ─────────────────────────────────────
-       $url = 'https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=' . $apiKey;
+        $url = 'https://api.openai.com/v1/chat/completions';
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-            CURLOPT_TIMEOUT => 30,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
+          CURLOPT_RETURNTRANSFER => true,
+          CURLOPT_POST           => true,
+          CURLOPT_POSTFIELDS     => json_encode($payload),
+          CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . getenv('OPENAI_API_KEY'),
+          ],
+          CURLOPT_TIMEOUT        => 30,
+          CURLOPT_SSL_VERIFYPEER => false,
+          CURLOPT_SSL_VERIFYHOST => 0,
         ]);
 
-        $raw = curl_exec($ch);
-        $err = curl_error($ch);
+        $raw  = curl_exec($ch);
+        $err  = curl_error($ch);
         $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         if ($raw === false) {
-            Responde::erro('Erro de rede ao chamar Gemini API.', 502, ['curl_error' => $err]);
+          Responde::erro('Erro de rede ao chamar OpenAI.', 502, ['curl_error' => $err]);
         }
 
         $json = json_decode($raw, true);
 
         if ($code >= 400) {
-            Responde::erro('Gemini API retornou erro.', 502, ['http_code' => $code, 'response' => $json]);
+          Responde::erro('OpenAI retornou erro.', 502, ['http_code' => $code, 'response' => $json]);
         }
 
-        // Extrai o texto da resposta
-        $resposta = $json['candidates'][0]['content']['parts'][0]['text'] ?? 'Não foi possível obter uma resposta.';
+        $resposta = $json['choices'][0]['message']['content'] ?? 'Não foi possível obter uma resposta.';
 
         Responde::ok(['data' => ['resposta' => $resposta]]);
     }
