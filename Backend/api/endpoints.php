@@ -24,27 +24,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 require_once __DIR__ . '/client.php';
 require_once __DIR__ . '/mappers.php';
 require_once __DIR__ . '/tickets.php';
+require_once __DIR__ . '/chat.php';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers de classificação por nome
 // Ajuste os prefixos conforme os nomes reais do seu GLPI
 // ─────────────────────────────────────────────────────────────────────────────
 
-function isComputador(string $nome): bool {
+function isComputador(string $nome): bool
+{
   return preg_match('/^(CS-|CO-)/i', $nome) === 1;
 }
 
-function isGeekiee(string $nome): bool {
+function isGeekiee(string $nome): bool
+{
   // Chrome G-001 até Chrome G-NNN
   return preg_match('/^Chrome\s+G-/i', $nome) === 1;
 }
 
-function isApoio(string $nome): bool {
+function isApoio(string $nome): bool
+{
   // Chrome-NNN (sem o "G-"), Chrome-EDU, Chrome-M, etc.
   return preg_match('/^Chrome-/i', $nome) === 1;
 }
 
-function isProjetor(string $nome): bool {
+function isProjetor(string $nome): bool
+{
   return preg_match('/^Projetor/i', $nome) === 1;
 }
 
@@ -58,7 +63,7 @@ final class Endpoints
   {
     Responde::ok([
       'service' => 'glpi-control-center-backend',
-      'time'    => date('c'),
+      'time' => date('c'),
     ]);
   }
 
@@ -66,9 +71,9 @@ final class Endpoints
 
   private static function getAllComputers(array $config): array
   {
-    $glpi    = new GlpiClient($config['glpi'] ?? []);
+    $glpi = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    $raw     = $glpi->get('/Computer?range=0-999&expand_dropdowns=true', $session);
+    $raw = $glpi->get('/Computer?range=0-999&expand_dropdowns=true', $session);
     $glpi->killSession($session);
     return array_filter($raw, 'is_array');
   }
@@ -77,7 +82,7 @@ final class Endpoints
 
   public static function computers(array $config): void
   {
-    $all   = self::getAllComputers($config);
+    $all = self::getAllComputers($config);
     $items = [];
 
     foreach ($all as $c) {
@@ -94,7 +99,7 @@ final class Endpoints
 
   public static function chromebooksGeekiees(array $config): void
   {
-    $all   = self::getAllComputers($config);
+    $all = self::getAllComputers($config);
     $items = [];
 
     foreach ($all as $c) {
@@ -111,7 +116,7 @@ final class Endpoints
 
   public static function chromebooksApoio(array $config): void
   {
-    $all        = self::getAllComputers($config);
+    $all = self::getAllComputers($config);
     $apoioItems = [];
 
     foreach ($all as $c) {
@@ -124,7 +129,7 @@ final class Endpoints
     $carrinhos = Mappers::chromebooksApoioAgrupados($apoioItems);
 
     Responde::ok([
-      'data'  => $carrinhos,
+      'data' => $carrinhos,
       'count' => count($apoioItems),
     ]);
   }
@@ -133,7 +138,7 @@ final class Endpoints
 
   public static function projetores(array $config): void
   {
-    $all   = self::getAllComputers($config);
+    $all = self::getAllComputers($config);
     $items = [];
 
     foreach ($all as $c) {
@@ -150,9 +155,9 @@ final class Endpoints
 
   public static function impressoras(array $config): void
   {
-    $glpi    = new GlpiClient($config['glpi'] ?? []);
+    $glpi = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    $raw     = $glpi->get('/Printer?range=0-200&expand_dropdowns=true', $session);
+    $raw = $glpi->get('/Printer?range=0-200&expand_dropdowns=true', $session);
     $glpi->killSession($session);
 
     $items = [];
@@ -170,30 +175,33 @@ final class Endpoints
 // ROTEAMENTO
 // ─────────────────────────────────────────────────────────────────────────────
 
-$uri        = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
-$uri        = rtrim($uri, '/');
+$uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+$uri = rtrim($uri, '/');
 $normalized = str_replace('/api/endpoints.php', '', $uri);
-$path       = $normalized ?: '/';
+$path = $normalized ?: '/';
 
 try {
   match ($path) {
-    '/api/health'                      => Endpoints::health(),
-    '/api/assets/computers'            => Endpoints::computers($config),
+    '/api/health' => Endpoints::health(),
+    '/api/assets/computers' => Endpoints::computers($config),
     '/api/assets/chromebooks-geekiees' => Endpoints::chromebooksGeekiees($config),
-    '/api/assets/chromebooks-apoio'    => Endpoints::chromebooksApoio($config),
-    '/api/assets/projetores'           => Endpoints::projetores($config),
-    '/api/assets/impressoras'          => Endpoints::impressoras($config),
-        '/api/tickets'                     => match($_SERVER['REQUEST_METHOD'] ?? 'GET') {
-                                            'POST'  => TicketsEndpoint::create($config),
-                                            default => TicketsEndpoint::listAll($config),
-                                          },
-default => (function() use ($path, $config) {
-               if (preg_match('#^/api/tickets/asset/(\d+)$#', $path, $m)) {
-                 TicketsEndpoint::listByAsset($config, (int) $m[1]);
-                 return;
-               }
-               Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]);
-             })(),
+    '/api/assets/chromebooks-apoio' => Endpoints::chromebooksApoio($config),
+    '/api/assets/projetores' => Endpoints::projetores($config),
+    '/api/assets/impressoras' => Endpoints::impressoras($config),
+    '/api/chat' => ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+                 ? ChatEndpoint::handle()
+                 : Responde::erro('Método não permitido.', 405),
+    '/api/tickets' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+        'POST' => TicketsEndpoint::create($config),
+        default => TicketsEndpoint::listAll($config),
+      },
+    default => (function () use ($path, $config) {
+        if (preg_match('#^/api/tickets/asset/(\d+)$#', $path, $m)) {
+          TicketsEndpoint::listByAsset($config, (int) $m[1]);
+          return;
+        }
+        Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]);
+      })(),
   };
 
 } catch (Throwable $e) {
