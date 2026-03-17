@@ -8,10 +8,10 @@
 
 <br/>
 
-![Status](https://img.shields.io/badge/status-v0.2%20em%20andamento-2563eb?style=for-the-badge)
+![Status](https://img.shields.io/badge/status-v0.2%20concluído-22c55e?style=for-the-badge)
 ![PHP](https://img.shields.io/badge/PHP-8.x-777BB4?style=for-the-badge&logo=php&logoColor=white)
 ![JavaScript](https://img.shields.io/badge/JavaScript-Vanilla-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black)
-![Gemini](https://img.shields.io/badge/Gemini_API-gratuita-4285F4?style=for-the-badge&logo=google&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-412991?style=for-the-badge&logo=openai&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-22c55e?style=for-the-badge)
 
 </div>
@@ -36,13 +36,13 @@ O **GLPI Control Center** é um painel frontend dedicado que consome a API REST 
 | Backend | PHP 8.x (API Proxy) |
 | Comunicação GLPI | API REST + cURL |
 | Autenticação | App Token + User Token (via `.env`) |
-| Assistente IA | Gemini API — `gemini-1.5-flash` (tier gratuito) |
+| Assistente IA | OpenAI API — `gpt-4o-mini` |
 
 ---
 
 ## Arquitetura
 
-Os tokens do GLPI e a chave da Gemini API **nunca chegam ao navegador** — ficam exclusivamente no servidor PHP.
+Os tokens do GLPI e a chave da OpenAI **nunca chegam ao navegador** — ficam exclusivamente no servidor PHP.
 
 ![Arquitetura do GLPI Control Center](docs/architecture.svg)
 
@@ -55,7 +55,7 @@ Os tokens do GLPI e a chave da Gemini API **nunca chegam ao navegador** — fica
 ![Ativos](https://img.shields.io/badge/🏠_Home-cards_por_categoria-1e3a5f?style=for-the-badge)
 ![Abas](https://img.shields.io/badge/📂_Abas-5_tipos_de_ativo-1e3a5f?style=for-the-badge)
 ![Busca](https://img.shields.io/badge/🔍_Busca-nome_·_serial_·_patrimônio-1e3a5f?style=for-the-badge)
-![Chat](https://img.shields.io/badge/🤖_Assistente_IA-Gemini_gratuito-4c1d95?style=for-the-badge)
+![Chat](https://img.shields.io/badge/🤖_Assistente_IA-GPT--4o--mini-412991?style=for-the-badge)
 ![Chamados](https://img.shields.io/badge/🎫_Chamados-nativo_no_GLPI-14532d?style=for-the-badge)
 
 </div>
@@ -78,12 +78,12 @@ Os tokens do GLPI e a chave da Gemini API **nunca chegam ao navegador** — fica
 - Filtro por status
 - Botão **Abrir no GLPI** — redireciona diretamente para o ativo
 
-### 🤖 Assistente IA (Gemini API)
+### 🤖 Assistente IA (OpenAI)
 - Chat integrado no painel — sem redirecionar para nenhuma plataforma externa
 - Consulta de horários de utilização dos carrinhos de Chromebooks por sala e turno
-- Contexto fixo: documento de horários inserido como `systemInstruction` no backend
+- Contexto fixo: documento de horários inserido como `system` prompt no backend
 - Chave da API protegida no servidor — nunca exposta ao browser
-- Tier gratuito: 15 req/min · 1 M tokens/dia — suficiente para uso escolar
+- Modelo `gpt-4o-mini` — rápido, preciso e econômico
 
 ### 🎫 Sistema de Chamados
 - Botão **Abrir chamado** em cada card de ativo — modal com o ativo já pré-vinculado
@@ -106,7 +106,7 @@ GLPI-Control-Center/
 │       ├── endpoints.php     ← roteador da API
 │       ├── client.php        ← cliente cURL → GLPI
 │       ├── mappers.php       ← transforma dados brutos do GLPI
-│       ├── chat.php          ← proxy Gemini API
+│       ├── chat.php          ← proxy OpenAI API
 │       ├── tickets.php       ← criação e consulta de chamados
 │       └── utils/
 │           ├── env.php
@@ -133,7 +133,7 @@ GLPI-Control-Center/
 <div align="center">
 
 ![GLPI](https://img.shields.io/badge/GLPI-ativos-1d4ed8?style=flat-square)
-![Chat](https://img.shields.io/badge/Gemini-chat-7e22ce?style=flat-square)
+![Chat](https://img.shields.io/badge/OpenAI-chat-412991?style=flat-square)
 ![Tickets](https://img.shields.io/badge/GLPI-chamados-166534?style=flat-square)
 
 </div>
@@ -146,7 +146,7 @@ GLPI-Control-Center/
 | `GET` | `/api/assets/chromebooks-apoio` | Chromebooks Apoio agrupados por carrinho |
 | `GET` | `/api/assets/projetores` | Projetores |
 | `GET` | `/api/assets/impressoras` | Impressoras |
-| `POST` | `/api/chat` | Proxy para a Gemini API (assistente IA) |
+| `POST` | `/api/chat` | Proxy para a OpenAI API (assistente IA) |
 | `GET` | `/api/tickets` | Lista todos os chamados do GLPI |
 | `GET` | `/api/tickets/asset/{id}` | Chamados de um ativo específico |
 | `POST` | `/api/tickets` | Cria chamado e vincula ao ativo automaticamente |
@@ -194,15 +194,13 @@ Crie o arquivo `Backend/.env`:
 GLPI_URL=https://seu-glpi.interno/apirest.php
 GLPI_APP_TOKEN=seu_app_token
 GLPI_USER_TOKEN=seu_user_token
-GEMINI_API_KEY=AIzaSy...sua_chave_aqui
+OPENAI_API_KEY=sk-...sua_chave_aqui
 CORS_ORIGIN=*
 APP_ENV=dev
 GLPI_SSL_INSECURE=1
 ```
 
 > ⚠️ **Nunca versione o `.env`.** Ele está no `.gitignore`.
->
-> A `GEMINI_API_KEY` é gratuita — obtenha em [aistudio.google.com](https://aistudio.google.com).
 
 ### 3. Subir os servidores
 
@@ -228,7 +226,7 @@ Acesse o painel em: **http://localhost:3000**
 
 ---
 
-## Estado Atual — v0.2
+## Estado Atual — v0.2 ✅
 
 Resultado dos testes com dados reais (Colégio Satélite):
 
@@ -239,14 +237,14 @@ Resultado dos testes com dados reais (Colégio Satélite):
 | Chromebooks Apoio | ~30 |
 | **Total** | **201 ativos** |
 
-Todos os endpoints de ativos estão operacionais. O painel exibe dados reais do GLPI com fallback automático para dados mock quando o backend está offline.
+Todos os endpoints estão operacionais. O painel exibe dados reais do GLPI com fallback automático para dados mock quando o backend está offline.
 
 ---
 
 ## Roadmap
 
 ![v0.1](https://img.shields.io/badge/v0.1-MVP_Visual_%E2%9C%85-22c55e?style=for-the-badge)
-![v0.2](https://img.shields.io/badge/v0.2-Integração_Real_🔄-2563eb?style=for-the-badge)
+![v0.2](https://img.shields.io/badge/v0.2-Integração_Real_%E2%9C%85-22c55e?style=for-the-badge)
 ![v1.0](https://img.shields.io/badge/v1.0-Consolidação_⏳-6b7280?style=for-the-badge)
 
 ### v0.1 — MVP Visual ✅
@@ -254,13 +252,13 @@ Todos os endpoints de ativos estão operacionais. O painel exibe dados reais do 
 - [x] Sistema de abas e layout de carrinhos
 - [x] Filtros, busca e dados mockados
 
-### v0.2 — Integração Real ✅ + Features em andamento
+### v0.2 — Integração Real ✅
 - [x] Backend PHP proxy funcional
 - [x] Endpoints para todos os tipos de ativo
 - [x] Chromebooks Apoio agrupados por carrinho
 - [x] Links diretos para cada ativo no GLPI
 - [x] Filtros de busca e status com dados reais
-- [x] Chat assistente com OpenIA API
+- [x] Chat assistente com OpenAI API (gpt-4o-mini)
 - [x] Sistema nativo de chamados
 
 ### v1.0 — Consolidação
