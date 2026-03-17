@@ -26,9 +26,9 @@ final class ChatEndpoint
             Responde::erro('Campo "message" é obrigatório.', 400);
         }
 
-        $apiKey = getenv('GEMINI_API_KEY');
+        $apiKey = getenv('OPENAI_API_KEY');
         if (!$apiKey) {
-            Responde::erro('GEMINI_API_KEY não configurada.', 500);
+            Responde::erro('OPENAI_API_KEY não configurada.', 500);
         }
 
         // ── Contexto fixo (documento de horários) ─────────────────────────────
@@ -118,44 +118,44 @@ CONTEXTO;
 
         // ── Payload para a Gemini API ──────────────────────────────────────────
         $payload = [
-          'model'    => 'gpt-4o-mini',
-          'messages' => [
-            ['role' => 'system', 'content' => $contexto],
-            ['role' => 'user',   'content' => $mensagem],
-          ],
-          'temperature' => 0.3,
-          'max_tokens'  => 512,
+            'model' => 'gpt-4o-mini',
+            'messages' => [
+                ['role' => 'system', 'content' => $contexto],
+                ['role' => 'user', 'content' => $mensagem],
+            ],
+            'temperature' => 0.3,
+            'max_tokens' => 512,
         ];
 
         $url = 'https://api.openai.com/v1/chat/completions';
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
-          CURLOPT_RETURNTRANSFER => true,
-          CURLOPT_POST           => true,
-          CURLOPT_POSTFIELDS     => json_encode($payload),
-          CURLOPT_HTTPHEADER     => [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . getenv('OPENAI_API_KEY'),
-          ],
-          CURLOPT_TIMEOUT        => 30,
-          CURLOPT_SSL_VERIFYPEER => false,
-          CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . getenv('OPENAI_API_KEY'),
+            ],
+            CURLOPT_TIMEOUT => 30,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
         ]);
 
-        $raw  = curl_exec($ch);
-        $err  = curl_error($ch);
+        $raw = curl_exec($ch);
+        $err = curl_error($ch);
         $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         if ($raw === false) {
-          Responde::erro('Erro de rede ao chamar OpenAI.', 502, ['curl_error' => $err]);
+            Responde::erro('Erro de rede ao chamar OpenAI.', 502, ['curl_error' => $err]);
         }
 
         $json = json_decode($raw, true);
 
         if ($code >= 400) {
-          Responde::erro('OpenAI retornou erro.', 502, ['http_code' => $code, 'response' => $json]);
+            Responde::erro('OpenAI retornou erro.', 502, ['http_code' => $code, 'response' => $json]);
         }
 
         $resposta = $json['choices'][0]['message']['content'] ?? 'Não foi possível obter uma resposta.';
