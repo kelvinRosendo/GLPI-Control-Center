@@ -260,7 +260,7 @@ Todos os endpoints de ativos estão operacionais. O painel exibe dados reais do 
 - [x] Chromebooks Apoio agrupados por carrinho
 - [x] Links diretos para cada ativo no GLPI
 - [x] Filtros de busca e status com dados reais
-- [ ] Chat assistente com Gemini API
+- [x] Chat assistente com OpenIA API
 - [x] Sistema nativo de chamados
 
 ### v1.0 — Consolidação
