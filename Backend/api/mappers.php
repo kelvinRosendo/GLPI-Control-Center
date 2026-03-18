@@ -54,6 +54,7 @@ final class Mappers
       'Carrinho 2'  => [],
       'Carrinho 3'  => [],
       'Carrinho 4'  => [],
+      'Carrinho 5'  => [],
       'Apoio Geral' => [],
     ];
 
@@ -68,6 +69,8 @@ final class Mappers
         $carrinhos['Carrinho 3'][] = self::chromebookApoio($c);
       } elseif (str_contains($grupo, 'Carrinho 4') || str_contains($grupo, 'carrinho 4')) {
         $carrinhos['Carrinho 4'][] = self::chromebookApoio($c);
+      } elseif (str_contains($grupo, 'Carrinho 5') || str_contains($grupo, 'carrinho 5')) {
+        $carrinhos['Carrinho 5'][] = self::chromebookApoio($c);
       } else {
         $carrinhos['Apoio Geral'][] = self::chromebookApoio($c);
       }

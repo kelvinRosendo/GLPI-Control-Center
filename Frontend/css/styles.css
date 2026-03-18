@@ -66,6 +66,7 @@
    - Define fonte principal
    - Aplica tema dark e cor do texto
    - Evita scroll horizontal inesperado
+   - CORREÇÃO: Remove cursor de texto em áreas não editáveis
    ========================================================================== */
 body {
   font-family: "DM Sans", sans-serif;
@@ -73,6 +74,22 @@ body {
   color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
+  /* CORREÇÃO: Remove cursor de texto do body */
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Permitir seleção de texto apenas em elementos específicos */
+input,
+textarea,
+.asset-name,
+.asset-meta,
+.carrinho-item-name,
+.search-input {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
 }
 
 
