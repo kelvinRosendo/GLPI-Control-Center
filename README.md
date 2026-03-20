@@ -88,34 +88,40 @@ Os tokens do GLPI e a chave da OpenAI **nunca chegam ao navegador** — ficam ex
 ```
 GLPI-Control-Center/
 ├── Backend/
-│   ├── .env                  ← variáveis sensíveis (tokens, nunca sobe pro Git)
+│   ├── .env                  ← variáveis sensíveis (GLPI + OpenAI)
 │   ├── config/
-│   │   └── config.php        ← configuração central do backend (lê o .env)
+│   │   └── config.php        ← leitura e centralização das configs (.env)
 │   └── api/
-│       ├── endpoints.php     ← roteador principal da API
-│       ├── client.php        ← cliente cURL responsável pela comunicação com o GLPI
-│       ├── mappers.php       ← transforma dados brutos do GLPI em formato do frontend
-│       ├── chat.php          ← proxy da API OpenAI (assistente IA)
-│       ├── tickets.php       ← criação e listagem de chamados no GLPI
+│       ├── endpoints.php     ← roteador principal da API (todas as rotas)
+│       ├── client.php        ← cliente cURL para comunicação com o GLPI
+│       ├── mappers.php       ← transformação dos dados do GLPI → frontend
+│       ├── chat.php          ← endpoint do assistente (OpenAI)
+│       ├── tickets.php       ← criação e listagem de chamados
 │       └── utils/
 │           ├── env.php       ← loader do arquivo .env
-│           └── responde.php  ← helper para respostas JSON padronizadas
+│           └── responde.php  ← padrão de resposta JSON (ok/erro)
 │
-└── Frontend/
-    ├── index.html            ← entrada principal da aplicação
-    ├── css/
-    │   ├── styles.css        ← estilos globais
-    │   └── search.css        ← estilos específicos da busca
-    └── javascript/
-        ├── data.js           ← CONFIG (URLs, usuários) e window.DATA
-        ├── state.js          ← gerenciamento de estado global
-        ├── auth.js           ← login/logout (mock local)
-        ├── glpi_client.js    ← cliente que consome o backend PHP
-        ├── chat.js           ← módulo do assistente IA
-        ├── tickets.js        ← modal e listagem de chamados
-        ├── ui_render.js      ← renderização das telas (UI)
-        └── app.js            ← orquestrador principal da aplicação
+├── Frontend/
+│   ├── index.html            ← entrada principal da aplicação
+│   ├── css/
+│   │   ├── styles.css        ← estilos globais
+│   │   └── search.css        ← estilos da busca
+│   └── javascript/
+│       ├── data.js           ← CONFIG (backendUrl, usuários) + window.DATA
+│       ├── state.js          ← estado global da aplicação
+│       ├── auth.js           ← login mock/local
+│       ├── glpi_client.js    ← cliente que consome a API backend
+│       ├── chat.js           ← integração do chat no frontend
+│       ├── tickets.js        ← UI + lógica de chamados
+│       ├── ui_render.js      ← renderização de telas/componentes
+│       └── app.js            ← orquestrador principal (init + fluxo)
+│
+├── start-server.bat          ← script para subir backend + frontend (Windows)
+│
+└── docs/
+    └── architecture.svg      ← diagrama da arquitetura do sistema
 ```
+
 
 ---
 
