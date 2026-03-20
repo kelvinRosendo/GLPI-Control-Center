@@ -44,24 +44,35 @@ O **GLPI Control Center** é um painel frontend dedicado que consome a API REST 
 
 ## Arquitetura
 
-Os tokens do GLPI e a chave da OpenAI **nunca chegam ao navegador** — ficam exclusivamente no servidor PHP.
+O frontend consome exclusivamente o backend PHP.  
+O backend atua como proxy seguro para o GLPI e para a OpenAI, mantendo tokens protegidos no `.env`.
 
 ```text
-[ Usuário / Navegador ]
-          |
-          v
-[ Frontend (HTML + CSS + JavaScript) ]
-          |
-          v
-[ Backend PHP (API Proxy) ]
-      |               |
-      v               v
-[ GLPI REST API ]   [ OpenAI API ]
+┌───────────────────────────────┐
+│      Usuário / Navegador      │
+└──────────────┬────────────────┘
+               │
+               v
+┌───────────────────────────────┐
+│ Frontend                      │
+│ HTML + CSS + JavaScript       │
+└──────────────┬────────────────┘
+               │
+               v
+┌───────────────────────────────┐
+│ Backend PHP                   │
+│ API Proxy                     │
+└───────┬───────────────┬───────┘
+        │               │
+        v               v
+┌───────────────┐   ┌───────────────┐
+│ GLPI REST API │   │  OpenAI API   │
+└───────────────┘   └───────────────┘
 
-[ .env no servidor ]
-          |
-          v
-[ Backend PHP ]
+┌───────────────────────────────┐
+│ .env no servidor              │
+│ Tokens GLPI + chave OpenAI    │
+└───────────────────────────────┘
 ```
 
 ---
