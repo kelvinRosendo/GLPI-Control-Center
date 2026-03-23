@@ -15,7 +15,10 @@ final class Mappers
       'serial'     => $c['serial']       ?? '',
       'patrimonio' => $c['otherserial']  ?? '',
       'status'     => self::status($c),
-      'reparticao' => is_string($c['locations_id'] ?? null) ? $c['locations_id'] : null,
+      'reparticao' => self::extractName($c['locations_id'] ?? null),
+      'usuario'    => self::extractName($c['users_id'] ?? null),           // ← NOVO
+      'modelo'     => self::extractName($c['computermodels_id'] ?? null),  // ← NOVO
+      'grupo'      => self::extractName($c['groups_id'] ?? null),          // ← NOVO
     ];
   }
 
@@ -27,7 +30,9 @@ final class Mappers
       'serial'     => $c['serial']      ?? '',
       'patrimonio' => $c['otherserial'] ?? '',
       'status'     => self::status($c),
-      'grupo'      => is_string($c['groups_id'] ?? null) ? $c['groups_id'] : null,
+      'grupo'      => self::extractName($c['groups_id'] ?? null),
+      'usuario'    => self::extractName($c['users_id'] ?? null),           // ← NOVO
+      'modelo'     => self::extractName($c['computermodels_id'] ?? null),  // ← NOVO
     ];
   }
 
@@ -39,6 +44,8 @@ final class Mappers
       'serial'     => $c['serial']      ?? '',
       'patrimonio' => $c['otherserial'] ?? '',
       'status'     => self::status($c),
+      'usuario'    => self::extractName($c['users_id'] ?? null),           // ← NOVO
+      'modelo'     => self::extractName($c['computermodels_id'] ?? null),  // ← NOVO
     ];
   }
 
@@ -59,17 +66,17 @@ final class Mappers
     ];
 
     foreach ($items as $c) {
-      $grupo = is_string($c['groups_id'] ?? null) ? $c['groups_id'] : '';
+      $grupo = self::extractName($c['groups_id'] ?? null); // ← MELHORADO
 
-      if (str_contains($grupo, 'Carrinho 1') || str_contains($grupo, 'carrinho 1')) {
+      if (str_contains($grupo ?? '', 'Carrinho 1') || str_contains($grupo ?? '', 'carrinho 1')) {
         $carrinhos['Carrinho 1'][] = self::chromebookApoio($c);
-      } elseif (str_contains($grupo, 'Carrinho 2') || str_contains($grupo, 'carrinho 2')) {
+      } elseif (str_contains($grupo ?? '', 'Carrinho 2') || str_contains($grupo ?? '', 'carrinho 2')) {
         $carrinhos['Carrinho 2'][] = self::chromebookApoio($c);
-      } elseif (str_contains($grupo, 'Carrinho 3') || str_contains($grupo, 'carrinho 3')) {
+      } elseif (str_contains($grupo ?? '', 'Carrinho 3') || str_contains($grupo ?? '', 'carrinho 3')) {
         $carrinhos['Carrinho 3'][] = self::chromebookApoio($c);
-      } elseif (str_contains($grupo, 'Carrinho 4') || str_contains($grupo, 'carrinho 4')) {
+      } elseif (str_contains($grupo ?? '', 'Carrinho 4') || str_contains($grupo ?? '', 'carrinho 4')) {
         $carrinhos['Carrinho 4'][] = self::chromebookApoio($c);
-      } elseif (str_contains($grupo, 'Carrinho 5') || str_contains($grupo, 'carrinho 5')) {
+      } elseif (str_contains($grupo ?? '', 'Carrinho 5') || str_contains($grupo ?? '', 'carrinho 5')) {
         $carrinhos['Carrinho 5'][] = self::chromebookApoio($c);
       } else {
         $carrinhos['Apoio Geral'][] = self::chromebookApoio($c);
@@ -88,7 +95,9 @@ final class Mappers
       'serial'     => $c['serial']       ?? '',
       'patrimonio' => $c['otherserial']  ?? '',
       'status'     => self::status($c),
-      'reparticao' => is_string($c['locations_id'] ?? null) ? $c['locations_id'] : null,
+      'reparticao' => self::extractName($c['locations_id'] ?? null),
+      'usuario'    => self::extractName($c['users_id'] ?? null),           // ← NOVO
+      'modelo'     => self::extractName($c['computermodels_id'] ?? null),  // ← NOVO
     ];
   }
 
@@ -100,7 +109,9 @@ final class Mappers
       'serial'     => $p['serial']       ?? '',
       'patrimonio' => $p['otherserial']  ?? '',
       'status'     => self::status($p),
-      'reparticao' => is_string($p['locations_id'] ?? null) ? $p['locations_id'] : null,
+      'reparticao' => self::extractName($p['locations_id'] ?? null),
+      'usuario'    => self::extractName($p['users_id'] ?? null),           // ← NOVO
+      'modelo'     => self::extractName($p['printermodels_id'] ?? null),   // ← NOVO (impressora usa printermodels_id)
     ];
   }
 
@@ -114,5 +125,32 @@ final class Mappers
       3       => 'emprestado',
       default => 'ativo',
     };
+  }
+
+  /**
+   * Extrai o nome de um campo expandido do GLPI.
+   * 
+   * Quando expand_dropdowns=true, o GLPI retorna:
+   * - Se for string: já é o nome (ex: "João Silva")
+   * - Se for int: é o ID (não expandiu - fallback)
+   * - Se for null: não tem valor
+   * 
+   * @param mixed $value
+   * @return string|null
+   */
+  private static function extractName(mixed $value): ?string
+  {
+    // Se for string válida, retorna
+    if (is_string($value) && $value !== '' && $value !== '0') {
+      return $value;
+    }
+    
+    // Se for int positivo, mostra como ID (fallback)
+    if (is_int($value) && $value > 0) {
+      return "ID: {$value}";
+    }
+    
+    // Senão, não tem valor
+    return null;
   }
 }

@@ -132,11 +132,40 @@ final class GlpiClient
     return $json;
   }
 
+  // ========================================================================
+  // NOVO: Método get() original (mantém compatibilidade)
+  // ========================================================================
   public function get(string $path, string $sessionToken): array
   {
     $this->validate();
 
     $url = $this->baseUrl . $path;
+
+    return $this->request('GET', $url, [
+      'Session-Token' => $sessionToken,
+      'App-Token' => $this->appToken,
+    ]);
+  }
+
+  // ========================================================================
+  // NOVO: Método getWithParams() para suportar expand_dropdowns
+  // ========================================================================
+  public function getWithParams(string $path, string $sessionToken, array $params = []): array
+  {
+    $this->validate();
+
+    // Adiciona expand_dropdowns=true por padrão
+    if (!isset($params['expand_dropdowns'])) {
+      $params['expand_dropdowns'] = 'true';
+    }
+
+    // Constrói a query string
+    $queryString = http_build_query($params);
+    $url = $this->baseUrl . $path;
+    
+    if ($queryString !== '') {
+      $url .= '?' . $queryString;
+    }
 
     return $this->request('GET', $url, [
       'Session-Token' => $sessionToken,

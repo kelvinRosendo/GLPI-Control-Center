@@ -78,7 +78,13 @@ final class Endpoints
   {
     $glpi = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    $raw = $glpi->get('/Computer?range=0-999&expand_dropdowns=true', $session);
+    
+    // ✅ MUDANÇA: Usar getWithParams() para incluir expand_dropdowns
+    $raw = $glpi->getWithParams('/Computer', $session, [
+      'range' => '0-999',
+      'expand_dropdowns' => 'true',
+    ]);
+    
     $glpi->killSession($session);
     return array_filter($raw, 'is_array');
   }
@@ -162,7 +168,13 @@ final class Endpoints
   {
     $glpi = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    $raw = $glpi->get('/Printer?range=0-200&expand_dropdowns=true', $session);
+    
+    // ✅ MUDANÇA: Usar getWithParams() para incluir expand_dropdowns
+    $raw = $glpi->getWithParams('/Printer', $session, [
+      'range' => '0-200',
+      'expand_dropdowns' => 'true',
+    ]);
+    
     $glpi->killSession($session);
 
     $items = [];
