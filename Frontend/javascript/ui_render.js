@@ -153,7 +153,7 @@ window.UI = {
     // Destaca o trecho buscado no nome
     const nomeHtml = this._highlight(a.nome || '—');
 
-    return `
+return `
       <div class="asset-card">
         <div class="asset-card-header">
           <span class="asset-name">${nomeHtml}</span>
@@ -162,8 +162,10 @@ window.UI = {
         <div class="asset-card-body">
           <span class="asset-meta">Serial: <strong>${a.serial || '—'}</strong></span>
           ${a.patrimonio ? `<span class="asset-meta">Patrimônio: <strong>${a.patrimonio}</strong></span>` : ''}
-          ${a.reparticao ? `<span class="asset-meta">Local: <strong>${a.reparticao}</strong></span>` : ''}
+          ${a.usuario ? `<span class="asset-meta">👤 Usuário: <strong>${a.usuario}</strong></span>` : ''}
+          ${a.reparticao ? `<span class="asset-meta">📍 Local: <strong>${a.reparticao}</strong></span>` : ''}
           ${a.grupo ? `<span class="asset-meta">Grupo: <strong>${a.grupo}</strong></span>` : ''}
+          ${a.modelo ? `<span class="asset-meta">🖥️ Modelo: <strong>${a.modelo}</strong></span>` : ''}
         </div>
        <div class="asset-card-footer">
           <a class="btn-glpi" href="${glpiLink}" target="_blank" rel="noopener">
