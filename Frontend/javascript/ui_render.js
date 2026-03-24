@@ -141,44 +141,53 @@ window.UI = {
 
   // ── Card de ativo ──────────────────────────────────────────────────────────
 
-  _renderCard(a, tipo = 'computer') {
-    const statusClass = { ativo: 'status-ativo', manutencao: 'status-manutencao', emprestado: 'status-emprestado' }[a.status] || 'status-ativo';
-    const statusLabel = { ativo: 'Ativo', manutencao: 'Manutenção', emprestado: 'Emprestado' }[a.status] || 'Ativo';
+ _renderCard(a, tipo = 'computer') {
+  const statusClass = { ativo: 'status-ativo', manutencao: 'status-manutencao', emprestado: 'status-emprestado' }[a.status] || 'status-ativo';
+  const statusLabel = { ativo: 'Ativo', manutencao: 'Manutenção', emprestado: 'Emprestado' }[a.status] || 'Ativo';
 
-    // Monta o link para o GLPI
-    const base = (window.CONFIG?.glpiUrl || '').replace(/\/$/, '');
-    const formPath = tipo === 'impressora' ? 'front/printer.form.php' : 'front/computer.form.php';
-    const glpiLink = a.glpiId ? `${base}/${formPath}?id=${a.glpiId}` : '#';
+  const base = (window.CONFIG?.glpiUrl || '').replace(/\/$/, '');
+  const formPath = tipo === 'impressora' ? 'front/printer.form.php' : 'front/computer.form.php';
+  const glpiLink = a.glpiId ? `${base}/${formPath}?id=${a.glpiId}` : '#';
 
-    // Destaca o trecho buscado no nome
-    const nomeHtml = this._highlight(a.nome || '—');
+  const nomeHtml = this._highlight(a.nome || '—');
 
-return `
-      <div class="asset-card">
-        <div class="asset-card-header">
-          <span class="asset-name">${nomeHtml}</span>
-          <span class="asset-status ${statusClass}">${statusLabel}</span>
-        </div>
-        <div class="asset-card-body">
-          <span class="asset-meta">Serial: <strong>${a.serial || '—'}</strong></span>
-          ${a.patrimonio ? `<span class="asset-meta">Patrimônio: <strong>${a.patrimonio}</strong></span>` : ''}
-          ${a.usuario ? `<span class="asset-meta">👤 Usuário: <strong>${a.usuario}</strong></span>` : ''}
-          ${a.reparticao ? `<span class="asset-meta">📍 Local: <strong>${a.reparticao}</strong></span>` : ''}
-          ${a.grupo ? `<span class="asset-meta">Grupo: <strong>${a.grupo}</strong></span>` : ''}
-          ${a.modelo ? `<span class="asset-meta">🖥️ Modelo: <strong>${a.modelo}</strong></span>` : ''}
-        </div>
-       <div class="asset-card-footer">
-          <a class="btn-glpi" href="${glpiLink}" target="_blank" rel="noopener">
-            Abrir no GLPI ↗
-          </a>
-          ${a.glpiId ? `
-          <button class="btn-ticket" onclick='window.Tickets.openModal(${JSON.stringify(a).replace(/'/g, "&#39;")})'>
-            🎫 Abrir chamado
-          </button>` : ''}
-        </div>
+  return `
+    <div class="asset-card">
+      
+      <div class="asset-card-header">
+        <span class="asset-name">${nomeHtml}</span>
+        <span class="asset-status ${statusClass}">${statusLabel}</span>
       </div>
-    `;
-  },
+
+      <div class="asset-card-body">
+
+        <div class="asset-serial">
+          ${a.serial || '—'}
+        </div>
+
+        <div class="asset-info-group">
+          ${a.usuario ? `<div class="asset-info-line">👤 ${a.usuario}</div>` : ''}
+          ${a.reparticao ? `<div class="asset-info-line">📍 ${a.reparticao}</div>` : ''}
+          ${a.modelo ? `<div class="asset-info-line">💻 ${a.modelo}</div>` : ''}
+          ${a.grupo ? `<div class="asset-info-line subtle">🏷 ${a.grupo}</div>` : ''}
+        </div>
+
+      </div>
+
+      <div class="asset-card-footer">
+        <a class="btn-glpi" href="${glpiLink}" target="_blank" rel="noopener">
+          Abrir no GLPI ↗
+        </a>
+
+        ${a.glpiId ? `
+        <button class="btn-ticket" onclick='window.Tickets.openModal(${JSON.stringify(a).replace(/'/g, "&#39;")})'>
+          🎫 Abrir chamado
+        </button>` : ''}
+      </div>
+
+    </div>
+  `;
+},
 
   /**
    * Destaca o termo buscado dentro de um texto (case-insensitive).

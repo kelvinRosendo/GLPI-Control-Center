@@ -785,6 +785,34 @@ textarea,
   }
 }
 
+/* ===== Upgrade visual dos cards ===== */
+
+.asset-serial {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.asset-info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.asset-info-line {
+  font-size: 12px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.asset-info-line.subtle {
+  color: var(--text3);
+  font-size: 11px;
+}
 
 /* ==========================================================================
    17) Opcional: Scroll interno nos carrinhos (lista rolável)
