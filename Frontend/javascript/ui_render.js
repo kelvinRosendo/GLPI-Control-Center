@@ -141,37 +141,71 @@ window.UI = {
 
   // ── Card de ativo ──────────────────────────────────────────────────────────
 
- _renderCard(a, tipo = 'computer') {
-  const statusClass = { ativo: 'status-ativo', manutencao: 'status-manutencao', emprestado: 'status-emprestado' }[a.status] || 'status-ativo';
-  const statusLabel = { ativo: 'Ativo', manutencao: 'Manutenção', emprestado: 'Emprestado' }[a.status] || 'Ativo';
+_renderCard(a, tipo = 'computer') {
+  const statusClass = {
+    ativo: 'status-ativo',
+    manutencao: 'status-manutencao',
+    emprestado: 'status-emprestado'
+  }[a.status] || 'status-ativo';
+
+  const statusLabel = {
+    ativo: 'Ativo',
+    manutencao: 'Manutenção',
+    emprestado: 'Emprestado'
+  }[a.status] || 'Ativo';
 
   const base = (window.CONFIG?.glpiUrl || '').replace(/\/$/, '');
-  const formPath = tipo === 'impressora' ? 'front/printer.form.php' : 'front/computer.form.php';
+  const formPath = tipo === 'impressora'
+    ? 'front/printer.form.php'
+    : 'front/computer.form.php';
   const glpiLink = a.glpiId ? `${base}/${formPath}?id=${a.glpiId}` : '#';
 
   const nomeHtml = this._highlight(a.nome || '—');
 
+  const infoLines = [];
+
+  // Serial sempre em destaque
+  const serialHtml = `
+    <div class="asset-serial">
+      ${a.serial || '—'}
+    </div>
+  `;
+
+  // Patrimônio só se existir
+  if (a.patrimonio) {
+    infoLines.push(`<div class="asset-info-line subtle">🏷 ${a.patrimonio}</div>`);
+  }
+
+  // Regras por tipo
+  if (tipo === 'computer') {
+    if (a.modelo) infoLines.push(`<div class="asset-info-line">💻 ${a.modelo}</div>`);
+    if (a.reparticao) infoLines.push(`<div class="asset-info-line">📍 ${a.reparticao}</div>`);
+  } else if (tipo === 'impressora') {
+    if (a.modelo) infoLines.push(`<div class="asset-info-line">🖨️ ${a.modelo}</div>`);
+    if (a.reparticao) infoLines.push(`<div class="asset-info-line">📍 ${a.reparticao}</div>`);
+  } else if (tipo === 'projetor') {
+    if (a.reparticao) infoLines.push(`<div class="asset-info-line">📍 ${a.reparticao}</div>`);
+    if (a.modelo) infoLines.push(`<div class="asset-info-line">📽️ ${a.modelo}</div>`);
+  } else if (tipo === 'geekie' || tipo === 'apoio') {
+    if (a.modelo) infoLines.push(`<div class="asset-info-line">💻 ${a.modelo}</div>`);
+    if (a.grupo) infoLines.push(`<div class="asset-info-line subtle">🏷 ${a.grupo}</div>`);
+    if (a.reparticao) infoLines.push(`<div class="asset-info-line">📍 ${a.reparticao}</div>`);
+  } else {
+    if (a.modelo) infoLines.push(`<div class="asset-info-line">💻 ${a.modelo}</div>`);
+    if (a.reparticao) infoLines.push(`<div class="asset-info-line">📍 ${a.reparticao}</div>`);
+    if (a.grupo) infoLines.push(`<div class="asset-info-line subtle">🏷 ${a.grupo}</div>`);
+  }
+
   return `
     <div class="asset-card">
-      
       <div class="asset-card-header">
         <span class="asset-name">${nomeHtml}</span>
         <span class="asset-status ${statusClass}">${statusLabel}</span>
       </div>
 
       <div class="asset-card-body">
-
-        <div class="asset-serial">
-          ${a.serial || '—'}
-        </div>
-
-        <div class="asset-info-group">
-          ${a.usuario ? `<div class="asset-info-line">👤 ${a.usuario}</div>` : ''}
-          ${a.reparticao ? `<div class="asset-info-line">📍 ${a.reparticao}</div>` : ''}
-          ${a.modelo ? `<div class="asset-info-line">💻 ${a.modelo}</div>` : ''}
-          ${a.grupo ? `<div class="asset-info-line subtle">🏷 ${a.grupo}</div>` : ''}
-        </div>
-
+        ${serialHtml}
+        ${infoLines.length ? `<div class="asset-info-group">${infoLines.join('')}</div>` : ''}
       </div>
 
       <div class="asset-card-footer">
@@ -184,7 +218,6 @@ window.UI = {
           🎫 Abrir chamado
         </button>` : ''}
       </div>
-
     </div>
   `;
 },
