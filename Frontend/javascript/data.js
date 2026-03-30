@@ -16,7 +16,7 @@ window.CONFIG = {
 
   // URL base do backend PHP proxy
   // Em produção, troque pelo endereço real do servidor
-  backendUrl: 'http://localhost:9090',
+  backendUrl: 'http://192.168.1.20:9090',
 
   // Usuários permitidos no login local (modo mock — não depende do GLPI)
   users: {
