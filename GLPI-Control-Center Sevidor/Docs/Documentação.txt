@@ -1,2 +1,0 @@
-Docs/
-Documentação do projeto: arquitetura, decisões, prints, instruções, roadmap.
