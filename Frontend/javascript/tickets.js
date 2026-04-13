@@ -23,7 +23,6 @@ window.Tickets = {
     document.getElementById('ticket-desc').value     = '';
     document.getElementById('ticket-priority').value = '3';
     document.getElementById('ticket-category').value = '';
-    document.getElementById('ticket-requester').value = ''; // ADICIONADO AQUI TAMBÉM
 
     // Esconde feedback anterior
     const fb = document.getElementById('ticket-feedback');
@@ -38,15 +37,13 @@ window.Tickets = {
 
   closeModal() {
     document.getElementById('ticket-modal').style.display = 'none';
-    document.getElementById('ticket-requester').value = '';
     this._ativoAtual = null;
-  }, // ← VÍRGULA AQUI (não ponto e vírgula)
+  },
 
   // ── Envia o formulário ao backend ─────────────────────────────────────────
 
   async send() {
     const ativo      = this._ativoAtual;
-    const requester  = document.getElementById('ticket-requester').value.trim();
     const titulo     = document.getElementById('ticket-title').value.trim();
     const descricao  = document.getElementById('ticket-desc').value.trim();
     const prioridade = parseInt(document.getElementById('ticket-priority').value);
@@ -54,13 +51,6 @@ window.Tickets = {
     const fb         = document.getElementById('ticket-feedback');
 
     // Validação básica
-    if (!requester) {
-      fb.textContent   = '⚠️  Selecione quem está abrindo o chamado.';
-      fb.style.color   = '#facc15';
-      fb.style.display = 'block';
-      return;
-    }
-
     if (!titulo || !descricao) {
       fb.textContent   = '⚠️  Preencha o título e a descrição.';
       fb.style.color   = '#facc15';
@@ -72,16 +62,13 @@ window.Tickets = {
     fb.style.color   = 'var(--color-text-secondary, #888)';
     fb.style.display = 'block';
 
-    // Adiciona o nome do responsável na descrição
-    const descricaoCompleta = `**Aberto por:** ${requester}\n\n${descricao}`;
-
     try {
       const res  = await fetch(`${window.CONFIG.backendUrl}/api/tickets`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
           titulo,
-          descricao: descricaoCompleta,
+          descricao,
           prioridade,
           categoria,
           glpiId:   ativo.glpiId,
@@ -94,6 +81,7 @@ window.Tickets = {
       if (json.ok) {
         fb.textContent = `✅  Chamado #${json.data.ticketId} criado com sucesso!`;
         fb.style.color = '#4ade80';
+        // Fecha o modal automaticamente após 2 segundos
         setTimeout(() => this.closeModal(), 2000);
       } else {
         fb.textContent = `❌  Erro: ${json.error}`;
