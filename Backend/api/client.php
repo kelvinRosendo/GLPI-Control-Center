@@ -68,73 +68,19 @@ final class GlpiClient
     ]);
 
     curl_exec($ch);
-
-    // PHP 8.5: não usar curl_close
     $ch = null;
   }
 
   public function post(string $path, string $sessionToken, array $payload): array
   {
-    $this->validate();
-
-    $url  = $this->baseUrl . $path;
-    $body = json_encode($payload);
-
-    $ch = curl_init($url);
-
-    curl_setopt_array($ch, [
-      CURLOPT_RETURNTRANSFER => true,
-      CURLOPT_CUSTOMREQUEST  => 'POST',
-      CURLOPT_HTTPHEADER     => [
-        'Session-Token: '  . $sessionToken,
-        'App-Token: '      . $this->appToken,
-        'Content-Type: application/json',
-        'Content-Length: ' . strlen($body),
-      ],
-      CURLOPT_POSTFIELDS => $body,
-      CURLOPT_TIMEOUT    => 25,
-    ]);
-
-    if ($this->sslInsecure) {
-      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
-    } else {
-      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
-      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
-    }
-
-    $raw  = curl_exec($ch);
-    $err  = curl_error($ch);
-    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-    $ch = null;
-
-    if ($raw === false) {
-      Responde::erro('Erro de rede ao chamar GLPI (POST).', 502, ['curl_error' => $err]);
-    }
-
-    $json = json_decode((string) $raw, true);
-
-    if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
-      Responde::erro('Resposta do GLPI não veio em JSON (POST).', 502, [
-        'http_code'   => $code,
-        'raw_preview' => substr((string) $raw, 0, 350),
-      ]);
-    }
-
-    if ($code >= 400) {
-      Responde::erro('GLPI retornou erro HTTP (POST).', 502, [
-        'http_code' => $code,
-        'response'  => $json,
-      ]);
-    }
-
-    return $json;
+    return $this->requestWithJsonBody('POST', $path, $sessionToken, $payload);
   }
 
-  // ========================================================================
-  // NOVO: Método get() original (mantém compatibilidade)
-  // ========================================================================
+  public function put(string $path, string $sessionToken, array $payload): array
+  {
+    return $this->requestWithJsonBody('PUT', $path, $sessionToken, $payload);
+  }
+
   public function get(string $path, string $sessionToken): array
   {
     $this->validate();
@@ -147,22 +93,17 @@ final class GlpiClient
     ]);
   }
 
-  // ========================================================================
-  // NOVO: Método getWithParams() para suportar expand_dropdowns
-  // ========================================================================
   public function getWithParams(string $path, string $sessionToken, array $params = []): array
   {
     $this->validate();
 
-    // Adiciona expand_dropdowns=true por padrão
     if (!isset($params['expand_dropdowns'])) {
       $params['expand_dropdowns'] = 'true';
     }
 
-    // Constrói a query string
     $queryString = http_build_query($params);
     $url = $this->baseUrl . $path;
-    
+
     if ($queryString !== '') {
       $url .= '?' . $queryString;
     }
@@ -218,6 +159,65 @@ final class GlpiClient
 
     if ($code >= 400) {
       Responde::erro('GLPI retornou erro HTTP.', 502, [
+        'http_code' => $code,
+        'response'  => $json,
+      ]);
+    }
+
+    return $json;
+  }
+
+  private function requestWithJsonBody(string $method, string $path, string $sessionToken, array $payload): array
+  {
+    $this->validate();
+
+    $url = $this->baseUrl . $path;
+    $body = json_encode($payload);
+
+    $ch = curl_init($url);
+
+    curl_setopt_array($ch, [
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_CUSTOMREQUEST  => $method,
+      CURLOPT_HTTPHEADER     => [
+        'Session-Token: ' . $sessionToken,
+        'App-Token: ' . $this->appToken,
+        'Content-Type: application/json',
+        'Content-Length: ' . strlen((string) $body),
+      ],
+      CURLOPT_POSTFIELDS => $body,
+      CURLOPT_TIMEOUT    => 25,
+    ]);
+
+    if ($this->sslInsecure) {
+      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    } else {
+      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    }
+
+    $raw = curl_exec($ch);
+    $err = curl_error($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    $ch = null;
+
+    if ($raw === false) {
+      Responde::erro("Erro de rede ao chamar GLPI ({$method}).", 502, ['curl_error' => $err]);
+    }
+
+    $json = json_decode((string) $raw, true);
+
+    if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
+      Responde::erro("Resposta do GLPI não veio em JSON ({$method}).", 502, [
+        'http_code'   => $code,
+        'raw_preview' => substr((string) $raw, 0, 350),
+      ]);
+    }
+
+    if ($code >= 400) {
+      Responde::erro("GLPI retornou erro HTTP ({$method}).", 502, [
         'http_code' => $code,
         'response'  => $json,
       ]);

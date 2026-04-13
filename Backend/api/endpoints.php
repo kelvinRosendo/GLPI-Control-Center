@@ -14,11 +14,12 @@ require_once __DIR__ . '/utils/env.php';
 require_once __DIR__ . '/utils/responde.php';
 
 Env::load(__DIR__ . '/../.env');
+Env::load(__DIR__ . '/../.env.local', true);
 
 $config = require __DIR__ . '/../config/config.php';
 
 header('Access-Control-Allow-Origin: ' . ($config['cors']['origin'] ?? '*'));
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
@@ -31,11 +32,6 @@ require_once __DIR__ . '/mappers.php';
 require_once __DIR__ . '/tickets.php';
 require_once __DIR__ . '/chat.php';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers de classificação por nome
-// Ajuste os prefixos conforme os nomes reais do seu GLPI
-// ─────────────────────────────────────────────────────────────────────────────
-
 function isComputador(string $nome): bool
 {
   return preg_match('/^(CS-|CO-)/i', $nome) === 1;
@@ -43,13 +39,11 @@ function isComputador(string $nome): bool
 
 function isGeekiee(string $nome): bool
 {
-  // Chrome G-001 até Chrome G-NNN
   return preg_match('/^Chrome\s+G-/i', $nome) === 1;
 }
 
 function isApoio(string $nome): bool
 {
-  // Chrome-NNN (sem o "G-"), Chrome-EDU, Chrome-M, etc.
   return preg_match('/^Chrome-/i', $nome) === 1;
 }
 
@@ -58,38 +52,60 @@ function isProjetor(string $nome): bool
   return preg_match('/^Projetor/i', $nome) === 1;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 final class Endpoints
 {
-  // ── health ──────────────────────────────────────────────────────────────
-
   public static function health(): void
   {
     Responde::ok([
       'service' => 'glpi-control-center-backend',
       'time' => date('c'),
+      'env' => $GLOBALS['config']['app']['env'] ?? 'dev',
     ]);
   }
-
-  // ── busca todos os computadores de uma vez (reutilizável) ────────────────
 
   private static function getAllComputers(array $config): array
   {
     $glpi = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    
-    // ✅ MUDANÇA: Usar getWithParams() para incluir expand_dropdowns
     $raw = $glpi->getWithParams('/Computer', $session, [
       'range' => '0-999',
       'expand_dropdowns' => 'true',
     ]);
-    
     $glpi->killSession($session);
+
     return array_filter($raw, 'is_array');
   }
 
-  // ── computers ───────────────────────────────────────────────────────────
+  private static function getComputerById(array $config, int $id): array
+  {
+    $glpi = new GlpiClient($config['glpi'] ?? []);
+    $session = $glpi->initSession();
+    $raw = $glpi->getWithParams("/Computer/{$id}", $session, [
+      'expand_dropdowns' => 'true',
+    ]);
+    $glpi->killSession($session);
+
+    if (!is_array($raw) || !isset($raw['id'])) {
+      Responde::erro('Computador não encontrado no GLPI.', 404, ['glpiId' => $id]);
+    }
+
+    return $raw;
+  }
+
+  private static function parseJsonBody(): array
+  {
+    $raw = file_get_contents('php://input');
+    if ($raw === false || trim($raw) === '') {
+      return [];
+    }
+
+    $json = json_decode($raw, true);
+    if (!is_array($json)) {
+      Responde::erro('Corpo JSON inválido.', 400);
+    }
+
+    return $json;
+  }
 
   public static function computers(array $config): void
   {
@@ -106,7 +122,40 @@ final class Endpoints
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
 
-  // ── chromebooks geekiees ─────────────────────────────────────────────────
+  public static function computerDetails(array $config, int $id): void
+  {
+    $computer = self::getComputerById($config, $id);
+
+    Responde::ok([
+      'data' => Mappers::computerDetails($computer),
+    ]);
+  }
+
+  public static function updateComputer(array $config, int $id): void
+  {
+    $body = self::parseJsonBody();
+    $input = is_array($body['input'] ?? null) ? $body['input'] : $body;
+    $payload = Mappers::filterEditableComputerInput($input);
+
+    if ($payload === []) {
+      Responde::erro('Nenhum campo editável foi enviado para atualização.', 422);
+    }
+
+    $glpi = new GlpiClient($config['glpi'] ?? []);
+    $session = $glpi->initSession();
+    $glpi->put("/Computer/{$id}", $session, [
+      'input' => $payload,
+    ]);
+    $updated = $glpi->getWithParams("/Computer/{$id}", $session, [
+      'expand_dropdowns' => 'true',
+    ]);
+    $glpi->killSession($session);
+
+    Responde::ok([
+      'message' => 'Computador atualizado com sucesso no GLPI.',
+      'data' => Mappers::computerDetails($updated),
+    ]);
+  }
 
   public static function chromebooksGeekiees(array $config): void
   {
@@ -122,8 +171,6 @@ final class Endpoints
 
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
-
-  // ── chromebooks apoio ────────────────────────────────────────────────────
 
   public static function chromebooksApoio(array $config): void
   {
@@ -145,8 +192,6 @@ final class Endpoints
     ]);
   }
 
-  // ── projetores ───────────────────────────────────────────────────────────
-
   public static function projetores(array $config): void
   {
     $all = self::getAllComputers($config);
@@ -162,19 +207,14 @@ final class Endpoints
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
 
-  // ── impressoras ──────────────────────────────────────────────────────────
-
   public static function impressoras(array $config): void
   {
     $glpi = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    
-    // ✅ MUDANÇA: Usar getWithParams() para incluir expand_dropdowns
     $raw = $glpi->getWithParams('/Printer', $session, [
       'range' => '0-200',
       'expand_dropdowns' => 'true',
     ]);
-    
     $glpi->killSession($session);
 
     $items = [];
@@ -187,10 +227,6 @@ final class Endpoints
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// ROTEAMENTO
-// ─────────────────────────────────────────────────────────────────────────────
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $uri = rtrim($uri, '/');
@@ -206,21 +242,34 @@ try {
     '/api/assets/projetores' => Endpoints::projetores($config),
     '/api/assets/impressoras' => Endpoints::impressoras($config),
     '/api/chat' => ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
-                 ? ChatEndpoint::handle()
-                 : Responde::erro('Método não permitido.', 405),
+      ? ChatEndpoint::handle()
+      : Responde::erro('Método não permitido.', 405),
     '/api/tickets' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
-        'POST' => TicketsEndpoint::create($config),
-        default => TicketsEndpoint::listAll($config),
-      },
+      'POST' => TicketsEndpoint::create($config),
+      default => TicketsEndpoint::listAll($config),
+    },
     default => (function () use ($path, $config) {
-        if (preg_match('#^/api/tickets/asset/(\d+)$#', $path, $m)) {
-          TicketsEndpoint::listByAsset($config, (int) $m[1]);
+      if (preg_match('#^/api/assets/computers/(\d+)$#', $path, $m)) {
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        if ($method === 'GET') {
+          Endpoints::computerDetails($config, (int) $m[1]);
           return;
         }
-        Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]);
-      })(),
-  };
+        if ($method === 'POST' || $method === 'PUT') {
+          Endpoints::updateComputer($config, (int) $m[1]);
+          return;
+        }
+        Responde::erro('Método não permitido.', 405);
+      }
 
+      if (preg_match('#^/api/tickets/asset/(\d+)$#', $path, $m)) {
+        TicketsEndpoint::listByAsset($config, (int) $m[1]);
+        return;
+      }
+
+      Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]);
+    })(),
+  };
 } catch (Throwable $e) {
   Responde::erro('Erro interno no backend.', 500, [
     'message' => $e->getMessage(),
