@@ -80,6 +80,10 @@ body {
   -webkit-user-select: none;
 }
 
+body.modal-open {
+  overflow: hidden;
+}
+
 /* Permitir seleção de texto apenas em elementos específicos */
 input,
 textarea,
@@ -550,10 +554,6 @@ textarea,
   padding: 18px;
   transition: all 0.2s;
 }
-.asset-card.expanded {
-  border-color: rgba(79, 126, 247, 0.5);
-  box-shadow: 0 16px 34px rgba(8, 14, 32, 0.34);
-}
 .asset-card:hover {
   border-color: var(--surface3);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
@@ -917,6 +917,82 @@ textarea,
   border: 1px solid rgba(120, 140, 190, 0.18);
 }
 
+.computer-panel-modal {
+  margin-top: 0;
+  max-height: calc(92vh - 140px);
+  overflow-y: auto;
+}
+
+.computer-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.computer-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.74);
+  backdrop-filter: blur(6px);
+}
+
+.computer-modal-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(1180px, 100%);
+  max-height: calc(100vh - 48px);
+}
+
+.computer-modal-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.computer-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(32, 39, 61, 0.98), rgba(17, 21, 33, 0.98));
+  border: 1px solid rgba(120, 140, 190, 0.18);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.34);
+}
+
+.computer-modal-header h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.computer-modal-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.computer-modal-close {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.computer-modal-close:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
 .computer-panel-top {
   display: flex;
   justify-content: space-between;
@@ -1074,7 +1150,9 @@ textarea,
 @media (max-width: 720px) {
   .asset-card-footer,
   .computer-panel-top,
-  .computer-panel-actions {
+  .computer-panel-actions,
+  .computer-modal-header,
+  .computer-modal-header-actions {
     flex-direction: column;
     align-items: stretch;
   }
@@ -1090,6 +1168,14 @@ textarea,
   .btn-inline-secondary {
     width: 100%;
     text-align: center;
+  }
+
+  .computer-modal {
+    padding: 12px;
+  }
+
+  .computer-modal-dialog {
+    max-height: calc(100vh - 24px);
   }
 }
 
