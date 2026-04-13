@@ -1,44 +1,56 @@
 /**
- * GLPI Control Center - glpi_client.js
+ * GLPI Control Center - glpi.client.js
  * -----------------------------------------------------------------------------
- * Cliente JavaScript que busca dados reais do backend PHP.
- *
- * Cada método faz fetch() para o endpoint correspondente e retorna os dados
- * já no formato que o frontend espera (mesmo formato dos antigos dados DEMO).
- *
- * Base URL configurável: window.CONFIG.backendUrl (definido em data.js)
+ * Cliente JavaScript para comunicação com o backend PHP.
  */
 
 window.GlpiClient = {
-
-  /**
-   * URL base do backend PHP.
-   * Ajuste em data.js (CONFIG.backendUrl) conforme o ambiente.
-   */
   get baseUrl() {
     return (window.CONFIG?.backendUrl ?? 'http://localhost:8080').replace(/\/$/, '');
   },
 
-  /**
-   * Faz fetch genérico e retorna os dados ou lança erro.
-   */
-  async _fetch(path) {
-    const res = await fetch(this.baseUrl + path);
+  async _fetch(path, options = {}) {
+    const config = {
+      method: options.method || 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    };
+
+    if (options.body !== undefined) {
+      config.body = JSON.stringify(options.body);
+    }
+
+    const res = await fetch(this.baseUrl + path, config);
     if (!res.ok) {
       throw new Error(`Backend retornou HTTP ${res.status} em ${path}`);
     }
+
     const json = await res.json();
     if (!json.ok) {
       throw new Error(json.error ?? 'Erro desconhecido no backend');
     }
+
     return json;
   },
-
-  // ──────────────────────────────────────────────────────────────────────────
 
   async fetchComputadores() {
     const json = await this._fetch('/api/assets/computers');
     return json.data ?? [];
+  },
+
+  async fetchComputerDetails(glpiId) {
+    const json = await this._fetch(`/api/assets/computers/${glpiId}`);
+    return json.data ?? null;
+  },
+
+  async updateComputer(glpiId, input) {
+    const json = await this._fetch(`/api/assets/computers/${glpiId}`, {
+      method: 'POST',
+      body: { input },
+    });
+    return json.data ?? null;
   },
 
   async fetchChromebooksGeekiees() {
@@ -46,9 +58,6 @@ window.GlpiClient = {
     return json.data ?? [];
   },
 
-  /**
-   * Retorna objeto no formato: { "Carrinho 1": [...], "Carrinho 2": [...], ... }
-   */
   async fetchChromebooksApoio() {
     const json = await this._fetch('/api/assets/chromebooks-apoio');
     return json.data ?? {};
@@ -69,12 +78,6 @@ window.GlpiClient = {
     return json.data ?? [];
   },
 
-  /**
-   * Carrega TODOS os dados em paralelo e popula window.DATA.
-   * Chamado pelo App na inicialização após o login.
-   *
-   * Retorna { ok: true } ou { ok: false, errors: [...] }
-   */
   async loadAll() {
     const results = await Promise.allSettled([
       this.fetchComputadores(),
@@ -95,7 +98,6 @@ window.GlpiClient = {
       return r.value;
     });
 
-    // Popula DATA com o que conseguiu buscar (fallback para array vazio)
     window.DATA = {
       computadores: comp ?? [],
       chromebooksGeekiees: geekiees ?? [],

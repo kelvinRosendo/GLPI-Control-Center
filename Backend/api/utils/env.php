@@ -5,17 +5,13 @@
  * Loader simples de arquivo .env (sem bibliotecas).
  * - Lê linhas no formato: CHAVE=VALOR
  * - Ignora comentários (#) e linhas vazias
- *
- * Uso:
- *   require_once __DIR__ . '/utils/env.php';
- *   Env::load(__DIR__ . '/../.env');
  */
 
 declare(strict_types=1);
 
 final class Env
 {
-  public static function load(string $path): void
+  public static function load(string $path, bool $override = false): void
   {
     if (!file_exists($path)) return;
 
@@ -33,10 +29,10 @@ final class Env
       $key = trim(substr($line, 0, $pos));
       $val = trim(substr($line, $pos + 1));
 
-      $val = trim($val, "\"'"); // remove aspas
+      $val = trim($val, "\"'");
       if ($key === '') continue;
 
-      if (getenv($key) === false) {
+      if ($override || getenv($key) === false) {
         putenv($key . '=' . $val);
         $_ENV[$key] = $val;
       }
