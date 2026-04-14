@@ -111,6 +111,37 @@ window.UI = {
     `;
   },
 
+    renderSearchBar(placeholder = 'Buscar por nome, serial ou patrimonio...') {
+    const q = window.STATE.search || '';
+    const status = window.STATE.status || 'todos';
+
+    return `
+      <div class="search-bar-wrapper">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input
+            class="search-input"
+            id="global-search"
+            type="text"
+            placeholder="${this._escapeAttr(placeholder)}"
+            value="${this._escapeAttr(q)}"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          ${q ? '<button class="search-clear" id="search-clear" title="Limpar busca">✕</button>' : ''}
+        </div>
+
+        <div class="search-filters">
+          ${['todos', 'ativo', 'manutencao', 'emprestado'].map(s => `
+            <button class="filter-btn ${status === s ? 'active' : ''}" data-status="${s}">
+              ${this._labelStatus(s)}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  },
+
 
   _labelStatus(s) {
     return { todos: 'Todos', ativo: 'Ativo', manutencao: 'Manutencao', emprestado: 'Emprestado' }[s] || s;
