@@ -17,44 +17,131 @@ window.UI = {
   },
 
   renderTickets(lista = []) {
-    if (!lista.length) return '<p class="empty-msg">Nenhum chamado encontrado.</p>';
-    const statusLabel = { aberto: 'Aberto', em_andamento: 'Em andamento', pendente: 'Pendente', resolvido: 'Resolvido', fechado: 'Fechado' };
-    const statusClass = { aberto: 'status-emprestado', em_andamento: 'status-manutencao', pendente: 'status-manutencao', resolvido: 'status-ativo', fechado: 'status-ativo' };
+    const search = (window.STATE.ticketSearch || '').toLowerCase().trim();
+    const status = window.STATE.ticketStatus || 'todos';
+
+    const statusLabel = {
+      aberto: 'Aberto',
+      em_andamento: 'Em andamento',
+      pendente: 'Pendente',
+      resolvido: 'Resolvido',
+      fechado: 'Fechado',
+    };
+
+    const statusClass = {
+      aberto: 'status-emprestado',
+      em_andamento: 'status-manutencao',
+      pendente: 'status-manutencao',
+      resolvido: 'status-ativo',
+      fechado: 'status-ativo',
+    };
+
     const base = (window.CONFIG?.glpiUrl || '').replace(/\/$/, '');
-    const cards = lista.map(t => `
+
+    const filtrada = lista.filter(t => {
+      if (status !== 'todos' && t.status !== status) return false;
+
+      if (search) {
+        const campos = [
+          String(t.id || ''),
+          t.titulo || '',
+          t.ativo || '',
+          t.categoria || '',
+        ].map(v => v.toLowerCase());
+
+        if (!campos.some(c => c.includes(search))) return false;
+      }
+
+      return true;
+    });
+
+    if (!lista.length) {
+      return '<p class="empty-msg">Nenhum chamado encontrado.</p>';
+    }
+
+    const cards = filtrada.map(t => `
       <div class="asset-card">
         <div class="asset-card-header">
           <span class="asset-name">#${this._escapeHtml(String(t.id))} - ${this._escapeHtml(t.titulo || '')}</span>
-          <span class="asset-status ${statusClass[t.status] || 'status-ativo'}">${statusLabel[t.status] || this._escapeHtml(t.status || '')}</span>
+          <span class="asset-status ${statusClass[t.status] || 'status-ativo'}">
+            ${statusLabel[t.status] || this._escapeHtml(t.status || '')}
+          </span>
         </div>
+
         <div class="asset-card-body">
           ${t.ativo ? `<span class="asset-meta">Ativo: <strong>${this._escapeHtml(t.ativo)}</strong></span>` : ''}
           ${t.categoria ? `<span class="asset-meta">Categoria: <strong>${this._escapeHtml(t.categoria)}</strong></span>` : ''}
         </div>
+
         <div class="asset-card-footer">
-          <a class="btn-glpi" href="${base}/front/ticket.form.php?id=${this._escapeHtml(String(t.id))}" target="_blank" rel="noopener">Abrir no GLPI</a>
+          <a class="btn-glpi" href="${base}/front/ticket.form.php?id=${this._escapeHtml(String(t.id))}" target="_blank" rel="noopener">
+            Abrir no GLPI
+          </a>
         </div>
       </div>
     `).join('');
-    return `<p class="result-count">${lista.length} chamado${lista.length !== 1 ? 's' : ''}</p><div class="asset-grid">${cards}</div>`;
-  },
 
-  renderSearchBar(placeholder = 'Buscar por nome, serial ou patrimonio...') {
-    const q = window.STATE.search || '';
-    const status = window.STATE.status || 'todos';
     return `
       <div class="search-bar-wrapper">
         <div class="search-input-wrap">
           <span class="search-icon">🔍</span>
-          <input class="search-input" id="global-search" type="text" placeholder="${this._escapeAttr(placeholder)}" value="${this._escapeAttr(q)}" autocomplete="off" spellcheck="false" />
+          <input
+            class="search-input"
+            id="ticket-search"
+            type="text"
+            placeholder="Buscar chamado por numero, titulo, ativo ou categoria..."
+            value="${this._escapeAttr(window.STATE.ticketSearch || '')}"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          ${window.STATE.ticketSearch ? '<button class="search-clear" id="ticket-search-clear" title="Limpar busca">✕</button>' : ''}
+        </div>
+
+        <div class="search-filters">
+          ${['todos', 'aberto', 'em_andamento', 'pendente', 'resolvido', 'fechado'].map(s => `
+            <button class="filter-btn ${window.STATE.ticketStatus === s ? 'active' : ''}" data-ticket-status="${s}">
+              ${s === 'todos' ? 'Todos' : (statusLabel[s] || s)}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+
+      <p class="result-count">${filtrada.length} de ${lista.length} chamado${lista.length !== 1 ? 's' : ''}</p>
+      <div class="asset-grid">${cards || '<p class="empty-msg">Nenhum chamado encontrado para o filtro.</p>'}</div>
+    `;
+  },
+
+    renderSearchBar(placeholder = 'Buscar por nome, serial ou patrimonio...') {
+    const q = window.STATE.search || '';
+    const status = window.STATE.status || 'todos';
+
+    return `
+      <div class="search-bar-wrapper">
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input
+            class="search-input"
+            id="global-search"
+            type="text"
+            placeholder="${this._escapeAttr(placeholder)}"
+            value="${this._escapeAttr(q)}"
+            autocomplete="off"
+            spellcheck="false"
+          />
           ${q ? '<button class="search-clear" id="search-clear" title="Limpar busca">✕</button>' : ''}
         </div>
+
         <div class="search-filters">
-          ${['todos', 'ativo', 'manutencao', 'emprestado'].map(s => `<button class="filter-btn ${status === s ? 'active' : ''}" data-status="${s}">${this._labelStatus(s)}</button>`).join('')}
+          ${['todos', 'ativo', 'manutencao', 'emprestado'].map(s => `
+            <button class="filter-btn ${status === s ? 'active' : ''}" data-status="${s}">
+              ${this._labelStatus(s)}
+            </button>
+          `).join('')}
         </div>
       </div>
     `;
   },
+
 
   _labelStatus(s) {
     return { todos: 'Todos', ativo: 'Ativo', manutencao: 'Manutencao', emprestado: 'Emprestado' }[s] || s;
