@@ -9,6 +9,13 @@ window.STATE = {
   reparticao: 'todas',
   expandedComputerId: null,
   computerDetailsById: {},
+  tickets: [],
+  ticketsLoaded: false,
+  ticketsLoading: false,
+  ticketsError: '',
+  ticketSearch: '',
+  ticketStatus: 'todos',
+
 };
 
 window.State = {
@@ -51,9 +58,36 @@ window.State = {
     };
   },
 
+  setTickets(list) {
+    window.STATE.tickets = Array.isArray(list) ? list : [];
+    window.STATE.ticketsLoaded = true;
+    window.STATE.ticketsLoading = false;
+    window.STATE.ticketsError = '';
+  },
+
+  setTicketsLoading(value) {
+    window.STATE.ticketsLoading = Boolean(value);
+  },
+
+  setTicketsError(message) {
+    window.STATE.ticketsError = String(message || '');
+    window.STATE.ticketsLoading = false;
+  },
+
+  setTicketSearch(value) {
+    window.STATE.ticketSearch = String(value ?? '');
+  },
+
+  setTicketStatus(value) {
+    window.STATE.ticketStatus = value || 'todos';
+  },
+
+
   resetFilters() {
     window.STATE.search = '';
     window.STATE.status = 'todos';
+    window.STATE.ticketSearch = '';
+    window.STATE.ticketStatus = 'todos';
     window.STATE.reparticao = 'todas';
   },
 };
