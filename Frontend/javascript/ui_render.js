@@ -154,6 +154,27 @@ window.UI = {
     return `<p class="result-count">${total} ativo${total !== 1 ? 's' : ''}</p>`;
   },
 
+  renderSectionLoading(message = 'Carregando dados...') {
+    return `
+      <div class="empty-state-card">
+        <h3>Buscando dados do GLPI</h3>
+        <p>${this._escapeHtml(message)}</p>
+      </div>
+    `;
+  },
+
+  renderHomeLoading() {
+    return `
+      <div class="home-wrapper">
+        <h2 class="section-title">Resumo de Ativos</h2>
+        <div class="empty-state-card">
+          <h3>Conectando ao GLPI</h3>
+          <p>O painel ja foi aberto. Agora estamos carregando os ativos em segundo plano para liberar a navegacao mais rapido.</p>
+        </div>
+      </div>
+    `;
+  },
+
   _renderCard(a, tipo = 'generic') {
     const statusClass = { ativo: 'status-ativo', manutencao: 'status-manutencao', emprestado: 'status-emprestado' }[a.status] || 'status-ativo';
     const statusLabel = { ativo: 'Ativo', manutencao: 'Manutencao', emprestado: 'Emprestado' }[a.status] || 'Ativo';
