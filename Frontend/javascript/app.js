@@ -25,7 +25,7 @@ window.App = {
         this._setGlpiStatus('parcial');
         console.warn('[App] Alguns endpoints falharam:', result.errors);
       }
-            this._preloadTickets();
+      this._preloadTickets();
 
     } catch (e) {
       this._setGlpiStatus('offline');
@@ -64,6 +64,8 @@ window.App = {
     this._bindSearchEvents();
     this._bindComputerCardEvents();
     this._renderComputerModal();
+    this._bindTicketEvents();
+
   },
 
   _renderTabs() {
@@ -85,8 +87,19 @@ window.App = {
       case 'impressoras':
         return window.UI.renderAssetList(window.DATA.impressoras, 'Buscar impressora por nome ou serial...', 'impressora');
       case 'chamados':
-        this._loadTicketsAsync();
-        return '<p class="result-count">Carregando chamados...</p>';
+        if (!window.STATE.ticketsLoaded && !window.STATE.ticketsLoading) {
+          this._preloadTickets();
+        }
+
+        if (window.STATE.ticketsLoading && !window.STATE.ticketsLoaded) {
+          return '<p class="result-count">Carregando chamados...</p>';
+        }
+
+        if (window.STATE.ticketsError && !window.STATE.ticketsLoaded) {
+          return `<p class="empty-msg">${window.STATE.ticketsError}</p>`;
+        }
+
+        return window.UI.renderTickets(window.STATE.tickets);
       case 'assistente':
         return `
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px;">
@@ -224,7 +237,7 @@ window.App = {
     this._renderContent();
   },
 
-    async _preloadTickets() {
+  async _preloadTickets() {
     if (window.STATE.ticketsLoading || window.STATE.ticketsLoaded) return;
 
     window.State.setTicketsLoading(true);
@@ -252,9 +265,37 @@ window.App = {
     if (!mainEl) return;
     mainEl.innerHTML = this._renderCurrentTabContent();
     this._bindSearchEvents();
+    this._bindTicketEvents();
     this._bindComputerCardEvents();
   },
 
+    _bindTicketEvents() {
+    const input = document.getElementById('ticket-search');
+    const clearBtn = document.getElementById('ticket-search-clear');
+
+    if (input) {
+      input.addEventListener('input', () => {
+        window.State.setTicketSearch(input.value);
+        this._renderContent();
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        window.State.setTicketSearch('');
+        this._renderContent();
+      });
+    }
+
+    document.querySelectorAll('[data-ticket-status]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.State.setTicketStatus(btn.dataset.ticketStatus);
+        this._renderContent();
+      });
+    });
+  },
+
+  
   _renderComputerModal() {
     const modalEl = document.getElementById('computer-details-modal');
     const contentEl = document.getElementById('computer-details-modal-content');
@@ -302,20 +343,6 @@ window.App = {
         window.State.setComputerDraftValue(Number(form.dataset.computerForm), input.name, input.value);
       });
     });
-  },
-
-  _loadTicketsAsync() {
-    window.GlpiClient.fetchTickets()
-      .then(lista => {
-        const mainEl = document.getElementById('main-content');
-        if (!mainEl || window.STATE.tab !== 'chamados') return;
-        mainEl.innerHTML = window.UI.renderTickets(lista);
-      })
-      .catch(error => {
-        const mainEl = document.getElementById('main-content');
-        if (!mainEl || window.STATE.tab !== 'chamados') return;
-        mainEl.innerHTML = `<p class="empty-msg">${error.message || 'Falha ao carregar chamados.'}</p>`;
-      });
   },
 
   _setGlpiStatus(estado) {
