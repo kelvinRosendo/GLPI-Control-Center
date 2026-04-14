@@ -25,6 +25,8 @@ window.App = {
         this._setGlpiStatus('parcial');
         console.warn('[App] Alguns endpoints falharam:', result.errors);
       }
+            this._preloadTickets();
+
     } catch (e) {
       this._setGlpiStatus('offline');
       console.warn('[App] Backend indisponivel.', e);
@@ -221,6 +223,24 @@ window.App = {
     this._renderComputerModal();
     this._renderContent();
   },
+
+    async _preloadTickets() {
+    if (window.STATE.ticketsLoading || window.STATE.ticketsLoaded) return;
+
+    window.State.setTicketsLoading(true);
+
+    try {
+      const lista = await window.GlpiClient.fetchTickets();
+      window.State.setTickets(lista);
+    } catch (error) {
+      window.State.setTicketsError(error.message || 'Falha ao carregar chamados.');
+    }
+
+    if (window.STATE.tab === 'chamados') {
+      this._renderContent();
+    }
+  },
+
 
   _replaceComputerSummary(asset) {
     if (!asset?.glpiId) return;
