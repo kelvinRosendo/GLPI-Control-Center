@@ -160,14 +160,14 @@ window.UI = {
     const base = (window.CONFIG?.glpiUrl || '').replace(/\/$/, '');
     const formPath = tipo === 'impressora' ? 'front/printer.form.php' : 'front/computer.form.php';
     const glpiLink = a.glpiId ? `${base}/${formPath}?id=${a.glpiId}` : '#';
-    const canExpand = tipo === 'computer' && !!a.glpiId;
+    const canExpand = ['computer', 'geekie', 'apoio', 'projetor'].includes(tipo) && !!a.glpiId;
     const infoLines = [];
 
-    if (a.patrimonio) infoLines.push(`<div class="asset-info-line subtle">Patrimonio: ${this._escapeHtml(a.patrimonio)}</div>`);
-    if (a.modelo) infoLines.push(`<div class="asset-info-line">Modelo: ${this._escapeHtml(a.modelo)}</div>`);
-    if (a.reparticao) infoLines.push(`<div class="asset-info-line">Local: ${this._escapeHtml(a.reparticao)}</div>`);
+    if (a.patrimonio) infoLines.push(`<div class="asset-info-line asset-info-highlight"><span class="asset-info-label">Patrimonio</span><span class="asset-info-value">${this._escapeHtml(a.patrimonio)}</span></div>`);
+    if (a.modelo) infoLines.push(`<div class="asset-info-line"><span class="asset-info-label">Modelo</span><span class="asset-info-value">${this._escapeHtml(a.modelo)}</span></div>`);
+    if (a.reparticao) infoLines.push(`<div class="asset-info-line"><span class="asset-info-label">Local</span><span class="asset-info-value">${this._escapeHtml(a.reparticao)}</span></div>`);
     if (tipo === 'geekie' || tipo === 'apoio') {
-      if (a.grupo) infoLines.push(`<div class="asset-info-line subtle">Grupo: ${this._escapeHtml(a.grupo)}</div>`);
+      if (a.grupo) infoLines.push(`<div class="asset-info-line asset-info-secondary"><span class="asset-info-label">Grupo</span><span class="asset-info-value">${this._escapeHtml(a.grupo)}</span></div>`);
     }
 
     return `
@@ -177,7 +177,10 @@ window.UI = {
           <span class="asset-status ${statusClass}">${statusLabel}</span>
         </div>
         <div class="asset-card-body">
-          <div class="asset-serial">${this._escapeHtml(a.serial || '-')}</div>
+          <div class="asset-serial">
+            <span class="asset-serial-label">Serial</span>
+            <span class="asset-serial-value">${this._escapeHtml(a.serial || '-')}</span>
+          </div>
           ${infoLines.length ? `<div class="asset-info-group">${infoLines.join('')}</div>` : ''}
         </div>
         <div class="asset-card-footer">
@@ -192,10 +195,10 @@ window.UI = {
   renderComputerModal(asset, state) {
     const base = (window.CONFIG?.glpiUrl || '').replace(/\/$/, '');
     if (!state || state.loading) {
-      return `<div class="computer-modal-shell"><div class="computer-modal-header"><div><p class="computer-panel-kicker">Ficha do computador</p><h2>${this._escapeHtml(asset?.nome || 'Computador')}</h2></div><button class="computer-modal-close" data-computer-modal-close="button">Fechar</button></div><div class="computer-panel computer-panel-modal"><div class="computer-panel-message info">Carregando dados completos do GLPI...</div></div></div>`;
+      return `<div class="computer-modal-shell"><div class="computer-modal-header"><div><p class="computer-panel-kicker">Ficha completa do ativo</p><h2>${this._escapeHtml(asset?.nome || 'Ativo')}</h2></div><button class="computer-modal-close" data-computer-modal-close="button">Fechar</button></div><div class="computer-panel computer-panel-modal"><div class="computer-panel-message info">Carregando dados completos do GLPI...</div></div></div>`;
     }
     if (state.error && !state.data) {
-      return `<div class="computer-modal-shell"><div class="computer-modal-header"><div><p class="computer-panel-kicker">Ficha do computador</p><h2>${this._escapeHtml(asset?.nome || 'Computador')}</h2></div><button class="computer-modal-close" data-computer-modal-close="button">Fechar</button></div><div class="computer-panel computer-panel-modal"><div class="computer-panel-message error">${this._escapeHtml(state.error)}</div><button class="btn-inline-secondary" data-computer-retry="${asset.glpiId}">Tentar novamente</button></div></div>`;
+      return `<div class="computer-modal-shell"><div class="computer-modal-header"><div><p class="computer-panel-kicker">Ficha completa do ativo</p><h2>${this._escapeHtml(asset?.nome || 'Ativo')}</h2></div><button class="computer-modal-close" data-computer-modal-close="button">Fechar</button></div><div class="computer-panel computer-panel-modal"><div class="computer-panel-message error">${this._escapeHtml(state.error)}</div><button class="btn-inline-secondary" data-computer-retry="${asset.glpiId}">Tentar novamente</button></div></div>`;
     }
 
     const detail = state.data;
@@ -211,7 +214,7 @@ window.UI = {
       <div class="computer-modal-shell">
         <div class="computer-modal-header">
           <div>
-            <p class="computer-panel-kicker">Ficha do computador</p>
+            <p class="computer-panel-kicker">Ficha completa do ativo</p>
             <h2>${this._escapeHtml(detail.asset?.nome || asset.nome || 'Ativo')}</h2>
           </div>
           <div class="computer-modal-header-actions">
@@ -265,7 +268,7 @@ window.UI = {
       { id: 'home', label: 'Home' },
       { id: 'computadores', label: 'Computadores' },
       { id: 'geekiees', label: 'Geekiees' },
-      { id: 'apoio', label: 'Apoio' },
+      { id: 'apoio', label: 'Carrinhos' },
       { id: 'projetores', label: 'Projetores' },
       { id: 'impressoras', label: 'Impressoras' },
       { id: 'chamados', label: 'Chamados' },
@@ -279,7 +282,7 @@ window.UI = {
     const cats = [
       { label: 'Computadores', icon: '🖥️', lista: D.computadores, tab: 'computadores', cor: '#4f7ef7' },
       { label: 'Geekiees', icon: '📗', lista: D.chromebooksGeekiees, tab: 'geekiees', cor: '#00c896' },
-      { label: 'Apoio', icon: '📘', lista: Object.values(D.chromebooksApoio || {}).flat(), tab: 'apoio', cor: '#6c5ce7' },
+      { label: 'Carrinhos', icon: '📘', lista: Object.values(D.chromebooksApoio || {}).flat(), tab: 'apoio', cor: '#6c5ce7' },
       { label: 'Projetores', icon: '📽️', lista: D.projetores, tab: 'projetores', cor: '#ffc107' },
       { label: 'Impressoras', icon: '🖨️', lista: D.impressoras, tab: 'impressoras', cor: '#ff5555' },
     ];
