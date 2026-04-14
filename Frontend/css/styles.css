@@ -359,7 +359,10 @@ textarea,
 .content {
   flex: 1;
   padding: 28px;
-  animation: slideUp 0.3s ease;
+}
+
+.content.tab-switching {
+  animation: slideUp 0.28s ease;
 }
 
 

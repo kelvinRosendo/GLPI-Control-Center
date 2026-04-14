@@ -75,6 +75,7 @@ window.App = {
 
     tabsEl.innerHTML = this._renderTabs();
     mainEl.innerHTML = this._renderCurrentTabContent();
+    this._animateTabContent(mainEl);
 
     this._bindTabEvents();
     this._bindSearchEvents();
@@ -298,9 +299,17 @@ window.App = {
     const mainEl = document.getElementById('main-content');
     if (!mainEl) return;
     mainEl.innerHTML = this._renderCurrentTabContent();
+    this._animateTabContent(mainEl);
     this._bindSearchEvents();
     this._bindTicketEvents();
     this._bindComputerCardEvents();
+  },
+
+  _animateTabContent(mainEl) {
+    if (!mainEl) return;
+    mainEl.classList.remove('tab-switching');
+    void mainEl.offsetWidth;
+    mainEl.classList.add('tab-switching');
   },
 
     _bindTicketEvents() {
