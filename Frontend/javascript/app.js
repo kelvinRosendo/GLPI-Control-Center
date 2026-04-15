@@ -3,6 +3,9 @@
  */
 
 window.App = {
+  assetsLoading: false,
+  assetsLoaded: false,
+
   async init() {
     this.showLoginScreen();
     window.Auth.init();
@@ -15,24 +18,37 @@ window.App = {
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
 
+    this.assetsLoading = true;
+    this.assetsLoaded = false;
     this._setGlpiStatus('carregando');
+    this.go('home');
 
+    this._loadInitialData();
+  },
+
+  async _loadInitialData() {
     try {
       const result = await window.GlpiClient.loadAll();
+      this.assetsLoading = false;
+      this.assetsLoaded = true;
+
       if (result.ok) {
         this._setGlpiStatus('conectado');
       } else {
         this._setGlpiStatus('parcial');
         console.warn('[App] Alguns endpoints falharam:', result.errors);
       }
+
       this._preloadTickets();
+      this.render();
 
     } catch (e) {
+      this.assetsLoading = false;
+      this.assetsLoaded = false;
       this._setGlpiStatus('offline');
       console.warn('[App] Backend indisponivel.', e);
+      this.render();
     }
-
-    this.go('home');
   },
 
   showLoginScreen() {
@@ -59,6 +75,7 @@ window.App = {
 
     tabsEl.innerHTML = this._renderTabs();
     mainEl.innerHTML = this._renderCurrentTabContent();
+    this._animateTabContent(mainEl);
 
     this._bindTabEvents();
     this._bindSearchEvents();
@@ -75,16 +92,34 @@ window.App = {
   _renderCurrentTabContent() {
     switch (window.STATE.tab) {
       case 'home':
+        if (this.assetsLoading && !this.assetsLoaded) {
+          return window.UI.renderHomeLoading();
+        }
         return window.UI.renderHome();
       case 'computadores':
+        if (this.assetsLoading && !window.DATA.computadores.length) {
+          return window.UI.renderSectionLoading('Carregando computadores...');
+        }
         return window.UI.renderAssetList(window.DATA.computadores, 'Buscar computador por nome, serial ou patrimonio...', 'computer');
       case 'geekiees':
+        if (this.assetsLoading && !window.DATA.chromebooksGeekiees.length) {
+          return window.UI.renderSectionLoading('Carregando Chromebooks Geekiees...');
+        }
         return window.UI.renderAssetList(window.DATA.chromebooksGeekiees, 'Buscar Chromebook Geekiee por nome ou serial...', 'geekie');
       case 'apoio':
+        if (this.assetsLoading && !Object.keys(window.DATA.chromebooksApoio || {}).length) {
+          return window.UI.renderSectionLoading('Carregando carrinhos...');
+        }
         return window.UI.renderCarrinhos();
       case 'projetores':
+        if (this.assetsLoading && !window.DATA.projetores.length) {
+          return window.UI.renderSectionLoading('Carregando projetores...');
+        }
         return window.UI.renderAssetList(window.DATA.projetores, 'Buscar projetor por nome ou serial...', 'projetor');
       case 'impressoras':
+        if (this.assetsLoading && !window.DATA.impressoras.length) {
+          return window.UI.renderSectionLoading('Carregando impressoras...');
+        }
         return window.UI.renderAssetList(window.DATA.impressoras, 'Buscar impressora por nome ou serial...', 'impressora');
       case 'chamados':
         if (!window.STATE.ticketsLoaded && !window.STATE.ticketsLoading) {
@@ -264,9 +299,17 @@ window.App = {
     const mainEl = document.getElementById('main-content');
     if (!mainEl) return;
     mainEl.innerHTML = this._renderCurrentTabContent();
+    this._animateTabContent(mainEl);
     this._bindSearchEvents();
     this._bindTicketEvents();
     this._bindComputerCardEvents();
+  },
+
+  _animateTabContent(mainEl) {
+    if (!mainEl) return;
+    mainEl.classList.remove('tab-switching');
+    void mainEl.offsetWidth;
+    mainEl.classList.add('tab-switching');
   },
 
     _bindTicketEvents() {

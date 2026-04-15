@@ -359,7 +359,10 @@ textarea,
 .content {
   flex: 1;
   padding: 28px;
-  animation: slideUp 0.3s ease;
+}
+
+.content.tab-switching {
+  animation: slideUp 0.28s ease;
 }
 
 
@@ -540,6 +543,29 @@ textarea,
    --------------------------------------------------------------------------
    - Utilizado nas abas de categorias tradicionais (Computadores, Projetores etc)
    ========================================================================== */
+.empty-state-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--shadow);
+}
+
+.empty-state-card h3 {
+  margin: 0;
+  font-size: 18px;
+  color: var(--text);
+}
+
+.empty-state-card p {
+  margin: 0;
+  color: var(--text2);
+  line-height: 1.6;
+}
+
 .asset-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -817,25 +843,71 @@ textarea,
 /* ===== Upgrade visual dos cards ===== */
 
 .asset-serial {
-  font-size: 13px;
-  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.asset-serial-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.asset-serial-value {
+  font-size: 14px;
+  font-weight: 700;
   color: var(--text);
-  margin-bottom: 6px;
   font-family: "JetBrains Mono", monospace;
 }
 
 .asset-info-group {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 8px;
 }
 
 .asset-info-line {
-  font-size: 12px;
-  color: var(--text2);
+  display: grid;
+  grid-template-columns: minmax(88px, 108px) 1fr;
+  gap: 10px;
+  align-items: start;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.asset-info-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+
+.asset-info-value {
   display: flex;
   align-items: center;
-  gap: 6px;
+  min-width: 0;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.asset-info-line.asset-info-highlight .asset-info-value {
+  color: #f3f6ff;
+  font-weight: 700;
+}
+
+.asset-info-line.asset-info-secondary .asset-info-value {
+  color: var(--text2);
 }
 
 .asset-info-line.subtle {
