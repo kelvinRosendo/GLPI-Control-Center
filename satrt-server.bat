@@ -63,8 +63,9 @@ echo.
 echo Pressione qualquer tecla para abrir o painel...
 pause >nul
 
-REM Abre o navegador
-start http://localhost:4000
+REM Abre o navegador ja forçando modo servidor
+start http://localhost:4000/?mode=server
+
 
 echo.
 echo Servidores estao rodando em segundo plano.
