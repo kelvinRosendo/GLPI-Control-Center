@@ -253,7 +253,14 @@ try {
       'POST' => WorkflowEndpoint::createWorkflowTicket($config),
       default => Responde::erro('Método não permitido.', 405),
     },
+    '/api/tickets/workflow/assistance-action' => match ($_SERVER['REQUEST_METHOD'] ?? 'POST') {
+      'POST' => WorkflowEndpoint::assistanceAction(),
+      default => Responde::erro('Método não permitido.', 405),
+    },
     '/api/assistencias' => WorkflowEndpoint::assistencias(),
+    '/api/categorias-glpi' => ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET'
+      ? WorkflowEndpoint::categorias($config)
+      : Responde::erro('Método não permitido.', 405),
     default => (function () use ($path, $config) {
       if (preg_match('#^/api/assets/computers/(\d+)$#', $path, $m)) {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';

@@ -895,3 +895,408 @@
   text-decoration: none;
   display: inline-block;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WORKFLOW v1.1 — UX IMPROVEMENTS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Step locked ──────────────────────────────────────────────────────── */
+.wf-step.locked {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.wf-step.locked:hover {
+  background: transparent;
+}
+
+/* ── Section header ───────────────────────────────────────────────────── */
+.wf-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.wf-section-header .wf-section-title {
+  margin: 0;
+}
+
+/* ── Equipment card v2 ────────────────────────────────────────────────── */
+.wf-equip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.wf-equip-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text, #e2e2f0);
+}
+
+.wf-equip-pat {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text2, #9299b8);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.wf-equip-details {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Status badges ────────────────────────────────────────────────────── */
+.wf-badge-success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.wf-badge-danger {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
+
+.wf-status-active {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.wf-status-maint {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.wf-status-loaned {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+/* ── Assistance radio indicator ───────────────────────────────────────── */
+.wf-assist-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.wf-assist-radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border, #2a2a3e);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  transition: all 0.15s;
+}
+
+.wf-assist-card.selected .wf-assist-radio,
+.wf-assist-radio.checked {
+  border-color: var(--accent, #6366f1);
+  background: var(--accent, #6366f1);
+}
+
+.wf-radio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  display: none;
+}
+
+.wf-assist-card.selected .wf-radio-dot {
+  display: block;
+}
+
+.wf-assist-info {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ── Checklist groups ─────────────────────────────────────────────────── */
+.wf-checklist-group {
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.wf-checklist-group:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.wf-checklist-group-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent, #818cf8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wf-checklist-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.wf-checklist-progress {
+  font-size: 12px;
+  color: var(--text2, #9299b8);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 10px;
+  border-radius: 10px;
+}
+
+/* ── Field error states ───────────────────────────────────────────────── */
+.wf-field-error-border {
+  position: relative;
+}
+
+.wf-field-error-border .wf-input,
+.wf-field-error-border select {
+  border-color: #f87171 !important;
+}
+
+.wf-field-error-text {
+  font-size: 11px;
+  color: #f87171;
+  margin-top: 2px;
+}
+
+/* ── Error banner ─────────────────────────────────────────────────────── */
+.wf-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #f87171;
+  animation: wf-shake 0.3s ease;
+}
+
+.wf-error-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #f87171;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@keyframes wf-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+/* ── Button spinner ───────────────────────────────────────────────────── */
+.wf-btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: wf-spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+@keyframes wf-spin {
+  to { transform: rotate(360deg); }
+}
+
+.wf-btn-lg {
+  padding: 10px 24px;
+  font-size: 14px;
+}
+
+/* ── Ghost button ─────────────────────────────────────────────────────── */
+.wf-btn-ghost {
+  background: transparent;
+  border: none;
+  color: var(--text2, #9299b8);
+  padding: 8px 12px;
+}
+
+.wf-btn-ghost:hover:not(:disabled) {
+  color: var(--text, #e2e2f0);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ── Success details ──────────────────────────────────────────────────── */
+.wf-success-detail {
+  font-size: 13px;
+  color: var(--text2, #9299b8);
+  padding: 3px 0;
+}
+
+.wf-success-detail-label {
+  font-weight: 500;
+  color: var(--text, #e2e2f0);
+}
+
+.wf-success-details {
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  display: inline-block;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+.wf-empty-state {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text2, #9299b8);
+}
+
+.wf-empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   WORKFLOW v2.0 — ASSISTANCE FLOWS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Flow icon ──────────────────────────────────────────────────────── */
+.wf-flow-icon {
+  font-size: 18px;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
+/* ── Flow instruction ───────────────────────────────────────────────── */
+.wf-flow-instruction {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--text, #e2e2f0);
+  line-height: 1.5;
+}
+
+/* ── Flow next steps ────────────────────────────────────────────────── */
+.wf-flow-steps {
+  margin-bottom: 20px;
+}
+
+.wf-flow-steps-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #e2e2f0);
+}
+
+.wf-flow-steps-list {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.wf-flow-steps-list li {
+  font-size: 13px;
+  color: var(--text2, #9299b8);
+  padding: 3px 0;
+  line-height: 1.5;
+}
+
+/* ── Flow actions ───────────────────────────────────────────────────── */
+.wf-flow-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wf-flow-action {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg, #0f1117);
+  border: 1.5px solid var(--border, #2a2a3e);
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+  font-family: inherit;
+  color: var(--text, #e2e2f0);
+}
+
+.wf-flow-action:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+.wf-flow-action.done {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.05);
+}
+
+.wf-flow-action-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent, #818cf8);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wf-flow-action.done .wf-flow-action-icon {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+}
+
+.wf-flow-action-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wf-flow-action-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #e2e2f0);
+}
+
+.wf-flow-action-desc {
+  font-size: 12px;
+  color: var(--text2, #9299b8);
+}
+
+.wf-flow-action-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  font-weight: 600;
+  white-space: nowrap;
+}

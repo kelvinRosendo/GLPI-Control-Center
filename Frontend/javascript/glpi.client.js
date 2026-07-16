@@ -86,6 +86,19 @@ window.GlpiClient = {
     return json.data ?? {};
   },
 
+  async fetchCategorias() {
+    const json = await this._fetch('/api/categorias-glpi');
+    return json.data ?? [];
+  },
+
+  async registerAssistanceAction(payload) {
+    const json = await this._fetch('/api/tickets/workflow/assistance-action', {
+      method: 'POST',
+      body: payload,
+    });
+    return json.data ?? {};
+  },
+
   async loadAll() {
     const results = await Promise.allSettled([
       this.fetchComputadores(),

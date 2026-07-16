@@ -1,20 +1,25 @@
 /**
  * GLPI Control Center - workflow.js
  * -----------------------------------------------------------------------------
- * Workflow Inteligente de Chamados para Chromebooks.
+ * Workflow Inteligente de Chamados para Chromebooks — v2.0 (Assistance Flows).
  *
- * Gerencia o estado do wizard multi-step, validação por etapa,
- * regras de negócio (RN-01, RN-02, RN-03) e preparação dos dados
- * para criação do chamado no GLPI.
+ * Gerencia:
+ * - Estado do wizard multi-step (5 etapas)
+ * - Validação por etapa (sem pulo de etapas)
+ * - Regras de negócio (RN-01, RN-02, RN-03)
+ * - Checklist extensível com grupos
+ * - Passo 5: Fluxo da Assistência (config-driven)
+ * - Rastreamento de ações executadas na assistência
+ * - Dados de auditoria estruturados
+ * - Integração com categorias GLPI
  *
  * Não contém lógica de renderização — ver workflow_ui.js.
  */
 
 window.Workflow = (() => {
 
-  // ── Configuração ──────────────────────────────────────────────────────────
-
-  const TOTAL_STEPS = 4;
+  const WORKFLOW_VERSION = '2.0.0';
+  const TOTAL_STEPS = 5;
 
   const ASSISTENCIAS = [
     { id: 'torino',    nome: 'Torino',    descricao: 'Suporte técnico Torino' },
@@ -23,50 +28,124 @@ window.Workflow = (() => {
     { id: 'acer',      nome: 'Acer',      descricao: 'Suporte técnico Acer' },
   ];
 
-  const CHECKLIST_QUESTIONS = [
+  const CHECKLIST_GROUPS = [
     {
-      id: 'tipo_problema',
-      label: 'Qual o tipo do problema?',
-      tipo: 'select',
-      opcoes: [
-        { value: '', label: 'Selecione...' },
-        { value: 'nao_liga',          label: 'Não liga' },
-        { value: 'tela_problema',     label: 'Problema na tela' },
-        { value: 'teclado_problema',  label: 'Problema no teclado' },
-        { value: 'bateria',           label: 'Problema na bateria' },
-        { value: 'wifi',              label: 'Não conecta WiFi' },
-        { value: 'carregador',        label: 'Sem carregador / carregador danificado' },
-        { value: 'software',          label: 'Problema de software' },
-        { value: 'outro',             label: 'Outro' },
+      id: 'problema',
+      label: 'Problema',
+      questions: [
+        {
+          id: 'tipo_problema',
+          label: 'Qual o tipo do problema?',
+          tipo: 'select',
+          opcoes: [
+            { value: '', label: 'Selecione...' },
+            { value: 'nao_liga',          label: 'Não liga' },
+            { value: 'tela_problema',     label: 'Problema na tela' },
+            { value: 'teclado_problema',  label: 'Problema no teclado' },
+            { value: 'bateria',           label: 'Problema na bateria' },
+            { value: 'wifi',              label: 'Não conecta WiFi' },
+            { value: 'carregador',        label: 'Sem carregador / carregador danificado' },
+            { value: 'software',          label: 'Problema de software' },
+            { value: 'outro',             label: 'Outro' },
+          ],
+          obrigatorio: true,
+        },
+        {
+          id: 'equipamento_liga',
+          label: 'O equipamento liga?',
+          tipo: 'radio',
+          opcoes: [
+            { value: 'sim', label: 'Sim' },
+            { value: 'nao', label: 'Não' },
+            { value: 'intermitente', label: 'Intermitente' },
+          ],
+          obrigatorio: true,
+        },
       ],
-      obrigatorio: true,
     },
     {
-      id: 'mau_uso',
-      label: 'Existe mau uso?',
-      tipo: 'radio',
-      opcoes: [
-        { value: 'sim', label: 'Sim' },
-        { value: 'nao', label: 'Não' },
+      id: 'condicao',
+      label: 'Condição Física',
+      questions: [
+        {
+          id: 'dano_fisico',
+          label: 'Existe dano físico visível?',
+          tipo: 'radio',
+          opcoes: [
+            { value: 'sim', label: 'Sim' },
+            { value: 'nao', label: 'Não' },
+          ],
+          obrigatorio: true,
+        },
+        {
+          id: 'tipo_dano',
+          label: 'Qual o tipo de dano?',
+          tipo: 'select',
+          opcoes: [
+            { value: '', label: 'Selecione...' },
+            { value: 'tela_rachada',     label: 'Tela rachada/quebrada' },
+            { value: 'carcaca_avariada', label: 'Carcaça danificada' },
+            { value: 'teclas_soltas',    label: 'Teclas soltas' },
+            { value: 'porta_danificada', label: 'Porta danificada' },
+            { value: 'marca_queda',      label: 'Marcas de queda' },
+            { value: 'outro',            label: 'Outro' },
+          ],
+          obrigatorio: true,
+          condicional: (r) => r.dano_fisico === 'sim',
+        },
+        {
+          id: 'dano_detalhe',
+          label: 'Descreva o dano identificado',
+          tipo: 'textarea',
+          obrigatorio: false,
+          condicional: (r) => r.dano_fisico === 'sim',
+        },
       ],
-      obrigatorio: true,
     },
     {
-      id: 'mau_uso_detalhe',
-      label: 'Descreva o mau uso identificado',
-      tipo: 'textarea',
-      obrigatorio: false,
-      condicional: (respostas) => respostas.mau_uso === 'sim',
+      id: 'uso',
+      label: 'Uso e Acesso',
+      questions: [
+        {
+          id: 'mau_uso',
+          label: 'Existe mau uso?',
+          tipo: 'radio',
+          opcoes: [
+            { value: 'sim', label: 'Sim' },
+            { value: 'nao', label: 'Não' },
+          ],
+          obrigatorio: true,
+        },
+        {
+          id: 'mau_uso_detalhe',
+          label: 'Descreva o mau uso identificado',
+          tipo: 'textarea',
+          obrigatorio: false,
+          condicional: (r) => r.mau_uso === 'sim',
+        },
+      ],
     },
     {
-      id: 'observacoes',
-      label: 'Observações adicionais',
-      tipo: 'textarea',
-      obrigatorio: false,
+      id: 'observacoes_grupo',
+      label: 'Observações',
+      questions: [
+        {
+          id: 'observacoes',
+          label: 'Observações adicionais',
+          tipo: 'textarea',
+          obrigatorio: false,
+        },
+      ],
     },
   ];
 
-  const STEP_LABELS = ['Equipamento', 'Assistência', 'Checklist', 'Confirmação'];
+  const CHECKLIST_QUESTIONS = CHECKLIST_GROUPS.flatMap(g => g.questions);
+  const STEP_LABELS = ['Equipamento', 'Assistência', 'Checklist', 'Confirmação', 'Fluxo'];
+
+  // ── Categorias GLPI (cache) ───────────────────────────────────────────────
+
+  let _categoriasCache = null;
+  let _categoriasLoading = false;
 
   // ── Estado ────────────────────────────────────────────────────────────────
 
@@ -75,12 +154,16 @@ window.Workflow = (() => {
   function _createInitialState() {
     return {
       step: 1,
+      completedSteps: [],
       ativo: null,
       assistencia: '',
+      categoriaGlpi: 0,
       checklist: {},
       regras: { mauUso: false, contratoObrigatorio: true },
+      actionsExecuted: [],
       enviando: false,
       erro: '',
+      erroCampo: '',
       sucesso: null,
     };
   }
@@ -106,7 +189,12 @@ window.Workflow = (() => {
   function nextStep() {
     if (!validateCurrentStep()) return false;
     if (_state.step < TOTAL_STEPS) {
+      if (!_state.completedSteps.includes(_state.step)) {
+        _state.completedSteps.push(_state.step);
+      }
       _state.step++;
+      _state.erro = '';
+      _state.erroCampo = '';
       _applyRules();
       window.WorkflowUI.render();
       return true;
@@ -117,7 +205,8 @@ window.Workflow = (() => {
   function prevStep() {
     if (_state.step > 1) {
       _state.step--;
-      _applyRules();
+      _state.erro = '';
+      _state.erroCampo = '';
       window.WorkflowUI.render();
       return true;
     }
@@ -125,10 +214,17 @@ window.Workflow = (() => {
   }
 
   function goToStep(step) {
-    if (step >= 1 && step <= TOTAL_STEPS) {
-      _state.step = step;
+    if (step < 1 || step > TOTAL_STEPS) return;
+    if (step > _state.step && !_state.completedSteps.includes(step - 1)) {
+      _state.erro = 'Complete a etapa anterior primeiro.';
+      _state.erroCampo = '';
       window.WorkflowUI.render();
+      return;
     }
+    _state.step = step;
+    _state.erro = '';
+    _state.erroCampo = '';
+    window.WorkflowUI.render();
   }
 
   function setAssistencia(assistenciaId) {
@@ -147,39 +243,63 @@ window.Workflow = (() => {
 
   function validateCurrentStep() {
     _state.erro = '';
+    _state.erroCampo = '';
 
     switch (_state.step) {
       case 1:
         if (!_state.ativo) {
-          _state.erro = 'Nenhum equipamento selecionado.';
+          _state.erro = 'Nenhum equipamento selecionado. Volte e selecione um equipamento.';
           return false;
         }
         return true;
 
       case 2:
         if (!_state.assistencia) {
-          _state.erro = 'Selecione o tipo de assistência técnica.';
+          _state.erro = 'Selecione o tipo de assistência técnica para continuar.';
+          _state.erroCampo = 'assistencia';
           return false;
         }
         return true;
 
       case 3:
-        for (const q of CHECKLIST_QUESTIONS) {
-          if (q.condicional && !q.condicional(_state.checklist)) continue;
-          if (q.obrigatorio && !_state.checklist[q.id]) {
-            _state.erro = `Responda: "${q.label}"`;
-            return false;
-          }
-        }
-        if (_state.checklist.mau_uso === 'sim' && !_state.checklist.mau_uso_detalhe) {
-          _state.erro = 'Descreva o mau uso identificado.';
-          return false;
-        }
+        return _validateChecklist();
+
+      case 4:
         return true;
 
       default:
         return true;
     }
+  }
+
+  function _validateChecklist() {
+    for (const group of CHECKLIST_GROUPS) {
+      for (const q of group.questions) {
+        if (q.condicional && !q.condicional(_state.checklist)) continue;
+        if (q.obrigatorio) {
+          const val = _state.checklist[q.id];
+          if (val === undefined || val === null || val === '') {
+            _state.erro = `Campo obrigatório: "${q.label}"`;
+            _state.erroCampo = q.id;
+            return false;
+          }
+        }
+      }
+    }
+
+    if (_state.checklist.mau_uso === 'sim' && !_state.checklist.mau_uso_detalhe) {
+      _state.erro = 'Descreva o mau uso identificado no campo de detalhe.';
+      _state.erroCampo = 'mau_uso_detalhe';
+      return false;
+    }
+
+    if (_state.checklist.dano_fisico === 'sim' && !_state.checklist.tipo_dano) {
+      _state.erro = 'Selecione o tipo de dano físico identificado.';
+      _state.erroCampo = 'tipo_dano';
+      return false;
+    }
+
+    return true;
   }
 
   // ── Regras de negócio ─────────────────────────────────────────────────────
@@ -199,33 +319,63 @@ window.Workflow = (() => {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
-  function getAssistencias() {
-    return ASSISTENCIAS;
+  function getAssistencias() { return ASSISTENCIAS; }
+  function getAssistenciaById(id) { return ASSISTENCIAS.find(a => a.id === id) || null; }
+  function getChecklistGroups() { return CHECKLIST_GROUPS; }
+  function getChecklistQuestions() { return CHECKLIST_QUESTIONS; }
+  function getStepLabels() { return STEP_LABELS; }
+  function getStepLabel(step) { return STEP_LABELS[step - 1] || ''; }
+  function getWorkflowVersion() { return WORKFLOW_VERSION; }
+
+  // ── Assistência Flow ────────────────────────────────────────────────────
+
+  function getAssistanceFlowConfig() {
+    if (!_state.assistencia) return null;
+    if (!window.AssistanceFlows) return null;
+    return window.AssistanceFlows.getFlow(_state.assistencia);
   }
 
-  function getAssistenciaById(id) {
-    return ASSISTENCIAS.find(a => a.id === id) || null;
+  function registerAssistanceAction(actionId, actionData) {
+    const exists = _state.actionsExecuted.find(a => a.actionId === actionId);
+    if (exists) return;
+    _state.actionsExecuted.push({
+      actionId,
+      timestamp: new Date().toISOString(),
+      ...actionData,
+    });
+    window.WorkflowUI.render();
   }
 
-  function getChecklistQuestions() {
-    return CHECKLIST_QUESTIONS;
+  function isActionExecuted(actionId) {
+    return _state.actionsExecuted.some(a => a.actionId === actionId);
   }
 
-  function getStepLabels() {
-    return STEP_LABELS;
+  function getActionsExecuted() {
+    return [..._state.actionsExecuted];
   }
 
-  function getStepLabel(step) {
-    return STEP_LABELS[step - 1] || '';
+  function isStepAccessible(step) {
+    if (step <= 1) return true;
+    return _state.completedSteps.includes(step - 1) || step <= _state.step;
   }
 
-  function isStepValid(step) {
-    const current = _state.step;
-    _state.step = step;
-    const valid = validateCurrentStep();
-    _state.step = current;
-    return valid;
+  // ── Categorias GLPI ──────────────────────────────────────────────────────
+
+  async function loadCategorias() {
+    if (_categoriasCache) return _categoriasCache;
+    if (_categoriasLoading) return [];
+    _categoriasLoading = true;
+    try {
+      const data = await window.GlpiClient.fetchCategorias();
+      _categoriasCache = data || [];
+    } catch (e) {
+      _categoriasCache = [];
+    }
+    _categoriasLoading = false;
+    return _categoriasCache;
   }
+
+  function getCategorias() { return _categoriasCache || []; }
 
   // ── Preparação dos dados para o GLPI ─────────────────────────────────────
 
@@ -234,29 +384,46 @@ window.Workflow = (() => {
     const assistencia = getAssistenciaById(_state.assistencia);
     const checklist = _state.checklist;
     const regras = _state.regras;
-
-    const mauUsoLabel = checklist.mau_uso === 'sim' ? 'Sim' : 'Não';
-    const contratoLabel = regras.contratoObrigatorio ? 'Obrigatório' : 'Não obrigatório';
+    const now = new Date();
 
     const titulo = `${ativo.nome} — ${assistencia ? assistencia.nome : 'Chamado'}`;
 
-    const descricaoLinhas = [
-      `Assistência: ${assistencia ? assistencia.nome : 'Não informada'}`,
-      `Tipo de problema: ${_getChecklistLabel('tipo_problema', checklist.tipo_problema)}`,
-      `Mau uso: ${mauUsoLabel}`,
-    ];
+    const linhas = [];
+    linhas.push(`Assistência: ${assistencia ? assistencia.nome : 'Não informada'}`);
+    linhas.push(`Tipo de problema: ${_getChecklistLabel('tipo_problema', checklist.tipo_problema)}`);
+    linhas.push(`Equipamento liga: ${_getChecklistLabel('equipamento_liga', checklist.equipamento_liga)}`);
+    linhas.push(`Dano físico: ${checklist.dano_fisico === 'sim' ? 'Sim' : 'Não'}`);
 
-    if (checklist.mau_uso === 'sim' && checklist.mau_uso_detalhe) {
-      descricaoLinhas.push(`Detalhe do mau uso: ${checklist.mau_uso_detalhe}`);
+    if (checklist.dano_fisico === 'sim' && checklist.tipo_dano) {
+      linhas.push(`Tipo de dano: ${_getChecklistLabel('tipo_dano', checklist.tipo_dano)}`);
+    }
+    if (checklist.dano_fisico === 'sim' && checklist.dano_detalhe) {
+      linhas.push(`Detalhe do dano: ${checklist.dano_detalhe}`);
     }
 
-    descricaoLinhas.push(`Contrato: ${contratoLabel}`);
+    linhas.push(`Mau uso: ${checklist.mau_uso === 'sim' ? 'Sim' : 'Não'}`);
+    if (checklist.mau_uso === 'sim' && checklist.mau_uso_detalhe) {
+      linhas.push(`Detalhe mau uso: ${checklist.mau_uso_detalhe}`);
+    }
+    linhas.push(`Contrato: ${regras.contratoObrigatorio ? 'Obrigatório' : 'Não obrigatório'}`);
 
     if (checklist.observacoes) {
-      descricaoLinhas.push(`Observações: ${checklist.observacoes}`);
+      linhas.push(`Observações: ${checklist.observacoes}`);
     }
 
-    const descricao = descricaoLinhas.join('\n');
+    const descricao = linhas.join('\n');
+
+    const auditData = {
+      workflowVersion: WORKFLOW_VERSION,
+      timestamp: now.toISOString(),
+      assistencia: _state.assistencia,
+      assistenciaNome: assistencia ? assistencia.nome : '',
+      checklist: { ..._state.checklist },
+      regras: { ..._state.regras },
+      assistanceFlow: {
+        actionsExecuted: [..._state.actionsExecuted],
+      },
+    };
 
     return {
       titulo,
@@ -264,11 +431,12 @@ window.Workflow = (() => {
       glpiId: ativo.glpiId,
       itemtype: 'Computer',
       prioridade: regras.mauUso ? 4 : 3,
-      categoria: 0,
+      categoria: _state.categoriaGlpi || 0,
       assistencia: _state.assistencia,
       assistenciaNome: assistencia ? assistencia.nome : '',
       checklist: { ..._state.checklist },
       regras: { ..._state.regras },
+      auditData,
     };
   }
 
@@ -286,6 +454,7 @@ window.Workflow = (() => {
 
     _state.enviando = true;
     _state.erro = '';
+    _state.erroCampo = '';
     window.WorkflowUI.render();
 
     try {
@@ -295,12 +464,15 @@ window.Workflow = (() => {
       _state.sucesso = {
         ticketId: result.ticketId,
         titulo: payload.titulo,
+        assistencia: payload.assistenciaNome,
+        mauUso: _state.regras.mauUso,
+        contrato: _state.regras.contratoObrigatorio,
       };
       _state.enviando = false;
       window.WorkflowUI.render();
 
     } catch (e) {
-      _state.erro = e.message || 'Erro ao criar chamado no GLPI.';
+      _state.erro = e.message || 'Erro ao criar chamado no GLPI. Tente novamente.';
       _state.enviando = false;
       window.WorkflowUI.render();
     }
@@ -321,15 +493,25 @@ window.Workflow = (() => {
     getRegras,
     getAssistencias,
     getAssistenciaById,
+    getChecklistGroups,
     getChecklistQuestions,
     getStepLabels,
     getStepLabel,
-    isStepValid,
+    getWorkflowVersion,
+    isStepAccessible,
+    getAssistanceFlowConfig,
+    registerAssistanceAction,
+    isActionExecuted,
+    getActionsExecuted,
+    loadCategorias,
+    getCategorias,
     buildPayload,
     submit,
     ASSISTENCIAS,
+    CHECKLIST_GROUPS,
     CHECKLIST_QUESTIONS,
     TOTAL_STEPS,
+    WORKFLOW_VERSION,
   };
 
 })();
