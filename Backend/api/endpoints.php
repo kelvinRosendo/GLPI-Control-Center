@@ -30,6 +30,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 require_once __DIR__ . '/client.php';
 require_once __DIR__ . '/mappers.php';
 require_once __DIR__ . '/tickets.php';
+require_once __DIR__ . '/workflow.php';
 require_once __DIR__ . '/chat.php';
 
 function isComputador(string $nome): bool
@@ -248,6 +249,11 @@ try {
       'POST' => TicketsEndpoint::create($config),
       default => TicketsEndpoint::listAll($config),
     },
+    '/api/tickets/workflow' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'POST' => WorkflowEndpoint::createWorkflowTicket($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
+    '/api/assistencias' => WorkflowEndpoint::assistencias(),
     default => (function () use ($path, $config) {
       if (preg_match('#^/api/assets/computers/(\d+)$#', $path, $m)) {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';

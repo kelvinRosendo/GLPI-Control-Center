@@ -207,7 +207,7 @@ window.UI = {
         <div class="asset-card-footer">
           ${canExpand ? `<button class="btn-expand" data-computer-toggle="${a.glpiId}">Ver dados completos</button>` : ''}
           <a class="btn-glpi" href="${glpiLink}" target="_blank" rel="noopener">Abrir no GLPI</a>
-          ${a.glpiId ? `<button class="btn-ticket" onclick='window.Tickets.openModal(${JSON.stringify(a).replace(/'/g, '&#39;')})'>Abrir chamado</button>` : ''}
+          ${a.glpiId ? `<button class="btn-ticket" onclick='window.Workflow.open(${JSON.stringify(a).replace(/'/g, "&#39;")})'>Abrir chamado</button>` : ''}
         </div>
       </div>
     `;

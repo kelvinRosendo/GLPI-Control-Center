@@ -15,7 +15,7 @@ window.STATE = {
   ticketsError: '',
   ticketSearch: '',
   ticketStatus: 'todos',
-
+  workflowOpen: false,
 };
 
 window.State = {

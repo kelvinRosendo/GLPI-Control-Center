@@ -82,7 +82,7 @@ window.App = {
     this._bindComputerCardEvents();
     this._renderComputerModal();
     this._bindTicketEvents();
-
+    this._bindWorkflowModalEvents();
   },
 
   _renderTabs() {
@@ -303,6 +303,15 @@ window.App = {
     this._bindSearchEvents();
     this._bindTicketEvents();
     this._bindComputerCardEvents();
+  },
+
+  _bindWorkflowModalEvents() {
+    const modal = document.getElementById('workflow-modal');
+    if (!modal) return;
+
+    modal.querySelectorAll('[data-wf-modal-close]').forEach(el => {
+      el.addEventListener('click', () => window.Workflow.close());
+    });
   },
 
   _animateTabContent(mainEl) {
