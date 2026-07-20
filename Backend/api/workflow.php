@@ -15,18 +15,10 @@ declare(strict_types=1);
 
 final class WorkflowEndpoint
 {
-  private static array $assistencias = [
-    ['id' => 'torino',    'nome' => 'Torino',    'descricao' => 'Suporte técnico Torino'],
-    ['id' => 'hbb',       'nome' => 'HBB',       'descricao' => 'Suporte técnico HBB'],
-    ['id' => 'acer_geek', 'nome' => 'Acer Geek', 'descricao' => 'Suporte técnico Acer Geek'],
-    ['id' => 'acer',      'nome' => 'Acer',      'descricao' => 'Suporte técnico Acer'],
-  ];
-
-  private const WORKFLOW_VERSION = '2.0.0';
-
   public static function assistencias(): void
   {
-    Responde::ok(['data' => self::$assistencias]);
+    $config = WorkflowConfigLoader::getInstance();
+    Responde::ok(['data' => $config->getAssistencias()]);
   }
 
   // ── Categorias GLPI ──────────────────────────────────────────────────────
@@ -97,16 +89,12 @@ final class WorkflowEndpoint
       $erros[] = 'assistência técnica é obrigatória';
     }
 
-    $assistenciaValida = false;
-    foreach (self::$assistencias as $a) {
-      if ($a['id'] === $assistencia) {
-        $assistenciaValida = true;
-        $assistenciaNome = $a['nome'];
-        break;
-      }
-    }
-    if (!$assistenciaValida) {
+    $configLoader = WorkflowConfigLoader::getInstance();
+    $assistenciaData = $configLoader->getAssistenciaById($assistencia);
+    if ($assistenciaData === null) {
       $erros[] = 'assistência técnica inválida';
+    } else {
+      $assistenciaNome = $assistenciaData['nome'];
     }
 
     $mauUso = ($checklist['mau_uso'] ?? '') === 'sim';
@@ -163,10 +151,11 @@ final class WorkflowEndpoint
 
     $content = implode("\n", $contentLinhas);
 
-    // ── Monta comment (JSON para auditoria) ───────────────────────────────
+    // ── Monta content (JSON para auditoria) ────────────────────────────────
+    $configLoader = WorkflowConfigLoader::getInstance();
     $auditPayload = [
       'workflow' => [
-        'version'  => self::WORKFLOW_VERSION,
+        'version'  => $configLoader->getWorkflowVersion(),
         'timestamp' => $auditData['timestamp'] ?? date('c'),
       ],
       'assistencia' => [
@@ -237,7 +226,7 @@ final class WorkflowEndpoint
         'assistenciaNome' => $assistenciaNome,
         'mauUso'        => $mauUso,
         'contrato'      => $contratoObrigatorio,
-        'workflowVersion' => self::WORKFLOW_VERSION,
+        'workflowVersion' => WorkflowConfigLoader::getInstance()->getWorkflowVersion(),
       ],
     ]);
   }
@@ -275,7 +264,7 @@ final class WorkflowEndpoint
       'actionType'  => $actionType,
       'actionData'  => $actionData,
       'timestamp'   => date('c'),
-      'workflow'    => self::WORKFLOW_VERSION,
+      'workflow'    => WorkflowConfigLoader::getInstance()->getWorkflowVersion(),
     ];
 
     Responde::ok([

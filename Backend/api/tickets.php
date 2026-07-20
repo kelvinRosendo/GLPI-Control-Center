@@ -126,40 +126,17 @@ final class TicketsEndpoint
 
   private static function mapTicket(array $t): array
   {
+    $config = WorkflowConfigLoader::getInstance();
     return [
       'id'          => $t['id']                   ?? null,
       'titulo'      => $t['name']                 ?? '',
       'descricao'   => $t['content']              ?? '',
-      'status'      => self::mapStatus((int)   ($t['status']             ?? 1)),
-      'prioridade'  => self::mapPrioridade((int) ($t['priority']          ?? 3)),
+      'status'      => $config->mapStatus((int)   ($t['status']             ?? 1)),
+      'prioridade'  => $config->mapPrioridade((int) ($t['priority']          ?? 3)),
       'categoria'   => is_string($t['itilcategories_id'] ?? null) ? $t['itilcategories_id'] : '',
       'ativo'       => is_string($t['items_id']          ?? null) ? $t['items_id']          : '',
       'abertura'    => $t['date']                 ?? '',
       'solicitante' => is_string($t['users_id_recipient'] ?? null) ? $t['users_id_recipient'] : '',
     ];
-  }
-
-  private static function mapStatus(int $id): string
-  {
-    return match ($id) {
-      1       => 'aberto',
-      2, 3    => 'em_andamento',
-      4       => 'pendente',
-      5       => 'resolvido',
-      6       => 'fechado',
-      default => 'aberto',
-    };
-  }
-
-  private static function mapPrioridade(int $id): string
-  {
-    return match ($id) {
-      1       => 'muito_baixa',
-      2       => 'baixa',
-      3       => 'media',
-      4       => 'alta',
-      5       => 'muito_alta',
-      default => 'media',
-    };
   }
 }

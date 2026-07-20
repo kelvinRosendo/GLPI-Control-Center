@@ -126,20 +126,27 @@ Ao responder sobre disponibilidade de carrinhos, SEMPRE mencione:
 Exemplo: "O Carrinho 3 está na Sala 11. Na manhã de segunda-feira, 1ª aula, está disponível para o 6º ano A usar com Eletiva."
 CONTEXTO;
 
-        // ── Payload para a Gemini API ──────────────────────────────────────────
+        // ── Configurações da OpenAI via ConfigLoader ──────────────────────────
+        $configLoader = WorkflowConfigLoader::getInstance();
+        $openaiConfig = $configLoader->getOpenAIConfig();
+        $model = $openaiConfig['model'] ?? 'gpt-4o-mini';
+        $temperature = $openaiConfig['temperature'] ?? 0.3;
+        $maxTokens = $openaiConfig['max_tokens'] ?? 512;
+        $timeout = $openaiConfig['timeout'] ?? 30;
+        $apiUrl = $openaiConfig['api_url'] ?? 'https://api.openai.com/v1/chat/completions';
+
+        // ── Payload para a OpenAI API ──────────────────────────────────────────
         $payload = [
-            'model' => 'gpt-4o-mini',
+            'model' => $model,
             'messages' => [
                 ['role' => 'system', 'content' => $contexto],
                 ['role' => 'user', 'content' => $mensagem],
             ],
-            'temperature' => 0.3,
-            'max_tokens' => 512,
+            'temperature' => $temperature,
+            'max_tokens' => $maxTokens,
         ];
 
-        $url = 'https://api.openai.com/v1/chat/completions';
-
-        $ch = curl_init($url);
+        $ch = curl_init($apiUrl);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
@@ -148,7 +155,7 @@ CONTEXTO;
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . getenv('OPENAI_API_KEY'),
             ],
-            CURLOPT_TIMEOUT => 30,
+            CURLOPT_TIMEOUT => $timeout,
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_SSL_VERIFYHOST => 0,
         ]);

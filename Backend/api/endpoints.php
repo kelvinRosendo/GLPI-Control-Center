@@ -12,6 +12,7 @@ header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/utils/env.php';
 require_once __DIR__ . '/utils/responde.php';
+require_once __DIR__ . '/../config/WorkflowConfigLoader.php';
 
 Env::load(__DIR__ . '/../.env');
 Env::load(__DIR__ . '/../.env.local', true);

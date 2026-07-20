@@ -21,126 +21,22 @@ window.Workflow = (() => {
   const WORKFLOW_VERSION = '2.0.0';
   const TOTAL_STEPS = 5;
 
-  const ASSISTENCIAS = [
-    { id: 'torino',    nome: 'Torino',    descricao: 'Suporte técnico Torino' },
-    { id: 'hbb',       nome: 'HBB',       descricao: 'Suporte técnico HBB' },
-    { id: 'acer_geek', nome: 'Acer Geek', descricao: 'Suporte técnico Acer Geek' },
-    { id: 'acer',      nome: 'Acer',      descricao: 'Suporte técnico Acer' },
-  ];
+  // ═════════════════════════════════════════════════════════════════════════
+  // CONFIGURAÇÕES VIA ConfigurationLoader (ETAPA 3)
+  // ═════════════════════════════════════════════════════════════════════════
+  // ANTES: As configurações estavam hardcoded aqui
+  // AGORA: Vêm do WorkflowConfig (ConfigurationLoader)
+  //
+  // POR QUE?
+  // - Elimina duplicação entre frontend e backend
+  // - Facilita manutenção (muda em um lugar, reflete em todos)
+  // - Prepara para buscar de API no futuro
+  // ═════════════════════════════════════════════════════════════════════════
 
-  const CHECKLIST_GROUPS = [
-    {
-      id: 'problema',
-      label: 'Problema',
-      questions: [
-        {
-          id: 'tipo_problema',
-          label: 'Qual o tipo do problema?',
-          tipo: 'select',
-          opcoes: [
-            { value: '', label: 'Selecione...' },
-            { value: 'nao_liga',          label: 'Não liga' },
-            { value: 'tela_problema',     label: 'Problema na tela' },
-            { value: 'teclado_problema',  label: 'Problema no teclado' },
-            { value: 'bateria',           label: 'Problema na bateria' },
-            { value: 'wifi',              label: 'Não conecta WiFi' },
-            { value: 'carregador',        label: 'Sem carregador / carregador danificado' },
-            { value: 'software',          label: 'Problema de software' },
-            { value: 'outro',             label: 'Outro' },
-          ],
-          obrigatorio: true,
-        },
-        {
-          id: 'equipamento_liga',
-          label: 'O equipamento liga?',
-          tipo: 'radio',
-          opcoes: [
-            { value: 'sim', label: 'Sim' },
-            { value: 'nao', label: 'Não' },
-            { value: 'intermitente', label: 'Intermitente' },
-          ],
-          obrigatorio: true,
-        },
-      ],
-    },
-    {
-      id: 'condicao',
-      label: 'Condição Física',
-      questions: [
-        {
-          id: 'dano_fisico',
-          label: 'Existe dano físico visível?',
-          tipo: 'radio',
-          opcoes: [
-            { value: 'sim', label: 'Sim' },
-            { value: 'nao', label: 'Não' },
-          ],
-          obrigatorio: true,
-        },
-        {
-          id: 'tipo_dano',
-          label: 'Qual o tipo de dano?',
-          tipo: 'select',
-          opcoes: [
-            { value: '', label: 'Selecione...' },
-            { value: 'tela_rachada',     label: 'Tela rachada/quebrada' },
-            { value: 'carcaca_avariada', label: 'Carcaça danificada' },
-            { value: 'teclas_soltas',    label: 'Teclas soltas' },
-            { value: 'porta_danificada', label: 'Porta danificada' },
-            { value: 'marca_queda',      label: 'Marcas de queda' },
-            { value: 'outro',            label: 'Outro' },
-          ],
-          obrigatorio: true,
-          condicional: (r) => r.dano_fisico === 'sim',
-        },
-        {
-          id: 'dano_detalhe',
-          label: 'Descreva o dano identificado',
-          tipo: 'textarea',
-          obrigatorio: false,
-          condicional: (r) => r.dano_fisico === 'sim',
-        },
-      ],
-    },
-    {
-      id: 'uso',
-      label: 'Uso e Acesso',
-      questions: [
-        {
-          id: 'mau_uso',
-          label: 'Existe mau uso?',
-          tipo: 'radio',
-          opcoes: [
-            { value: 'sim', label: 'Sim' },
-            { value: 'nao', label: 'Não' },
-          ],
-          obrigatorio: true,
-        },
-        {
-          id: 'mau_uso_detalhe',
-          label: 'Descreva o mau uso identificado',
-          tipo: 'textarea',
-          obrigatorio: false,
-          condicional: (r) => r.mau_uso === 'sim',
-        },
-      ],
-    },
-    {
-      id: 'observacoes_grupo',
-      label: 'Observações',
-      questions: [
-        {
-          id: 'observacoes',
-          label: 'Observações adicionais',
-          tipo: 'textarea',
-          obrigatorio: false,
-        },
-      ],
-    },
-  ];
-
-  const CHECKLIST_QUESTIONS = CHECKLIST_GROUPS.flatMap(g => g.questions);
-  const STEP_LABELS = ['Equipamento', 'Assistência', 'Checklist', 'Confirmação', 'Fluxo'];
+  const ASSISTENCIAS = window.WorkflowConfig.getAssistencias();
+  const CHECKLIST_GROUPS = window.WorkflowConfig.getChecklistGroups();
+  const CHECKLIST_QUESTIONS = window.WorkflowConfig.getChecklistQuestions();
+  const STEP_LABELS = window.WorkflowConfig.getStepLabels();
 
   // ── Categorias GLPI (cache) ───────────────────────────────────────────────
 
