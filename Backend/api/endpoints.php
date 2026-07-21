@@ -7,10 +7,13 @@ declare(strict_types=1);
 
 ini_set('display_errors', '0');
 ini_set('html_errors', '0');
+ini_set('log_errors', '1');
+ini_set('error_log', __DIR__ . '/../logs/php_errors.log');
 error_reporting(E_ALL & ~E_DEPRECATED & ~E_NOTICE & ~E_WARNING);
 header('Content-Type: application/json; charset=utf-8');
 
 require_once __DIR__ . '/utils/env.php';
+require_once __DIR__ . '/utils/logger.php';
 require_once __DIR__ . '/utils/responde.php';
 require_once __DIR__ . '/../config/WorkflowConfigLoader.php';
 
@@ -18,6 +21,9 @@ Env::load(__DIR__ . '/../.env');
 Env::load(__DIR__ . '/../.env.local', true);
 
 $config = require __DIR__ . '/../config/config.php';
+
+$logger = Logger::getInstance();
+$requestStart = microtime(true);
 
 header('Access-Control-Allow-Origin: ' . ($config['cors']['origin'] ?? '*'));
 header('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS');
@@ -54,6 +60,20 @@ function isProjetor(string $nome): bool
   return preg_match('/^Projetor/i', $nome) === 1;
 }
 
+function validateGlpiListResponse(mixed $raw, string $context): array
+{
+  if (!is_array($raw)) {
+    $logger = Logger::getInstance();
+    $logger->warn("GLPI retornou resposta nao-array para {$context}", [
+      'type' => get_debug_type($raw),
+      'preview' => is_string($raw) ? substr($raw, 0, 200) : null,
+    ]);
+    return [];
+  }
+
+  return $raw;
+}
+
 final class Endpoints
 {
   public static function health(): void
@@ -75,7 +95,9 @@ final class Endpoints
     ]);
     $glpi->killSession($session);
 
-    return array_filter($raw, 'is_array');
+    $validated = validateGlpiListResponse($raw, 'Computer');
+
+    return array_filter($validated, 'is_array');
   }
 
   private static function getComputerById(array $config, int $id): array
@@ -219,8 +241,10 @@ final class Endpoints
     ]);
     $glpi->killSession($session);
 
+    $validated = validateGlpiListResponse($raw, 'Printer');
+
     $items = [];
-    foreach ($raw as $p) {
+    foreach ($validated as $p) {
       if (is_array($p)) {
         $items[] = Mappers::impressora($p);
       }
@@ -234,6 +258,9 @@ $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $uri = rtrim($uri, '/');
 $normalized = str_replace('/api/endpoints.php', '', $uri);
 $path = $normalized ?: '/';
+
+$logger->logRequest($_SERVER['REQUEST_METHOD'] ?? 'GET', $path);
+$logger->logEnvStatus();
 
 try {
   match ($path) {
@@ -285,7 +312,14 @@ try {
     })(),
   };
 } catch (Throwable $e) {
+  $logger->logError($e, 'endpoint_dispatch');
+
   Responde::erro('Erro interno no backend.', 500, [
     'message' => $e->getMessage(),
+    'file'    => basename($e->getFile()),
+    'line'    => $e->getLine(),
   ]);
+} finally {
+  $duration = (microtime(true) - $requestStart) * 1000;
+  $logger->logResponse(http_response_code(), $duration);
 }

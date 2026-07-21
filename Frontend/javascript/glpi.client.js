@@ -1,7 +1,7 @@
 /**
  * GLPI Control Center - glpi.client.js
  * -----------------------------------------------------------------------------
- * Cliente JavaScript para comunicação com o backend PHP.
+ * Cliente JavaScript para comunicacao com o backend PHP.
  */
 
 window.GlpiClient = {
@@ -22,14 +22,40 @@ window.GlpiClient = {
       config.body = JSON.stringify(options.body);
     }
 
-    const res = await fetch(this.baseUrl + path, config);
+    let res;
+    try {
+      res = await fetch(this.baseUrl + path, config);
+    } catch (networkError) {
+      throw new Error('Nao foi possivel conectar ao backend. Verifique se o servidor esta rodando.');
+    }
+
     if (!res.ok) {
-      throw new Error(`Backend retornou HTTP ${res.status} em ${path}`);
+      let errorMsg = `Backend retornou HTTP ${res.status} em ${path}`;
+      try {
+        const errorBody = await res.json();
+        if (errorBody.error) {
+          if (typeof errorBody.error === 'object' && errorBody.error.message) {
+            errorMsg = errorBody.error.message;
+          } else if (typeof errorBody.error === 'string') {
+            errorMsg = errorBody.error;
+          }
+        }
+      } catch (_) {
+      }
+      throw new Error(errorMsg);
     }
 
     const json = await res.json();
     if (!json.ok) {
-      throw new Error(json.error ?? 'Erro desconhecido no backend');
+      let errorMsg = 'Erro desconhecido no backend';
+      if (json.error) {
+        if (typeof json.error === 'object' && json.error.message) {
+          errorMsg = json.error.message;
+        } else if (typeof json.error === 'string') {
+          errorMsg = json.error;
+        }
+      }
+      throw new Error(errorMsg);
     }
 
     return json;

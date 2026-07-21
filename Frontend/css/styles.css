@@ -1274,3 +1274,73 @@ textarea,
   border: 2px solid var(--surface2);
 }
 */
+
+/* ==========================================================================
+   18) Home Error Banner
+   ========================================================================== */
+.home-error-banner {
+  background: rgba(255, 85, 85, 0.08);
+  border: 1px solid rgba(255, 85, 85, 0.25);
+  border-radius: var(--radius, 12px);
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.home-error-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.home-error-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.home-error-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.home-error-text strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ff9c9c;
+  margin-bottom: 4px;
+}
+
+.home-error-text p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text2, #9299b8);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.home-error-retry {
+  padding: 10px 20px;
+  background: rgba(255, 85, 85, 0.15);
+  border: 1px solid rgba(255, 85, 85, 0.3);
+  border-radius: 8px;
+  color: #ff9c9c;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.home-error-retry:hover {
+  background: rgba(255, 85, 85, 0.25);
+  border-color: rgba(255, 85, 85, 0.5);
+}

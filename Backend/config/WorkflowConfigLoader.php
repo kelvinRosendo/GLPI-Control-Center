@@ -272,16 +272,26 @@ final class WorkflowConfigLoader
     /**
      * Converte um states_id do GLPI para nome legível.
      *
+     * Aceita tanto int quanto string (expand_dropdowns do GLPI retorna string).
+     *
      * USO:
      *   $status = WorkflowConfigLoader::getInstance()->mapAssetStatus(2); // 'manutencao'
+     *   $status = WorkflowConfigLoader::getInstance()->mapAssetStatus('Em uso'); // 'ativo'
      */
-    public function mapAssetStatus(?int $statesId): string
+    public function mapAssetStatus(mixed $statesId): string
     {
-        if ($statesId === null || $statesId === 0) {
+        if ($statesId === null || $statesId === '' || $statesId === 0) {
             return $this->get('status')['asset_status_default'] ?? 'ativo';
         }
-        $map = $this->getAssetStatusMap();
-        return $map[$statesId] ?? $this->get('status')['asset_status_default'] ?? 'ativo';
+
+        $numericId = is_numeric($statesId) ? (int) $statesId : null;
+
+        if ($numericId !== null && $numericId > 0) {
+            $map = $this->getAssetStatusMap();
+            return $map[$numericId] ?? $this->get('status')['asset_status_default'] ?? 'ativo';
+        }
+
+        return $this->get('status')['asset_status_default'] ?? 'ativo';
     }
 
     /**

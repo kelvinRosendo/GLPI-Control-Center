@@ -24,10 +24,34 @@ final class Responde
 
   public static function erro(string $message, int $status = 400, array $meta = []): void
   {
-    self::json([
+    $response = [
       'ok' => false,
-      'error' => $message,
-      'meta' => $meta,
-    ], $status);
+      'error' => [
+        'code'    => self::errorCodeFromStatus($status),
+        'message' => $message,
+      ],
+    ];
+
+    if (!empty($meta)) {
+      $response['error']['details'] = $meta;
+    }
+
+    self::json($response, $status);
+  }
+
+  private static function errorCodeFromStatus(int $status): string
+  {
+    return match (true) {
+      $status === 400 => 'BAD_REQUEST',
+      $status === 401 => 'UNAUTHORIZED',
+      $status === 403 => 'FORBIDDEN',
+      $status === 404 => 'NOT_FOUND',
+      $status === 405 => 'METHOD_NOT_ALLOWED',
+      $status === 422 => 'UNPROCESSABLE_ENTITY',
+      $status === 500 => 'INTERNAL_ERROR',
+      $status === 502 => 'BAD_GATEWAY',
+      $status === 503 => 'SERVICE_UNAVAILABLE',
+      default         => 'ERROR_' . $status,
+    };
   }
 }

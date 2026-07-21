@@ -175,8 +175,10 @@ final class Mappers
 
   private static function status(array $item): string
   {
+    $raw = $item['states_id'] ?? null;
+    $statesId = is_numeric($raw) ? (int) $raw : $raw;
     $config = WorkflowConfigLoader::getInstance();
-    return $config->mapAssetStatus($item['states_id'] ?? null);
+    return $config->mapAssetStatus($statesId);
   }
 
   private static function extractName(mixed $value): ?string
@@ -254,8 +256,10 @@ final class Mappers
       return $expanded;
     }
 
+    $raw = $item['states_id'] ?? null;
+    $statesId = is_numeric($raw) ? (int) $raw : $raw;
     $config = WorkflowConfigLoader::getInstance();
-    $status = $config->mapAssetStatus($item['states_id'] ?? null);
+    $status = $config->mapAssetStatus($statesId);
     return match ($status) {
       'manutencao' => 'Em manutenção',
       'emprestado' => 'Emprestado',

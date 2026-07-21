@@ -1,5 +1,6 @@
 .env
 Backend/.env
 Backend/.env.local
+Backend/logs/
 satrt-server.bat
 satrt-server.bat

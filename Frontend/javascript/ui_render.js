@@ -163,6 +163,21 @@ window.UI = {
     `;
   },
 
+  renderAssetError(assetType, errors = []) {
+    const filteredErrors = errors.filter(e => e.toLowerCase().includes(assetType.toLowerCase()));
+    const displayMessage = filteredErrors.length > 0
+      ? filteredErrors[0]
+      : 'Nao foi possivel carregar os ativos. Verifique se o backend e o GLPI estao acessiveis.';
+
+    return `
+      <div class="empty-state-card" style="max-width: 500px; margin: 40px auto;">
+        <h3 style="color: #ff9c9c;">Erro ao carregar ${this._escapeHtml(assetType)}</h3>
+        <p>${this._escapeHtml(displayMessage)}</p>
+        <button onclick="window.App.retryLoadAssets()" style="margin-top: 16px; padding: 10px 24px; background: var(--accent, #4f7ef7); border: none; border-radius: 8px; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer;">Tentar novamente</button>
+      </div>
+    `;
+  },
+
   renderHomeLoading() {
     return `
       <div class="home-wrapper">
@@ -298,7 +313,7 @@ window.UI = {
     return tabs.map(t => `<button class="tab-btn ${window.STATE.tab === t.id ? 'active' : ''}" data-tab="${t.id}">${t.label}</button>`).join('');
   },
 
-  renderHome() {
+  renderHome(loadErrors) {
     const D = window.DATA;
     const cats = [
       { label: 'Computadores', icon: '🖥️', lista: D.computadores, tab: 'computadores', cor: '#4f7ef7' },
@@ -307,6 +322,20 @@ window.UI = {
       { label: 'Projetores', icon: '📽️', lista: D.projetores, tab: 'projetores', cor: '#ffc107' },
       { label: 'Impressoras', icon: '🖨️', lista: D.impressoras, tab: 'impressoras', cor: '#ff5555' },
     ];
+
+    const errorHtml = (loadErrors && loadErrors.length > 0)
+      ? `<div class="home-error-banner">
+           <div class="home-error-content">
+             <span class="home-error-icon">⚠️</span>
+             <div class="home-error-text">
+               <strong>Alguns ativos nao puderam ser carregados</strong>
+               <p>${this._escapeHtml(loadErrors.join(' | '))}</p>
+             </div>
+           </div>
+           <button class="home-error-retry" onclick="window.App.retryLoadAssets()">Tentar novamente</button>
+         </div>`
+      : '';
+
     const totalAtivos = cats.reduce((sum, cat) => sum + cat.lista.length, 0);
     const cards = cats.map(cat => {
       const total = cat.lista.length;
@@ -316,7 +345,7 @@ window.UI = {
       return `<div class="home-card" data-tab="${cat.tab}" onclick="window.App.go('${cat.tab}')" style="cursor: pointer;"><div class="home-card-icon">${cat.icon}</div><div class="home-card-info"><h3>${this._escapeHtml(cat.label)}</h3><p class="home-card-total">${total} ativos</p><div class="home-card-pills"><span class="pill-ativo">${ativos} ativos</span>${manut ? `<span class="pill-manut">${manut} manutencao</span>` : ''}${emprestado ? `<span class="pill-emp">${emprestado} emprestado${emprestado > 1 ? 's' : ''}</span>` : ''}</div></div></div>`;
     }).join('');
     const chartSvg = this._renderPieChart(cats, totalAtivos);
-    return `<div class="home-wrapper"><h2 class="section-title">Resumo de Ativos</h2><div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 24px;"><div style="display: flex; align-items: center; gap: 32px; flex-wrap: wrap;"><div style="flex-shrink: 0;">${chartSvg}</div><div style="flex: 1; min-width: 200px;"><h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px;">Distribuicao por Categoria</h3><div style="display: flex; flex-direction: column; gap: 10px;">${cats.map(cat => { const percentual = totalAtivos > 0 ? ((cat.lista.length / totalAtivos) * 100).toFixed(1) : 0; return `<div style="display: flex; align-items: center; gap: 10px;"><div style="width: 16px; height: 16px; background: ${cat.cor}; border-radius: 4px; flex-shrink: 0;"></div><span style="font-size: 14px; color: var(--text2); flex: 1;">${this._escapeHtml(cat.label)}</span><span style="font-size: 14px; font-weight: 600; color: var(--text);">${cat.lista.length}</span><span style="font-size: 13px; color: var(--text3); min-width: 45px; text-align: right;">(${percentual}%)</span></div>`; }).join('')}<div style="margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between;"><span style="font-size: 15px; font-weight: 600; color: var(--text);">Total</span><span style="font-size: 15px; font-weight: 700; color: var(--accent);">${totalAtivos} ativos</span></div></div></div></div></div><div class="home-grid">${cards}</div></div>`;
+    return `<div class="home-wrapper"><h2 class="section-title">Resumo de Ativos</h2>${errorHtml}<div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 24px;"><div style="display: flex; align-items: center; gap: 32px; flex-wrap: wrap;"><div style="flex-shrink: 0;">${chartSvg}</div><div style="flex: 1; min-width: 200px;"><h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px;">Distribuicao por Categoria</h3><div style="display: flex; flex-direction: column; gap: 10px;">${cats.map(cat => { const percentual = totalAtivos > 0 ? ((cat.lista.length / totalAtivos) * 100).toFixed(1) : 0; return `<div style="display: flex; align-items: center; gap: 10px;"><div style="width: 16px; height: 16px; background: ${cat.cor}; border-radius: 4px; flex-shrink: 0;"></div><span style="font-size: 14px; color: var(--text2); flex: 1;">${this._escapeHtml(cat.label)}</span><span style="font-size: 14px; font-weight: 600; color: var(--text);">${cat.lista.length}</span><span style="font-size: 13px; color: var(--text3); min-width: 45px; text-align: right;">(${percentual}%)</span></div>`; }).join('')}<div style="margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between;"><span style="font-size: 15px; font-weight: 600; color: var(--text);">Total</span><span style="font-size: 15px; font-weight: 700; color: var(--accent);">${totalAtivos} ativos</span></div></div></div></div></div><div class="home-grid">${cards}</div></div>`;
   },
 
   _renderPieChart(cats, total) {
