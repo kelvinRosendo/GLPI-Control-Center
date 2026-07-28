@@ -19,13 +19,13 @@ final class GlpiClient
   public function validate(): void
   {
     if ($this->baseUrl === '') {
-      Responde::erro('GLPI_URL não configurada.', 500);
+      throw new \RuntimeException('GLPI_URL não configurada.');
     }
     if ($this->appToken === '') {
-      Responde::erro('GLPI_APP_TOKEN não configurado.', 500);
+      throw new \RuntimeException('GLPI_APP_TOKEN não configurado.');
     }
     if ($this->userToken === '') {
-      Responde::erro('GLPI_USER_TOKEN não configurado.', 500);
+      throw new \RuntimeException('GLPI_USER_TOKEN não configurado.');
     }
   }
 

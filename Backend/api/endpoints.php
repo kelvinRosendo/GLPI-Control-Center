@@ -32,6 +32,24 @@ require_once __DIR__ . '/mappers.php';
 require_once __DIR__ . '/tickets.php';
 require_once __DIR__ . '/chat.php';
 
+function isConfigValid(array $config): array
+{
+  $errors = [];
+  $glpi = $config['glpi'] ?? [];
+
+  if (empty($glpi['url']) || $glpi['url'] === 'https://seu-glpi.interno/apirest.php') {
+    $errors[] = 'GLPI_URL não configurada ou usando valor padrão.';
+  }
+  if (empty($glpi['app_token'])) {
+    $errors[] = 'GLPI_APP_TOKEN não configurado.';
+  }
+  if (empty($glpi['user_token'])) {
+    $errors[] = 'GLPI_USER_TOKEN não configurado.';
+  }
+
+  return $errors;
+}
+
 function isComputador(string $nome): bool
 {
   return preg_match('/^(CS-|CO-)/i', $nome) === 1;
@@ -234,6 +252,17 @@ $normalized = str_replace('/api/endpoints.php', '', $uri);
 $path = $normalized ?: '/';
 
 try {
+  $configErrors = isConfigValid($config);
+  $needsGlpi = !in_array($path, ['/api/health'], true);
+
+  if ($needsGlpi && $configErrors !== []) {
+    Responde::erro(
+      'Configuração do GLPI incompleta. Verifique o arquivo .env',
+      500,
+      ['config_errors' => $configErrors]
+    );
+  }
+
   match ($path) {
     '/api/health' => Endpoints::health(),
     '/api/assets/computers' => Endpoints::computers($config),
@@ -271,6 +300,17 @@ try {
     })(),
   };
 } catch (Throwable $e) {
+  $logDir = __DIR__ . '/../logs';
+  if (!is_dir($logDir)) {
+    @mkdir($logDir, 0755, true);
+  }
+  $logFile = $logDir . '/error_' . date('Y-m-d') . '.log';
+  $logEntry = '[' . date('Y-m-d H:i:s') . '] '
+    . $e->getFile() . ':' . $e->getLine() . ' '
+    . $e->getMessage() . ' '
+    . $e->getTraceAsString() . "\n";
+  @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
+
   Responde::erro('Erro interno no backend.', 500, [
     'message' => $e->getMessage(),
   ]);
