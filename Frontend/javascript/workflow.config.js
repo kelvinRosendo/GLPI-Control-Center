@@ -34,5 +34,5 @@ window.WORKFLOW_CONFIG = {
     { id: 'outro',       label: 'Outro' },
   ],
 
-  workflowVersion: '3.0',
+  workflowVersion: '4.0',
 };

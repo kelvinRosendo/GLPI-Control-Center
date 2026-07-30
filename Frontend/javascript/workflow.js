@@ -240,7 +240,16 @@ window.Workflow = {
       if (result && result.ticketId) {
         this.state.currentStep = this.TOTAL_STEPS + 1;
         window.WorkflowUI.render();
-        setTimeout(() => this.close(), 3000);
+
+        // Abrir PortalViewer após 1.5s (tempo para o usuário ver a confirmação)
+        const integrationKey = this.workflowData.assistance;
+        if (integrationKey && window.PortalViewer) {
+          setTimeout(() => {
+            window.PortalViewer.open(integrationKey, this.workflowData);
+          }, 1500);
+        } else {
+          setTimeout(() => this.close(), 3000);
+        }
       } else {
         this.state.error = 'Resposta inválida do servidor.';
         window.WorkflowUI.render();

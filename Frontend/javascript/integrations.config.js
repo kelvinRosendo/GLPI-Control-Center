@@ -19,7 +19,7 @@
 window.INTEGRATIONS_CONFIG = {
 
   // ══════════════════════════════════════════════════════════════════════════
-  // TORINO
+  // TORINO — Portal Web
   // ══════════════════════════════════════════════════════════════════════════
 
   torino: {
@@ -27,7 +27,7 @@ window.INTEGRATIONS_CONFIG = {
     nome: 'Torino',
     descricao: 'Assistência técnica especializada em Chromebooks e equipamentos Dell/Acer.',
     tipo: 'portal',
-    url: 'https://suporte.torino.com.br',
+    url: 'https://chamados.grupotorino.com.br/#login',
     suportaIframe: false,
     fallback: 'open-tab',
     fallbackLabel: 'Abrir portal em nova aba',
@@ -40,7 +40,7 @@ window.INTEGRATIONS_CONFIG = {
     },
 
     portal: {
-      url: 'https://suporte.torino.com.br',
+      url: 'https://chamados.grupotorino.com.br/#login',
       suportaIframe: false,
       fallback: 'Abrir portal em nova aba',
     },
@@ -55,7 +55,7 @@ window.INTEGRATIONS_CONFIG = {
         icon: '&#128279;',
         tipo: 'open-url',
         target: '_blank',
-        url: 'https://suporte.torino.com.br',
+        url: 'https://chamados.grupotorino.com.br/#login',
         auditEvent: 'portal-opened',
       },
       {
@@ -87,13 +87,13 @@ window.INTEGRATIONS_CONFIG = {
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // HBB
+  // HBB — E-mail
   // ══════════════════════════════════════════════════════════════════════════
 
   hbb: {
     key: 'hbb',
     nome: 'HBB',
-    descricao: 'Suporte técnico via e-mail para equipamentos com contrato HBB.',
+    descricao: 'Suporte técnico via e-mail para equipamentos com contrato HBB. O Chromebook deverá ser entregue ao responsável.',
     tipo: 'email',
     url: null,
     suportaIframe: false,
@@ -102,9 +102,9 @@ window.INTEGRATIONS_CONFIG = {
     status: 'ativo',
 
     contato: {
-      responsavel: 'Renan',
-      email: 'renan@hbb.com.br',
-      telefone: '(11) 99999-0000',
+      responsavel: 'Renan Leite',
+      email: 'rnleite@colegiosatelite.com.br',
+      telefone: '',
     },
 
     portal: null,
@@ -162,15 +162,15 @@ Att.`,
     ],
 
     instrucoes: [
+      'O Chromebook deverá ser entregue ao Renan Leite',
       'Clique em "Gerar E-mail" para abrir seu cliente de e-mail',
       'O modelo já virá preenchido com os dados do equipamento',
       'Revise as informações e envie para o responsável',
-      'Informe ao setor técnico que o chamado foi registrado',
     ],
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ACER GEEK
+  // ACER GEEK — Portal Web
   // ══════════════════════════════════════════════════════════════════════════
 
   acer_geek: {
@@ -178,7 +178,7 @@ Att.`,
     nome: 'Acer Geek',
     descricao: 'Portal de suporte Acer para equipamentos em garantia.',
     tipo: 'portal',
-    url: 'https://support.acer.com',
+    url: 'https://acer.desk.ms/?LoginPortal',
     suportaIframe: true,
     fallback: 'open-tab',
     fallbackLabel: 'Abrir portal em nova aba',
@@ -191,7 +191,7 @@ Att.`,
     },
 
     portal: {
-      url: 'https://support.acer.com',
+      url: 'https://acer.desk.ms/?LoginPortal',
       suportaIframe: true,
       fallback: 'Abrir portal em nova aba',
     },
@@ -206,7 +206,7 @@ Att.`,
         icon: '&#128279;',
         tipo: 'open-url',
         target: '_blank',
-        url: 'https://support.acer.com',
+        url: 'https://acer.desk.ms/?LoginPortal',
         auditEvent: 'portal-opened',
       },
       {
@@ -234,6 +234,89 @@ Att.`,
       'Selecione "Suporte Técnico" no menu',
       'Informe o número de série do equipamento',
       'Descreva o problema e acompanhe o chamado',
+    ],
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SAMSUNG — E-mail
+  // ══════════════════════════════════════════════════════════════════════════
+
+  samsung: {
+    key: 'samsung',
+    nome: 'Samsung',
+    descricao: 'Suporte técnico via e-mail para equipamentos Samsung. O equipamento deverá ser entregue ao responsável.',
+    tipo: 'email',
+    url: null,
+    suportaIframe: false,
+    fallback: 'mailto',
+    fallbackLabel: 'Gerar e-mail para suporte',
+    status: 'ativo',
+
+    contato: {
+      responsavel: 'Renan Leite',
+      email: 'rnleite@colegiosatelite.com.br',
+      telefone: '',
+    },
+
+    portal: null,
+
+    emailTemplate: {
+      assunto: '[Chamado Técnico Samsung] {nome} - Patrimônio {patrimonio}',
+      corpo: `Prezado Renan,
+
+Solicito suporte técnico para o equipamento Samsung abaixo:
+
+Equipamento: {nome}
+Patrimônio: {patrimonio}
+Serial: {serial}
+Localização: {reparticao}
+
+Tipo do problema: {tipoProblema}
+Prioridade: {prioridade}
+Mau uso: {mauUso}
+
+Observações: {observacoes}
+
+Fico no aguardo do retorno.
+
+Att.`,
+    },
+
+    acoes: [
+      {
+        id: 'generate-email',
+        label: 'Gerar E-mail',
+        description: 'Abrir cliente de e-mail com modelo pré-preenchido',
+        icon: '&#9993;',
+        tipo: 'mailto',
+        template: 'mailto:{email}?subject={assunto}&body={corpo}',
+        auditEvent: 'email-generated',
+      },
+      {
+        id: 'copy-email-template',
+        label: 'Copiar Modelo de E-mail',
+        description: 'Copiar o texto do e-mail para a área de transferência',
+        icon: '&#128203;',
+        tipo: 'clipboard',
+        template: '{emailCompleto}',
+        auditEvent: 'email-template-copied',
+      },
+      {
+        id: 'copy-data',
+        label: 'Copiar Dados do Equipamento',
+        description: 'Copiar informações do equipamento para o e-mail',
+        icon: '&#128203;',
+        tipo: 'clipboard',
+        template: 'Equipamento: {nome}\nPatrimônio: {patrimonio}\nSerial: {serial}',
+        auditEvent: 'clipboard-copied',
+      },
+    ],
+
+    instrucoes: [
+      'O equipamento deverá ser entregue ao Renan Leite',
+      'Clique em "Gerar E-mail" para abrir seu cliente de e-mail',
+      'O modelo já virá preenchido com os dados do equipamento',
+      'Revise as informações e envie para o responsável',
     ],
   },
 
