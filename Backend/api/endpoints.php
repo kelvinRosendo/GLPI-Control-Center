@@ -30,6 +30,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 require_once __DIR__ . '/client.php';
 require_once __DIR__ . '/mappers.php';
 require_once __DIR__ . '/tickets.php';
+require_once __DIR__ . '/workflow.php';
 require_once __DIR__ . '/chat.php';
 
 function isConfigValid(array $config): array
@@ -278,6 +279,14 @@ try {
       default => TicketsEndpoint::listAll($config),
     },
     default => (function () use ($path, $config) {
+      if ($path === '/api/tickets/workflow') {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        WorkflowEndpoint::create($config);
+        return;
+      }
+
       if (preg_match('#^/api/assets/computers/(\d+)$#', $path, $m)) {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         if ($method === 'GET') {

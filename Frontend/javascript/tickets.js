@@ -13,24 +13,7 @@ window.Tickets = {
   // ── Abre o modal pré-vinculado ao ativo ────────────────────────────────────
 
   openModal(ativo) {
-    this._ativoAtual = ativo;
-
-    document.getElementById('modal-asset-name').textContent =
-      `${ativo.nome}  —  ID ${ativo.glpiId}`;
-
-    // Limpa os campos
-    document.getElementById('ticket-title').value    = '';
-    document.getElementById('ticket-desc').value     = '';
-    document.getElementById('ticket-priority').value = '3';
-    document.getElementById('ticket-category').value = '';
-
-    // Esconde feedback anterior
-    const fb = document.getElementById('ticket-feedback');
-    fb.style.display = 'none';
-    fb.textContent   = '';
-
-    // Exibe o modal
-    document.getElementById('ticket-modal').style.display = 'flex';
+    window.Workflow.open(ativo);
   },
 
   // ── Fecha o modal e limpa estado ──────────────────────────────────────────

@@ -78,6 +78,14 @@ window.GlpiClient = {
     return json.data ?? [];
   },
 
+  async createWorkflowTicket(payload) {
+    const json = await this._fetch('/api/tickets/workflow', {
+      method: 'POST',
+      body: payload,
+    });
+    return json.data ?? null;
+  },
+
   async loadAll() {
     const results = await Promise.allSettled([
       this.fetchComputadores(),
