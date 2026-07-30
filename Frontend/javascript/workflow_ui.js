@@ -10,6 +10,8 @@
  * - Atachar eventos em botões e campos
  * - Feedback visual (sucesso, erro, enviando)
  *
+ * Sprint 2: Nova etapa "Fluxo da Assistência" (step 5)
+ *
  * NÃO contém regra de negócio. Consulte workflow.js para lógica e validações.
  */
 
@@ -50,6 +52,8 @@ window.WorkflowUI = {
     } else if (s.currentStep === 4) {
       bodyHtml = this._renderStep4();
     } else if (s.currentStep === 5) {
+      bodyHtml = this._renderStep5();
+    } else if (s.currentStep === 6) {
       bodyHtml = this._renderDone();
     }
 
@@ -153,6 +157,7 @@ window.WorkflowUI = {
       return `
         <button class="wf-assistencia-card ${isSelected ? 'selected' : ''}"
                 data-wf-assistencia="${a.id}">
+          <span class="wf-assistencia-icon">${a.icon || ''}</span>
           <span class="wf-assistencia-label">${this._esc(a.label)}</span>
         </button>
       `;
@@ -232,11 +237,83 @@ window.WorkflowUI = {
     `;
   },
 
-  // ── Step 4: Confirmação ────────────────────────────────────────────────────
+  // ── Step 4: Fluxo da Assistência ───────────────────────────────────────────
 
   _renderStep4() {
+    const assistanceId = window.Workflow.workflowData.assistance;
+    const flow = window.AssistanceFlows.getFlow(assistanceId);
+
+    if (!flow) {
+      return `
+        <div class="workflow-step-body">
+          <h3 class="workflow-step-title">Fluxo da Assistência</h3>
+          <p class="workflow-step-subtitle">Fluxo não configurado para esta assistência.</p>
+        </div>
+      `;
+    }
+
+    const actionsHtml = flow.actions.map(action => `
+      <button class="wf-action-card" data-wf-action="${action.id}">
+        <span class="wf-action-icon">${action.icon || '&#9881;'}</span>
+        <div class="wf-action-info">
+          <span class="wf-action-label">${this._esc(action.label)}</span>
+          <span class="wf-action-desc">${this._esc(action.description)}</span>
+        </div>
+        <span class="wf-action-arrow">&#8250;</span>
+      </button>
+    `).join('');
+
+    const instructionsHtml = flow.instructions.map((inst, i) => `
+      <div class="wf-instruction-step">
+        <span class="wf-instruction-num">${i + 1}</span>
+        <span class="wf-instruction-text">${this._esc(inst)}</span>
+      </div>
+    `).join('');
+
+    const executedCount = window.Workflow.workflowData.actionsExecuted.length;
+
+    return `
+      <div class="workflow-step-body">
+        <h3 class="workflow-step-title">Fluxo — ${this._esc(flow.nome)}</h3>
+        <p class="workflow-step-subtitle">${this._esc(flow.descricao)}</p>
+
+        <div class="wf-flow-card" style="border-left-color: ${flow.color || 'var(--accent)'}">
+          <div class="wf-flow-header">
+            <span class="wf-flow-icon">${flow.icon || ''}</span>
+            <span class="wf-flow-name">${this._esc(flow.nome)}</span>
+            <span class="wf-flow-type">${this._esc(flow.tipo)}</span>
+          </div>
+        </div>
+
+        <div class="wf-actions-section">
+          <h4 class="wf-section-title">Ações Disponíveis</h4>
+          <div class="wf-actions-grid">
+            ${actionsHtml}
+          </div>
+        </div>
+
+        ${executedCount > 0 ? `
+          <div class="wf-actions-executed">
+            <span class="wf-actions-count">${executedCount} ação(ões) executada(s)</span>
+          </div>
+        ` : ''}
+
+        <div class="wf-instructions-section">
+          <h4 class="wf-section-title">Instruções</h4>
+          <div class="wf-instructions-list">
+            ${instructionsHtml}
+          </div>
+        </div>
+      </div>
+    `;
+  },
+
+  // ── Step 5: Confirmação ────────────────────────────────────────────────────
+
+  _renderStep5() {
     const wd = window.Workflow.workflowData;
     const cl = wd.checklist;
+    const flow = window.AssistanceFlows.getFlow(wd.assistance);
 
     return `
       <div class="workflow-step-body">
@@ -254,6 +331,7 @@ window.WorkflowUI = {
           <div class="wf-summary-section">
             <h4 class="wf-summary-heading">Assistência</h4>
             <div class="wf-summary-row"><span>Responsável</span><span>${this._esc(window.Workflow.getAssistenciaLabel(wd.assistance))}</span></div>
+            ${flow ? `<div class="wf-summary-row"><span>Tipo</span><span>${this._esc(flow.tipo)}</span></div>` : ''}
           </div>
 
           <div class="wf-summary-section">
@@ -263,6 +341,15 @@ window.WorkflowUI = {
             <div class="wf-summary-row"><span>Mau uso</span><span>${cl.mauUso ? 'Sim' : 'Não'}</span></div>
             ${cl.mauUso && cl.mauUsoDescricao ? `<div class="wf-summary-row"><span>Descrição mau uso</span><span>${this._esc(cl.mauUsoDescricao)}</span></div>` : ''}
           </div>
+
+          ${wd.actionsExecuted.length > 0 ? `
+            <div class="wf-summary-section">
+              <h4 class="wf-summary-heading">Ações Executadas</h4>
+              ${wd.actionsExecuted.map(a => `
+                <div class="wf-summary-row"><span>${this._esc(a.event)}</span><span>${this._esc(a.actionId)}</span></div>
+              `).join('')}
+            </div>
+          ` : ''}
 
           ${wd.observations ? `
             <div class="wf-summary-section">
@@ -302,10 +389,10 @@ window.WorkflowUI = {
 
   _renderFooter() {
     const s = window.Workflow.state;
-    const isDone = s.currentStep === 5;
+    const isDone = s.currentStep === 6;
     const isSending = s.sending;
     const isFirst = s.currentStep <= 1;
-    const isLast = s.currentStep === 4;
+    const isLast = s.currentStep === 5;
 
     if (isDone || isSending) return '';
 
@@ -405,6 +492,21 @@ window.WorkflowUI = {
     this._modalEl.querySelectorAll('[data-wf-assistencia]').forEach(el => {
       el.addEventListener('click', () => {
         window.Workflow.setAssistencia(el.dataset.wfAssistencia);
+      });
+    });
+
+    this._modalEl.querySelectorAll('[data-wf-action]').forEach(el => {
+      el.addEventListener('click', () => {
+        const actionId = el.dataset.wfAction;
+        const result = window.Workflow.executeAssistanceAction(actionId);
+
+        if (result.ok) {
+          el.classList.add('executed');
+          const badge = document.createElement('span');
+          badge.className = 'wf-action-badge';
+          badge.textContent = '&#10003;';
+          el.appendChild(badge);
+        }
       });
     });
 

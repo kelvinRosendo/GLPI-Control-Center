@@ -31,6 +31,7 @@ require_once __DIR__ . '/client.php';
 require_once __DIR__ . '/mappers.php';
 require_once __DIR__ . '/tickets.php';
 require_once __DIR__ . '/workflow.php';
+require_once __DIR__ . '/assistance_action.php';
 require_once __DIR__ . '/chat.php';
 
 function isConfigValid(array $config): array
@@ -284,6 +285,14 @@ try {
           Responde::erro('Método não permitido.', 405);
         }
         WorkflowEndpoint::create($config);
+        return;
+      }
+
+      if ($path === '/api/tickets/workflow/assistance-action') {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        AssistanceActionEndpoint::register($config);
         return;
       }
 

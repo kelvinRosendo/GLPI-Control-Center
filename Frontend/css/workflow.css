@@ -407,7 +407,177 @@
   color: #fff;
 }
 
-/* ── Step 4: Resumo ─────────────────────────────────────────────────────── */
+/* ── Step 4: Fluxo da Assistência ──────────────────────────────────────── */
+.wf-flow-card {
+  background: var(--surface2, #222535);
+  border: 1px solid var(--border, #2e3347);
+  border-left: 4px solid var(--accent, #4f7ef7);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.wf-flow-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.wf-flow-icon {
+  font-size: 20px;
+}
+
+.wf-flow-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text, #e8eaf6);
+}
+
+.wf-flow-type {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text3, #5a6080);
+  background: var(--surface3, #2a2e42);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+/* ── Ações ─────────────────────────────────────────────────────────────── */
+.wf-actions-section,
+.wf-instructions-section {
+  margin-bottom: 20px;
+}
+
+.wf-section-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text2, #9299b8);
+}
+
+.wf-actions-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wf-action-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface2, #222535);
+  border: 1.5px solid var(--border, #2e3347);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+}
+
+.wf-action-card:hover {
+  border-color: var(--accent, #4f7ef7);
+  background: rgba(79, 126, 247, 0.06);
+}
+
+.wf-action-card.executed {
+  border-color: var(--green, #00c896);
+  background: rgba(0, 200, 150, 0.06);
+  opacity: 0.7;
+  cursor: default;
+}
+
+.wf-action-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.wf-action-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wf-action-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #e8eaf6);
+}
+
+.wf-action-desc {
+  font-size: 12px;
+  color: var(--text2, #9299b8);
+  line-height: 1.4;
+}
+
+.wf-action-arrow {
+  font-size: 18px;
+  color: var(--text3, #5a6080);
+  flex-shrink: 0;
+}
+
+.wf-action-badge {
+  color: var(--green, #00c896);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.wf-actions-executed {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.wf-actions-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green, #00c896);
+  background: rgba(0, 200, 150, 0.12);
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+/* ── Instruções ────────────────────────────────────────────────────────── */
+.wf-instructions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wf-instruction-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.wf-instruction-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface3, #2a2e42);
+  color: var(--text2, #9299b8);
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.wf-instruction-text {
+  font-size: 13px;
+  color: var(--text, #e8eaf6);
+  line-height: 1.5;
+  padding-top: 2px;
+}
+
+/* ── Step 5: Resumo ─────────────────────────────────────────────────────── */
 .wf-summary {
   display: flex;
   flex-direction: column;

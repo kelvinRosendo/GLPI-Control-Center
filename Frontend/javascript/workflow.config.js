@@ -10,10 +10,10 @@
 
 window.WORKFLOW_CONFIG = {
   assistencias: [
-    { id: 'torino',    label: 'Torino' },
-    { id: 'hbb',       label: 'HBB' },
-    { id: 'acer_geek', label: 'Acer Geek' },
-    { id: 'acer',      label: 'Acer' },
+    { id: 'torino',    label: 'Torino',    icon: '&#128268;' },
+    { id: 'hbb',       label: 'HBB',       icon: '&#128231;' },
+    { id: 'acer_geek', label: 'Acer Geek', icon: '&#128295;' },
+    { id: 'acer',      label: 'Acer',      icon: '&#128736;' },
   ],
 
   prioridades: [
@@ -33,5 +33,5 @@ window.WORKFLOW_CONFIG = {
     { id: 'outro',       label: 'Outro' },
   ],
 
-  workflowVersion: '1.0',
+  workflowVersion: '2.0',
 };
