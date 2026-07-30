@@ -6,6 +6,7 @@
  *
  * Sprint 1.5: Estrutura base
  * Sprint 2: Expansão com contratos, fornecedores, categorias GLPI
+ * Sprint 3: Integrações movidas para integrations.config.js
  */
 
 window.WORKFLOW_CONFIG = {
@@ -33,5 +34,5 @@ window.WORKFLOW_CONFIG = {
     { id: 'outro',       label: 'Outro' },
   ],
 
-  workflowVersion: '2.0',
+  workflowVersion: '3.0',
 };

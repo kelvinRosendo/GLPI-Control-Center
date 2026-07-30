@@ -32,6 +32,9 @@ require_once __DIR__ . '/mappers.php';
 require_once __DIR__ . '/tickets.php';
 require_once __DIR__ . '/workflow.php';
 require_once __DIR__ . '/assistance_action.php';
+require_once __DIR__ . '/integration_audit.php';
+require_once __DIR__ . '/integration_audit_repository.php';
+require_once __DIR__ . '/integration_audit_service.php';
 require_once __DIR__ . '/chat.php';
 
 function isConfigValid(array $config): array
@@ -294,6 +297,19 @@ try {
         }
         AssistanceActionEndpoint::register($config);
         return;
+      }
+
+      if ($path === '/api/integration/audit') {
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        if ($method === 'POST') {
+          IntegrationAuditController::receive($config);
+          return;
+        }
+        if ($method === 'GET') {
+          IntegrationAuditController::list($config);
+          return;
+        }
+        Responde::erro('Método não permitido.', 405);
       }
 
       if (preg_match('#^/api/assets/computers/(\d+)$#', $path, $m)) {

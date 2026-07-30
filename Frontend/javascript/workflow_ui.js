@@ -11,8 +11,10 @@
  * - Feedback visual (sucesso, erro, enviando)
  *
  * Sprint 2: Nova etapa "Fluxo da Assistência" (step 5)
+ * Sprint 3: Integrações delegadas para IntegrationEngine
  *
- * NÃO contém regra de negócio. Consulte workflow.js para lógica e validações.
+ * NÃO contém regra de negócio. Consulte workflow.js.
+ * NÃO contém conhecimento de fornecedor. Consulte integrations.config.js.
  */
 
 window.WorkflowUI = {
@@ -237,13 +239,20 @@ window.WorkflowUI = {
     `;
   },
 
-  // ── Step 4: Fluxo da Assistência ───────────────────────────────────────────
+  // ── Step 4: Fluxo da Assistência (IntegrationEngine) ──────────────────────
 
   _renderStep4() {
     const assistanceId = window.Workflow.workflowData.assistance;
-    const flow = window.AssistanceFlows.getFlow(assistanceId);
+    const wd = window.Workflow.workflowData;
 
-    if (!flow) {
+    // Inicializar engine se ainda não inicializado
+    if (!window.IntegrationEngine.isInitialized() || window.IntegrationEngine.getIntegrationKey() !== assistanceId) {
+      window.IntegrationEngine.start(assistanceId, wd);
+    }
+
+    const engineConfig = window.IntegrationEngine.getIntegrationConfig();
+
+    if (!engineConfig) {
       return `
         <div class="workflow-step-body">
           <h3 class="workflow-step-title">Fluxo da Assistência</h3>
@@ -252,7 +261,10 @@ window.WorkflowUI = {
       `;
     }
 
-    const actionsHtml = flow.actions.map(action => `
+    const acoes = engineConfig.acoes || [];
+    const instrucoes = engineConfig.instrucoes || [];
+
+    const actionsHtml = acoes.map(action => `
       <button class="wf-action-card" data-wf-action="${action.id}">
         <span class="wf-action-icon">${action.icon || '&#9881;'}</span>
         <div class="wf-action-info">
@@ -263,25 +275,31 @@ window.WorkflowUI = {
       </button>
     `).join('');
 
-    const instructionsHtml = flow.instructions.map((inst, i) => `
+    const instructionsHtml = instrucoes.map((inst, i) => `
       <div class="wf-instruction-step">
         <span class="wf-instruction-num">${i + 1}</span>
         <span class="wf-instruction-text">${this._esc(inst)}</span>
       </div>
     `).join('');
 
-    const executedCount = window.Workflow.workflowData.actionsExecuted.length;
+    const executedCount = window.IntegrationEngine.getActionsExecuted().length;
 
     return `
       <div class="workflow-step-body">
-        <h3 class="workflow-step-title">Fluxo — ${this._esc(flow.nome)}</h3>
-        <p class="workflow-step-subtitle">${this._esc(flow.descricao)}</p>
+        <h3 class="workflow-step-title">Fluxo — ${this._esc(engineConfig.nome)}</h3>
+        <p class="workflow-step-subtitle">${this._esc(engineConfig.descricao)}</p>
 
-        <div class="wf-flow-card" style="border-left-color: ${flow.color || 'var(--accent)'}">
+        <div class="wf-integration-engine">
+          <div class="wf-engine-status">
+            <span class="wf-engine-dot active"></span>
+            <span>IntegrationEngine ativo</span>
+          </div>
+        </div>
+
+        <div class="wf-flow-card" style="border-left-color: var(--accent)">
           <div class="wf-flow-header">
-            <span class="wf-flow-icon">${flow.icon || ''}</span>
-            <span class="wf-flow-name">${this._esc(flow.nome)}</span>
-            <span class="wf-flow-type">${this._esc(flow.tipo)}</span>
+            <span class="wf-flow-name">${this._esc(engineConfig.nome)}</span>
+            <span class="wf-flow-type">${this._esc(engineConfig.tipo)}</span>
           </div>
         </div>
 
@@ -313,7 +331,8 @@ window.WorkflowUI = {
   _renderStep5() {
     const wd = window.Workflow.workflowData;
     const cl = wd.checklist;
-    const flow = window.AssistanceFlows.getFlow(wd.assistance);
+    const engineSummary = window.IntegrationEngine.getSummary();
+    const engineActions = window.IntegrationEngine.getActionsExecuted();
 
     return `
       <div class="workflow-step-body">
@@ -331,7 +350,7 @@ window.WorkflowUI = {
           <div class="wf-summary-section">
             <h4 class="wf-summary-heading">Assistência</h4>
             <div class="wf-summary-row"><span>Responsável</span><span>${this._esc(window.Workflow.getAssistenciaLabel(wd.assistance))}</span></div>
-            ${flow ? `<div class="wf-summary-row"><span>Tipo</span><span>${this._esc(flow.tipo)}</span></div>` : ''}
+            ${engineSummary ? `<div class="wf-summary-row"><span>Tipo</span><span>${this._esc(engineSummary.tipo)}</span></div>` : ''}
           </div>
 
           <div class="wf-summary-section">
@@ -342,12 +361,21 @@ window.WorkflowUI = {
             ${cl.mauUso && cl.mauUsoDescricao ? `<div class="wf-summary-row"><span>Descrição mau uso</span><span>${this._esc(cl.mauUsoDescricao)}</span></div>` : ''}
           </div>
 
-          ${wd.actionsExecuted.length > 0 ? `
+          ${engineActions.length > 0 ? `
             <div class="wf-summary-section">
               <h4 class="wf-summary-heading">Ações Executadas</h4>
-              ${wd.actionsExecuted.map(a => `
-                <div class="wf-summary-row"><span>${this._esc(a.event)}</span><span>${this._esc(a.actionId)}</span></div>
+              ${engineActions.map(a => `
+                <div class="wf-summary-row"><span>${this._esc(a.auditEvent)}</span><span>${this._esc(a.actionId)}</span></div>
               `).join('')}
+            </div>
+          ` : ''}
+
+          ${engineSummary ? `
+            <div class="wf-summary-section wf-engine-summary">
+              <h4 class="wf-summary-heading">Integration Engine</h4>
+              <div class="wf-summary-row"><span>Integração</span><span>${this._esc(engineSummary.integrationName)}</span></div>
+              <div class="wf-summary-row"><span>Ações registradas</span><span>${engineSummary.actionsExecuted}</span></div>
+              <div class="wf-summary-row"><span>Eventos</span><span>${engineSummary.events}</span></div>
             </div>
           ` : ''}
 
@@ -498,13 +526,13 @@ window.WorkflowUI = {
     this._modalEl.querySelectorAll('[data-wf-action]').forEach(el => {
       el.addEventListener('click', () => {
         const actionId = el.dataset.wfAction;
-        const result = window.Workflow.executeAssistanceAction(actionId);
+        const result = window.IntegrationEngine.executeAction(actionId);
 
         if (result.ok) {
           el.classList.add('executed');
           const badge = document.createElement('span');
           badge.className = 'wf-action-badge';
-          badge.textContent = '&#10003;';
+          badge.innerHTML = '&#10003;';
           el.appendChild(badge);
         }
       });

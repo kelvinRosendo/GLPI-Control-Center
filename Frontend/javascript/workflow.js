@@ -8,11 +8,12 @@
  * - Validar dados por etapa
  * - Montar o payload final para o backend
  * - Gerenciar o ciclo de vida do workflow (open → steps → submit → done)
- * - Rastrear ações executadas (auditoria)
  *
  * Sprint 2: Nova etapa "Fluxo da Assistência" (step 5)
- * Sprint 2: Sistema de ações com registro para auditoria
+ * Sprint 3: Integrações delegadas para IntegrationEngine
  *
+ * NÃO contém conhecimento de fornecedor. Consulte integrations.config.js.
+ * NÃO contém lógica de integração. Consulte integration-engine.js.
  * NÃO renderiza DOM. Consulte workflow_ui.js para renderização.
  */
 
@@ -40,9 +41,8 @@ window.Workflow = {
     },
     observations: '',
     rules: {},
-    actionsExecuted: [],
     metadata: {
-      workflowVersion: '2.0',
+      workflowVersion: '3.0',
       createdAt: null,
     },
   },
@@ -143,53 +143,6 @@ window.Workflow = {
     this.workflowData.observations = text;
   },
 
-  // ── Sistema de Ações (Sprint 2) ───────────────────────────────────────────
-
-  executeAssistanceAction(actionId) {
-    const assistanceId = this.workflowData.assistance;
-    const assetData = window.AssistanceFlows.prepareAssetData(
-      this.workflowData.asset,
-      this.workflowData.checklist,
-      this.workflowData.observations,
-      assistanceId
-    );
-
-    const result = window.AssistanceFlows.executeAction(assistanceId, actionId, assetData);
-
-    if (result.ok) {
-      this._registerAction(result.auditEvent, actionId, assistanceId, result.data);
-    }
-
-    return result;
-  },
-
-  _registerAction(auditEvent, actionId, assistanceId, data) {
-    this.workflowData.actionsExecuted.push({
-      event: auditEvent,
-      actionId,
-      assistanceId,
-      timestamp: new Date().toISOString(),
-      data: data || {},
-    });
-
-    this._syncActionsToBackend(auditEvent, assistanceId, data);
-  },
-
-  async _syncActionsToBackend(event, assistanceId, data) {
-    try {
-      await window.GlpiClient.registerAssistanceAction({
-        event,
-        assistanceId,
-        assetGlpiId: this.workflowData.asset.glpiId || null,
-        workflowVersion: this.workflowData.metadata.workflowVersion,
-        timestamp: new Date().toISOString(),
-        data: data || {},
-      });
-    } catch (err) {
-      console.warn('[Workflow] Falha ao registrar ação no backend:', err.message);
-    }
-  },
-
   // ── Validação ──────────────────────────────────────────────────────────────
 
   _validateCurrentStep() {
@@ -262,12 +215,6 @@ window.Workflow = {
       },
       observations: this.workflowData.observations,
       rules: { ...this.workflowData.rules },
-      actionsExecuted: this.workflowData.actionsExecuted.map(a => ({
-        event: a.event,
-        actionId: a.actionId,
-        assistanceId: a.assistanceId,
-        timestamp: a.timestamp,
-      })),
       metadata: {
         workflowVersion: this.workflowData.metadata.workflowVersion,
         createdAt: this.workflowData.metadata.createdAt,
@@ -336,9 +283,8 @@ window.Workflow = {
       },
       observations: '',
       rules: {},
-      actionsExecuted: [],
       metadata: {
-        workflowVersion: window.WORKFLOW_CONFIG?.workflowVersion || '2.0',
+        workflowVersion: window.WORKFLOW_CONFIG?.workflowVersion || '3.0',
         createdAt: null,
       },
     };

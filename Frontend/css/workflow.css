@@ -805,3 +805,69 @@
     gap: 4px;
   }
 }
+
+/* ── Integration Engine (Sprint 3) ─────────────────────────────────────── */
+.wf-integration-engine {
+  margin-bottom: 16px;
+}
+
+.wf-engine-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(0, 200, 150, 0.08);
+  border: 1px solid rgba(0, 200, 150, 0.2);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green, #00c896);
+}
+
+.wf-engine-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text3, #5a6080);
+  flex-shrink: 0;
+}
+
+.wf-engine-dot.active {
+  background: var(--green, #00c896);
+  box-shadow: 0 0 6px rgba(0, 200, 150, 0.4);
+  animation: wfPulse 2s ease-in-out infinite;
+}
+
+@keyframes wfPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.wf-engine-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--surface2, #222535);
+  border: 1px solid var(--border, #2e3347);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text2, #9299b8);
+}
+
+.wf-engine-summary {
+  border-left: 3px solid var(--accent, #4f7ef7);
+}
+
+.wf-event-log {
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--surface2, #222535);
+  border: 1px solid var(--border, #2e3347);
+  border-radius: 8px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--text3, #5a6080);
+  max-height: 80px;
+  overflow-y: auto;
+}
