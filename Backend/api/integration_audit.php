@@ -34,6 +34,14 @@ final class IntegrationAuditController
     'integration:success',
     'integration:error',
     'integration:cancel',
+    'iframe-attempt',
+    'iframe-loaded',
+    'iframe-blocked',
+    'iframe-error',
+    'iframe-retry',
+    'fallback-start',
+    'fallback-finished',
+    'fallback-opened-manual',
   ];
 
   private const VALID_RESULTADOS = [

@@ -4,24 +4,30 @@
  * Portal Viewer — camada visual das integrações.
  *
  * Responsabilidades:
- * - Abrir modal conforme o tipo da integração (portal ou email)
- * - Renderizar iframe quando permitido
- * - Controlar estados: loading, loaded, blocked, timeout, error
- * - Detectar bloqueio de iframe e fazer fallback automático
- * - Detectar timeout de carregamento
+ * - Abrir modal conforme o tipo da integração (portal, email ou manual)
+ * - Tentar carregar iframe automaticamente para portais
+ * - Detectar bloqueio (X-Frame-Options / CSP) e fazer fallback para nova aba
+ * - Controlar estados: connecting, validating, loading, loaded, blocked, fallback, done, error
+ * - Exibir countdown de 2 segundos antes de abrir em nova aba
+ * - Fornecer botão "Abrir agora" para abertura imediata
+ * - Registrar auditoria de cada etapa
+ * - Emitir eventos CustomEvent para monitoramento
  * - Destruir iframe ao fechar (evitar memory leaks)
- * - Emitir eventos CustomEvent
- * - Registrar auditoria via IntegrationAudit
  *
  * Eventos emitidos:
- *   portal:opening  — modal sendo aberto
- *   portal:loaded   — portal carregado com sucesso
- *   portal:blocked  — fornecedor bloqueou iframe
- *   portal:timeout  — portal demorou para responder
- *   portal:error    — erro inesperado
- *   portal:closed   — modal fechado
+ *   portal:opening          — modal sendo aberto
+ *   portal:iframe-loading   — iframe começando a carregar
+ *   portal:iframe-loaded    — iframe carregou com sucesso
+ *   portal:iframe-blocked   — fornecedor bloqueou iframe
+ *   portal:fallback-start   — countdown de fallback iniciado
+ *   portal:fallback-finished — fallback concluído (nova aba aberta)
+ *   portal:loaded           — portal/email carregado com sucesso
+ *   portal:timeout          — portal demorou para responder
+ *   portal:error            — erro inesperado
+ *   portal:closed           — modal fechado
  *
  * Sprint 4: PortalViewer + Integration UI
+ * Sprint 4.5: iframe real + detecção automática de bloqueio
  *
  * NÃO contém regra de negócio do workflow. Consulte workflow.js.
  * NÃO contém dados de fornecedor. Consulte integrations.config.js.
@@ -38,6 +44,9 @@ window.PortalViewer = {
   _integrationConfig: null,
   _workflowData: null,
   _timeout: null,
+  _countdownInterval: null,
+  _countdownValue: 0,
+  _fallbackUrl: null,
   _listeners: [],
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -61,7 +70,7 @@ window.PortalViewer = {
     this._workflowData = workflowData || {};
 
     this._createModal();
-    this._setState('loading');
+    this._setState('connecting');
     this._emit('portal:opening', { integrationKey, tipo: config.tipo });
 
     if (config.tipo === 'portal') {
@@ -87,31 +96,37 @@ window.PortalViewer = {
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // PORTAL (iframe)
+  // PORTAL (iframe com detecção automática)
   // ══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Abre portal web com iframe.
-   * Tenta iframe primeiro; se bloqueado, faz fallback automático.
+   * Abre portal web tentando iframe primeiro.
+   * A detecção de bloqueio é automática — sem configuração manual.
    */
   _openPortal(config) {
     const url = window.PortalViewerUtils.sanitizeUrl(config.portal?.url || config.url);
     if (!url) {
       this._setState('error', 'URL do portal inválida.');
+      this._audit('iframe-error', 'falha', { reason: 'invalid-url' });
       return;
     }
 
-    if (config.suportaIframe) {
-      this._loadIframe(url);
-    } else {
-      this._openInNewTab(url);
-      this._setState('loaded');
-    }
+    this._fallbackUrl = url;
+    this._setState('validating');
+    this._audit('iframe-attempt', 'sucesso', { url });
+
+    this._loadIframe(url);
   },
 
   /**
-   * Carrega iframe no modal.
-   * Detecta loading, timeout e bloqueio.
+   * Carrega iframe no modal e detecta bloqueio automaticamente.
+   *
+   * Fluxo de detecção:
+   * 1. Criar iframe com sandbox
+   * 2. Aguardar onload → verificar se conteúdo é acessível
+   * 3. Aguardar onerror → bloqueio confirmado
+   * 4. Timeout configurável → considerar como bloqueado
+   * 5. Cross-origin sem erro → provavelmente carregou (CORS impede leitura)
    */
   _loadIframe(url) {
     const container = this._modalEl?.querySelector('.pv-iframe-container');
@@ -125,46 +140,182 @@ window.PortalViewer = {
     iframe.src = url;
 
     this._iframeEl = iframe;
+    this._setState('loading');
+    this._emit('portal:iframe-loading', { integrationKey: this._integrationKey, url });
 
     // Timeout para carregamento
     this._timeout = window.PortalViewerUtils.createTimeout(
       window.PortalViewerUtils.PORTAL_TIMEOUT_MS,
       () => {
-        this._setState('timeout');
-        this._emit('portal:timeout', { integrationKey: this._integrationKey, url });
+        this._handleIframeBlocked(url, 'timeout');
       }
     );
 
-    // Quando iframe carrega
+    // Quando iframe carrega — verificar se não foi bloqueado
     this._addEvent(iframe, 'load', () => {
       this._timeout?.cancel();
 
-      // Verificar se realmente carregou ou se foi bloqueado
+      // Verificar se o conteúdo realmente carregou
       try {
         const doc = iframe.contentDocument || iframe.contentWindow?.document;
         if (!doc || doc.body?.innerHTML === '') {
-          this._setState('blocked');
-          this._emit('portal:blocked', { integrationKey: this._integrationKey, url });
-        } else {
-          this._setState('loaded');
-          this._emit('portal:loaded', { integrationKey: this._integrationKey, url });
+          // Conteúdo vazio = provável bloqueio via X-Frame-Options/CSP
+          this._handleIframeBlocked(url, 'empty-content');
+          return;
         }
       } catch {
-        // Cross-origin — provavelmente carregou (CORS impede leitura)
-        this._setState('loaded');
-        this._emit('portal:loaded', { integrationKey: this._integrationKey, url });
+        // Cross-origin — não conseguimos ler, mas pode ter carregado
+        // Se o navegador não bloqueou, o iframe provavelmente funciona
       }
+
+      // Iframe carregou com sucesso
+      this._handleIframeLoaded(url);
     });
 
     // Erro no iframe
     this._addEvent(iframe, 'error', () => {
       this._timeout?.cancel();
-      this._setState('blocked');
-      this._emit('portal:blocked', { integrationKey: this._integrationKey, url });
+      this._handleIframeBlocked(url, 'error');
     });
 
     container.innerHTML = '';
     container.appendChild(iframe);
+  },
+
+  /**
+   * Trata iframe carregado com sucesso.
+   */
+  _handleIframeLoaded(url) {
+    this._setState('loaded');
+    this._emit('portal:iframe-loaded', { integrationKey: this._integrationKey, url });
+    this._audit('iframe-loaded', 'sucesso', { url });
+
+    // Mostrar iframe, esconder loading
+    const iframeContainer = this._modalEl?.querySelector('.pv-iframe-container');
+    if (iframeContainer) iframeContainer.style.display = 'block';
+  },
+
+  /**
+   * Trata iframe bloqueado — inicia fallback automático.
+   * @param {string} url - URL que falhou
+   * @param {string} reason - motivo: 'empty-content', 'error', 'timeout'
+   */
+  _handleIframeBlocked(url, reason) {
+    this._setState('blocked');
+    this._emit('portal:iframe-blocked', {
+      integrationKey: this._integrationKey,
+      url,
+      reason,
+    });
+    this._audit('iframe-blocked', 'falha', { url, reason });
+
+    // Iniciar fallback automático após 2 segundos
+    this._startFallbackCountdown();
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // FALLBACK — Abertura em nova aba
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Inicia countdown de 2 segundos antes de abrir em nova aba.
+   */
+  _startFallbackCountdown() {
+    this._countdownValue = Math.ceil(window.PortalViewerUtils.FALLBACK_COUNTDOWN_MS / 1000);
+    this._setState('fallback', `Abrindo nova aba em ${this._countdownValue}s...`);
+    this._emit('portal:fallback-start', {
+      integrationKey: this._integrationKey,
+      url: this._fallbackUrl,
+      countdown: this._countdownValue,
+    });
+    this._audit('fallback-start', 'sucesso', { url: this._fallbackUrl });
+
+    this._updateCountdownDisplay();
+
+    this._countdownInterval = window.PortalViewerUtils.createInterval(1000, () => {
+      this._countdownValue--;
+      this._updateCountdownDisplay();
+
+      if (this._countdownValue <= 0) {
+        this._executeFallback();
+      }
+    });
+  },
+
+  /**
+   * Atualiza a exibição do countdown na UI.
+   */
+  _updateCountdownDisplay() {
+    const countdownEl = this._modalEl?.querySelector('.pv-countdown-value');
+    if (countdownEl) {
+      countdownEl.textContent = this._countdownValue;
+    }
+
+    const statusText = this._modalEl?.querySelector('.pv-status-text');
+    if (statusText && this._state === 'fallback') {
+      statusText.textContent = `Abrindo nova aba em ${this._countdownValue}s...`;
+    }
+  },
+
+  /**
+   * Executa o fallback — abre URL em nova aba.
+   */
+  _executeFallback() {
+    this._cancelCountdown();
+
+    if (!this._fallbackUrl) {
+      this._setState('error', 'URL do portal não disponível.');
+      return;
+    }
+
+    this._openInNewTab(this._fallbackUrl);
+    this._setState('done');
+    this._emit('portal:fallback-finished', {
+      integrationKey: this._integrationKey,
+      url: this._fallbackUrl,
+    });
+    this._audit('fallback-finished', 'sucesso', { url: this._fallbackUrl });
+  },
+
+  /**
+   * Cancela o countdown em andamento.
+   */
+  _cancelCountdown() {
+    this._countdownInterval?.cancel();
+    this._countdownInterval = null;
+    this._countdownValue = 0;
+  },
+
+  /**
+   * Abre URL em nova aba.
+   */
+  _openInNewTab(url) {
+    const validated = window.PortalViewerUtils.validateUrl(url);
+    if (!validated.valid) return;
+
+    window.open(url, '_blank', 'noopener,noreferrer');
+  },
+
+  /**
+   * Botão "Abrir agora" — abre imediatamente sem esperar countdown.
+   */
+  _handleOpenNow() {
+    this._cancelCountdown();
+    this._executeFallback();
+  },
+
+  /**
+   * Botão "Abrir em nova aba" clicado pelo usuário (fallback manual).
+   */
+  _handleOpenInNewTab() {
+    const url = this._fallbackUrl || this._integrationConfig?.portal?.url || this._integrationConfig?.url;
+    const sanitized = window.PortalViewerUtils.sanitizeUrl(url);
+    if (sanitized) {
+      this._cancelCountdown();
+      this._openInNewTab(sanitized);
+      this._setState('done');
+      this._audit('fallback-opened-manual', 'sucesso', { url: sanitized });
+    }
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -308,32 +459,6 @@ window.PortalViewer = {
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // FALLBACK
-  // ══════════════════════════════════════════════════════════════════════════
-
-  /**
-   * Abre URL em nova aba (fallback quando iframe é bloqueado).
-   */
-  _openInNewTab(url) {
-    const validated = window.PortalViewerUtils.validateUrl(url);
-    if (!validated.valid) return;
-
-    window.open(url, '_blank', 'noopener,noreferrer');
-    this._audit('fallback-opened', 'sucesso');
-  },
-
-  /**
-   * Botão "Abrir em nova aba" clicado pelo usuário.
-   */
-  _handleOpenInNewTab() {
-    const url = this._integrationConfig?.portal?.url || this._integrationConfig?.url;
-    const sanitized = window.PortalViewerUtils.sanitizeUrl(url);
-    if (sanitized) {
-      this._openInNewTab(sanitized);
-    }
-  },
-
-  // ══════════════════════════════════════════════════════════════════════════
   // ESTADOS
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -351,27 +476,50 @@ window.PortalViewer = {
     const statusDot = this._modalEl?.querySelector('.pv-status-dot');
     if (statusDot) {
       statusDot.className = 'pv-status-dot';
-      if (state === 'loading') statusDot.classList.add('loading');
-      else if (state === 'loaded') statusDot.classList.add('loaded');
-      else if (state === 'blocked' || state === 'timeout' || state === 'error') statusDot.classList.add('error');
+      if (state === 'connecting' || state === 'validating' || state === 'loading') {
+        statusDot.classList.add('loading');
+      } else if (state === 'loaded' || state === 'done') {
+        statusDot.classList.add('loaded');
+      } else if (state === 'blocked' || state === 'error') {
+        statusDot.classList.add('error');
+      } else if (state === 'fallback') {
+        statusDot.classList.add('fallback');
+      }
     }
 
     // Mostrar/esconder elementos conforme estado
     const loadingEl = this._modalEl?.querySelector('.pv-loading');
     const blockedEl = this._modalEl?.querySelector('.pv-blocked-msg');
-    const timeoutEl = this._modalEl?.querySelector('.pv-timeout-msg');
+    const fallbackEl = this._modalEl?.querySelector('.pv-fallback-msg');
     const errorEl = this._modalEl?.querySelector('.pv-error-msg');
     const retryBtn = this._modalEl?.querySelector('.pv-retry-btn');
-    const iframeContainer = this._modalEl?.querySelector('.pv-iframe-container');
+    const openNowBtn = this._modalEl?.querySelector('.pv-open-now-btn');
     const openTabBtn = this._modalEl?.querySelector('.pv-open-tab-btn');
+    const iframeContainer = this._modalEl?.querySelector('.pv-iframe-container');
+    const progressEl = this._modalEl?.querySelector('.pv-progress');
 
-    if (loadingEl) loadingEl.style.display = state === 'loading' ? 'flex' : 'none';
+    const isPortal = this._integrationConfig?.tipo === 'portal';
+
+    if (loadingEl) loadingEl.style.display = (state === 'connecting' || state === 'validating' || state === 'loading') ? 'flex' : 'none';
     if (blockedEl) blockedEl.style.display = state === 'blocked' ? 'block' : 'none';
-    if (timeoutEl) timeoutEl.style.display = state === 'timeout' ? 'block' : 'none';
+    if (fallbackEl) fallbackEl.style.display = state === 'fallback' ? 'block' : 'none';
     if (errorEl) errorEl.style.display = state === 'error' ? 'block' : 'none';
-    if (retryBtn) retryBtn.style.display = (state === 'timeout' || state === 'error' || state === 'blocked') ? 'inline-flex' : 'none';
-    if (iframeContainer) iframeContainer.style.display = (state === 'loaded' && this._integrationConfig?.tipo === 'portal') ? 'block' : 'none';
-    if (openTabBtn) openTabBtn.style.display = (state === 'blocked' || state === 'timeout') ? 'inline-flex' : 'none';
+    if (retryBtn) retryBtn.style.display = (state === 'error' || state === 'blocked') ? 'inline-flex' : 'none';
+    if (openNowBtn) openNowBtn.style.display = (state === 'fallback' || state === 'blocked') ? 'inline-flex' : 'none';
+    if (openTabBtn) openTabBtn.style.display = (state === 'blocked' && !isPortal) ? 'inline-flex' : 'none';
+    if (iframeContainer) iframeContainer.style.display = (state === 'loaded' && isPortal) ? 'block' : 'none';
+    if (progressEl) progressEl.style.display = (state === 'loading' || state === 'validating') ? 'block' : 'none';
+
+    // Atualizar barra de progresso
+    if (progressEl) {
+      const progressBar = progressEl.querySelector('.pv-progress-bar');
+      if (progressBar) {
+        if (state === 'connecting') progressBar.style.width = '20%';
+        else if (state === 'validating') progressBar.style.width = '40%';
+        else if (state === 'loading') progressBar.style.width = '70%';
+        else if (state === 'loaded') progressBar.style.width = '100%';
+      }
+    }
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -405,7 +553,7 @@ window.PortalViewer = {
               <div class="pv-header-meta">
                 <span class="pv-header-type">${tipoLabel}</span>
                 <span class="pv-status-dot loading"></span>
-                <span class="pv-status-text">${window.PortalViewerUtils.STATE_LABELS.loading}</span>
+                <span class="pv-status-text">${window.PortalViewerUtils.STATE_LABELS.connecting}</span>
               </div>
             </div>
           </div>
@@ -416,21 +564,30 @@ window.PortalViewer = {
           ${config.tipo === 'portal' ? `
             <div class="pv-loading">
               <div class="pv-spinner"></div>
-              <span>Conectando ao fornecedor...</span>
+              <span class="pv-loading-text">Conectando ao fornecedor...</span>
+            </div>
+
+            <div class="pv-progress" style="display:none;">
+              <div class="pv-progress-bar"></div>
             </div>
 
             <div class="pv-iframe-container"></div>
 
             <div class="pv-blocked-msg" style="display:none;">
               <div class="pv-msg-icon">&#128683;</div>
-              <p class="pv-msg-text">O portal <strong>${this._esc(config.nome)}</strong> bloqueou a exibição dentro do sistema.</p>
-              <p class="pv-msg-hint">O portal foi aberto automaticamente em nova aba.</p>
+              <p class="pv-msg-text">O portal do fornecedor não permite abertura dentro do GCC.</p>
+              <p class="pv-msg-hint">O portal será aberto automaticamente em nova aba.</p>
             </div>
 
-            <div class="pv-timeout-msg" style="display:none;">
-              <div class="pv-msg-icon">&#9203;</div>
-              <p class="pv-msg-text">O portal <strong>${this._esc(config.nome)}</strong> demorou para responder.</p>
-              <p class="pv-msg-hint">Verifique sua conexão e tente novamente.</p>
+            <div class="pv-fallback-msg" style="display:none;">
+              <div class="pv-msg-icon">&#128196;</div>
+              <p class="pv-msg-text">Abrindo em nova aba...</p>
+              <p class="pv-msg-hint">
+                Abrindo em nova aba em <span class="pv-countdown-value">2</span> segundos.
+              </p>
+              <button class="pv-btn pv-btn-primary pv-open-now-btn" data-pv-action="open-now" style="margin-top:16px;">
+                &#128279; Abrir agora
+              </button>
             </div>
 
             <div class="pv-error-msg" style="display:none;">
@@ -444,6 +601,9 @@ window.PortalViewer = {
         <div class="pv-footer">
           <button class="pv-btn pv-btn-secondary pv-retry-btn" style="display:none;" data-pv-action="retry">
             &#8635; Tentar novamente
+          </button>
+          <button class="pv-btn pv-btn-secondary pv-open-now-btn" style="display:none;" data-pv-action="open-now">
+            &#128279; Abrir agora
           </button>
           <button class="pv-btn pv-btn-secondary pv-open-tab-btn" style="display:none;" data-pv-action="open-tab">
             &#128279; Abrir em nova aba
@@ -479,7 +639,7 @@ window.PortalViewer = {
   },
 
   /**
-   * Limpa iframe, timeouts e event listeners.
+   * Limpa iframe, timeouts, countdowns e event listeners.
    */
   _cleanup() {
     // Destruir iframe
@@ -493,6 +653,9 @@ window.PortalViewer = {
     this._timeout?.cancel();
     this._timeout = null;
 
+    // Cancelar countdown
+    this._cancelCountdown();
+
     // Remover listeners
     this._listeners.forEach(({ el, event, handler }) => {
       el?.removeEventListener(event, handler);
@@ -503,6 +666,7 @@ window.PortalViewer = {
     this._integrationKey = null;
     this._integrationConfig = null;
     this._workflowData = null;
+    this._fallbackUrl = null;
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -543,6 +707,7 @@ window.PortalViewer = {
       this._addEvent(el, 'click', () => {
         const action = el.dataset.pvAction;
         if (action === 'retry') this._handleRetry();
+        else if (action === 'open-now') this._handleOpenNow();
         else if (action === 'open-tab') this._handleOpenInNewTab();
         else if (action === 'back') this.close();
       });
@@ -582,7 +747,7 @@ window.PortalViewer = {
   _handleRetry() {
     if (!this._integrationConfig) return;
 
-    this._setState('loading');
+    this._cancelCountdown();
 
     if (this._integrationConfig.tipo === 'portal') {
       // Limpar iframe anterior
@@ -596,6 +761,9 @@ window.PortalViewer = {
         this._integrationConfig.portal?.url || this._integrationConfig.url
       );
       if (url) {
+        this._fallbackUrl = url;
+        this._setState('connecting');
+        this._audit('iframe-retry', 'sucesso', { url });
         this._loadIframe(url);
       } else {
         this._setState('error', 'URL inválida.');
@@ -607,7 +775,7 @@ window.PortalViewer = {
   // AUDITORIA
   // ══════════════════════════════════════════════════════════════════════════
 
-  _audit(action, resultado) {
+  _audit(action, resultado, data = {}) {
     window.IntegrationAudit?.recordAction({
       integrationKey: this._integrationKey,
       fornecedor: this._integrationConfig?.nome || '',
@@ -622,7 +790,7 @@ window.PortalViewer = {
       resultado,
       auditEvent: action,
       timestamp: new Date().toISOString(),
-      data: {},
+      data,
     });
   },
 

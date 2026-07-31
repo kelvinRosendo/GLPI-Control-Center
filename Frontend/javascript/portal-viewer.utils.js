@@ -11,6 +11,7 @@
  * - Helpers de DOM e segurança
  *
  * Sprint 4: Utilitários para PortalViewer
+ * Sprint 4.5: Novos estados para detecção automática de iframe
  */
 
 window.PortalViewerUtils = {
@@ -74,52 +75,6 @@ window.PortalViewerUtils = {
     return typeof document !== 'undefined' && 'createElement' in document;
   },
 
-  /**
-   * Tenta detectar se uma URL bloqueia iframe via X-Frame-Options ou CSP.
-   * Esta é uma detecção heurística — o bloqueio real só é conhecido
-   * quando o iframe tenta carregar.
-   *
-   * @param {string} url
-   * @returns {{ canIframe: boolean, reason?: string }}
-   */
-  async detectIframeSupport(url) {
-    const validated = this.validateUrl(url);
-    if (!validated.valid) {
-      return { canIframe: false, reason: validated.error };
-    }
-
-    return new Promise((resolve) => {
-      const testIframe = document.createElement('iframe');
-      testIframe.style.display = 'none';
-      testIframe.setAttribute('sandbox', 'allow-same-origin');
-      testIframe.src = url;
-
-      const timeout = setTimeout(() => {
-        cleanup();
-        resolve({ canIframe: true, reason: 'timeout-assumed-ok' });
-      }, 3000);
-
-      const cleanup = () => {
-        clearTimeout(timeout);
-        if (testIframe.parentNode) {
-          testIframe.parentNode.removeChild(testIframe);
-        }
-      };
-
-      testIframe.onload = () => {
-        cleanup();
-        resolve({ canIframe: true });
-      };
-
-      testIframe.onerror = () => {
-        cleanup();
-        resolve({ canIframe: false, reason: 'error-loading' });
-      };
-
-      document.body.appendChild(testIframe);
-    });
-  },
-
   // ── Controle de Timeout ──────────────────────────────────────────────────
 
   /**
@@ -136,6 +91,19 @@ window.PortalViewerUtils = {
   },
 
   /**
+   * Cria um intervalo controlado que executa callback a cada tick.
+   * @param {number} ms - milissegundos entre cada tick
+   * @param {function} callback - chamado a cada tick
+   * @returns {{ cancel: function }}
+   */
+  createInterval(ms, callback) {
+    const id = setInterval(callback, ms);
+    return {
+      cancel: () => clearInterval(id),
+    };
+  },
+
+  /**
    * Duração padrão de timeout para carregamento de portal.
    */
   PORTAL_TIMEOUT_MS: 15000,
@@ -144,6 +112,11 @@ window.PortalViewerUtils = {
    * Duração padrão de timeout para detecção de bloqueio.
    */
   BLOCK_DETECT_TIMEOUT_MS: 5000,
+
+  /**
+   * Duração do countdown antes de abrir em nova aba (ms).
+   */
+  FALLBACK_COUNTDOWN_MS: 2000,
 
   // ── Sanitização de Parâmetros ────────────────────────────────────────────
 
@@ -232,10 +205,13 @@ window.PortalViewerUtils = {
    */
   STATES: {
     IDLE: 'idle',
+    CONNECTING: 'connecting',
+    VALIDATING: 'validating',
     LOADING: 'loading',
     LOADED: 'loaded',
     BLOCKED: 'blocked',
-    TIMEOUT: 'timeout',
+    FALLBACK: 'fallback',
+    DONE: 'done',
     ERROR: 'error',
   },
 
@@ -244,10 +220,13 @@ window.PortalViewerUtils = {
    */
   STATE_LABELS: {
     idle: 'Inicializando...',
-    loading: 'Conectando ao fornecedor...',
+    connecting: 'Conectando...',
+    validating: 'Validando...',
+    loading: 'Carregando portal...',
     loaded: 'Portal carregado',
-    blocked: 'Fornecedor bloqueou iframe',
-    timeout: 'Portal demorou para responder',
+    blocked: 'Portal bloqueado',
+    fallback: 'Abrindo nova aba...',
+    done: 'Concluído',
     error: 'Erro inesperado',
   },
 };

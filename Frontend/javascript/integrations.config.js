@@ -9,11 +9,12 @@
  * - Novas integrações são adicionadas APENAS neste arquivo
  *
  * Cada integração possui:
- *   key, nome, descrição, tipo, url, suportaIframe, fallback,
+ *   key, nome, descrição, tipo, url, fallback,
  *   ações, instruções, status
  *
  * Sprint 3: Configuração completa para IntegrationEngine
  * Sprint 4: PortalViewer consumirá esta config diretamente
+ * Sprint 4.5: Removido suportaIframe — detecção agora é automática
  */
 
 window.INTEGRATIONS_CONFIG = {
@@ -28,7 +29,6 @@ window.INTEGRATIONS_CONFIG = {
     descricao: 'Assistência técnica especializada em Chromebooks e equipamentos Dell/Acer.',
     tipo: 'portal',
     url: 'https://chamados.grupotorino.com.br/#login',
-    suportaIframe: false,
     fallback: 'open-tab',
     fallbackLabel: 'Abrir portal em nova aba',
     status: 'ativo',
@@ -41,8 +41,6 @@ window.INTEGRATIONS_CONFIG = {
 
     portal: {
       url: 'https://chamados.grupotorino.com.br/#login',
-      suportaIframe: false,
-      fallback: 'Abrir portal em nova aba',
     },
 
     emailTemplate: null,
@@ -96,7 +94,6 @@ window.INTEGRATIONS_CONFIG = {
     descricao: 'Suporte técnico via e-mail para equipamentos com contrato HBB. O Chromebook deverá ser entregue ao responsável.',
     tipo: 'email',
     url: null,
-    suportaIframe: false,
     fallback: 'mailto',
     fallbackLabel: 'Gerar e-mail para suporte',
     status: 'ativo',
@@ -179,7 +176,6 @@ Att.`,
     descricao: 'Portal de suporte Acer para equipamentos em garantia.',
     tipo: 'portal',
     url: 'https://acer.desk.ms/?LoginPortal',
-    suportaIframe: true,
     fallback: 'open-tab',
     fallbackLabel: 'Abrir portal em nova aba',
     status: 'ativo',
@@ -192,8 +188,6 @@ Att.`,
 
     portal: {
       url: 'https://acer.desk.ms/?LoginPortal',
-      suportaIframe: true,
-      fallback: 'Abrir portal em nova aba',
     },
 
     emailTemplate: null,
@@ -247,7 +241,6 @@ Att.`,
     descricao: 'Suporte técnico via e-mail para equipamentos Samsung. O equipamento deverá ser entregue ao responsável.',
     tipo: 'email',
     url: null,
-    suportaIframe: false,
     fallback: 'mailto',
     fallbackLabel: 'Gerar e-mail para suporte',
     status: 'ativo',
@@ -330,7 +323,6 @@ Att.`,
     descricao: 'Suporte Acer direto — fluxo em definição.',
     tipo: 'manual',
     url: null,
-    suportaIframe: false,
     fallback: 'none',
     fallbackLabel: 'Suporte direto — sem portal',
     status: 'em-definicao',
@@ -381,11 +373,6 @@ Att.`,
 
   getActiveIntegrations() {
     return this.getAllIntegrations().filter(i => i.status === 'ativo');
-  },
-
-  canUseIframe(key) {
-    const integration = this.getIntegration(key);
-    return integration ? integration.suportaIframe === true : false;
   },
 
   getFallback(key) {
