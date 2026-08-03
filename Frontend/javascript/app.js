@@ -40,6 +40,7 @@ window.App = {
       }
 
       this._preloadTickets();
+      this._loadDashboard();
       this.render();
 
     } catch (e) {
@@ -74,12 +75,21 @@ window.App = {
     if (!tabsEl || !mainEl) return;
 
     tabsEl.innerHTML = this._renderTabs();
-    mainEl.innerHTML = this._renderCurrentTabContent();
+
+    if (window.STATE.tab === 'home' && window.Dashboard.isLoaded()) {
+      mainEl.innerHTML = '';
+      window.DashboardUI.render('main-content');
+    } else {
+      mainEl.innerHTML = this._renderCurrentTabContent();
+    }
+
     this._animateTabContent(mainEl);
 
     this._bindTabEvents();
-    this._bindSearchEvents();
-    this._bindComputerCardEvents();
+    if (window.STATE.tab !== 'home') {
+      this._bindSearchEvents();
+      this._bindComputerCardEvents();
+    }
     this._renderComputerModal();
     this._bindTicketEvents();
 
@@ -95,7 +105,11 @@ window.App = {
         if (this.assetsLoading && !this.assetsLoaded) {
           return window.UI.renderHomeLoading();
         }
-        return window.UI.renderHome();
+        if (!window.Dashboard.isLoaded()) {
+          window.DashboardUI.render();
+          return '';
+        }
+        return '';
       case 'computadores':
         if (this.assetsLoading && !window.DATA.computadores.length) {
           return window.UI.renderSectionLoading('Carregando computadores...');
@@ -286,6 +300,15 @@ window.App = {
 
     if (window.STATE.tab === 'chamados') {
       this._renderContent();
+    }
+  },
+
+  async _loadDashboard() {
+    if (window.Dashboard.isLoading()) return;
+
+    const result = await window.Dashboard.load();
+    if (result.ok && window.STATE.tab === 'home') {
+      window.DashboardUI.render();
     }
   },
 

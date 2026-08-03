@@ -1,0 +1,421 @@
+/* ==========================================================================
+   GLPI Control Center - dashboard.css
+   --------------------------------------------------------------------------
+   Estilos do Dashboard Operacional (Sprint 5).
+   Modular, responsivo, com states de loading e erro.
+   ========================================================================== */
+
+/* ── Container ────────────────────────────────────────────────────────────── */
+.dash-container {
+  padding: 0;
+  animation: dashFadeIn 0.3s ease;
+}
+
+@keyframes dashFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.dash-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 28px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dash-header-left {
+  flex: 1;
+  min-width: 200px;
+}
+
+.dash-header-right {
+  flex-shrink: 0;
+}
+
+.dash-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text, #e8eaf6);
+}
+
+.dash-subtitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--text2, #9299b8);
+}
+
+.dash-subtitle.dash-error {
+  color: var(--red, #ff5555);
+}
+
+/* ── Refresh Button ─────────────────────────────────────────────────────── */
+.dash-refresh-btn {
+  padding: 10px 18px;
+  background: var(--surface, #1a1d27);
+  border: 1px solid var(--border, #2e3347);
+  border-radius: 8px;
+  color: var(--text2, #9299b8);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.dash-refresh-btn:hover {
+  color: var(--text, #e8eaf6);
+  border-color: var(--accent, #4f7ef7);
+}
+
+.dash-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Section ─────────────────────────────────────────────────────────────── */
+.dash-section {
+  margin-bottom: 28px;
+}
+
+.dash-section-title {
+  margin: 0 0 16px;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text2, #9299b8);
+}
+
+/* ── Cards Grid ──────────────────────────────────────────────────────────── */
+.dash-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 14px;
+}
+
+/* ── Card ─────────────────────────────────────────────────────────────────── */
+.dash-card {
+  background: var(--surface, #1a1d27);
+  border: 1px solid var(--border, #2e3347);
+  border-radius: 14px;
+  padding: 20px 16px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+}
+
+.dash-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--card-accent, var(--accent));
+  opacity: 0.8;
+}
+
+.dash-card:hover {
+  border-color: var(--card-accent, var(--accent));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.dash-card:hover::before {
+  opacity: 1;
+}
+
+.dash-card-icon {
+  font-size: 28px;
+  margin-bottom: 14px;
+  line-height: 1;
+}
+
+.dash-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-card-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text, #e8eaf6);
+  line-height: 1;
+  transition: color 0.3s ease;
+}
+
+.dash-card-value-updated {
+  color: var(--card-accent, var(--accent)) !important;
+}
+
+.dash-card-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2, #9299b8);
+}
+
+.dash-card-description {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--text3, #5a6080);
+  line-height: 1.4;
+}
+
+/* ── Card Skeleton ───────────────────────────────────────────────────────── */
+.dash-card-skeleton {
+  pointer-events: none;
+}
+
+.dash-card-skeleton .dash-card-icon,
+.dash-card-skeleton .dash-card-body,
+.dash-card-skeleton .dash-card-description {
+  opacity: 0.4;
+}
+
+.dash-skeleton-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--surface3, #2a2e42);
+  margin-bottom: 14px;
+  animation: dashSkeletonPulse 1.5s ease-in-out infinite;
+}
+
+.dash-skeleton-icon.small {
+  width: 24px;
+  height: 24px;
+}
+
+.dash-skeleton-value {
+  width: 60px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--surface3, #2a2e42);
+  margin-bottom: 8px;
+  animation: dashSkeletonPulse 1.5s ease-in-out infinite;
+}
+
+.dash-skeleton-label {
+  width: 80px;
+  height: 14px;
+  border-radius: 4px;
+  background: var(--surface3, #2a2e42);
+  animation: dashSkeletonPulse 1.5s ease-in-out infinite;
+}
+
+.dash-skeleton-description {
+  width: 120px;
+  height: 10px;
+  border-radius: 4px;
+  background: var(--surface3, #2a2e42);
+  margin-top: 12px;
+  animation: dashSkeletonPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes dashSkeletonPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+/* ── Widgets Grid ────────────────────────────────────────────────────────── */
+.dash-widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+/* ── Widget ──────────────────────────────────────────────────────────────── */
+.dash-widget {
+  background: var(--surface, #1a1d27);
+  border: 1px solid var(--border, #2e3347);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  transition: border-color 0.2s;
+}
+
+.dash-widget:hover {
+  border-color: var(--surface3, #2a2e42);
+}
+
+.dash-widget-icon {
+  font-size: 22px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dash-widget-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-widget-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text3, #5a6080);
+}
+
+.dash-widget-value {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dash-widget-main {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #e8eaf6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-widget-meta {
+  font-size: 12px;
+  color: var(--text2, #9299b8);
+}
+
+.dash-widget-empty {
+  font-size: 13px;
+  color: var(--text3, #5a6080);
+  font-style: italic;
+}
+
+/* ── Widget Skeleton ─────────────────────────────────────────────────────── */
+.dash-widget-skeleton {
+  pointer-events: none;
+}
+
+.dash-widget-skeleton .dash-widget-icon,
+.dash-widget-skeleton .dash-widget-body {
+  opacity: 0.4;
+}
+
+/* ── Error Card ──────────────────────────────────────────────────────────── */
+.dash-error-card {
+  background: var(--surface, #1a1d27);
+  border: 1px solid rgba(255, 85, 85, 0.3);
+  border-radius: 14px;
+  padding: 40px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.dash-error-icon {
+  font-size: 40px;
+  color: var(--red, #ff5555);
+}
+
+.dash-error-message {
+  font-size: 14px;
+  color: var(--text2, #9299b8);
+  margin: 0;
+  max-width: 400px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVIDADE
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+  .dash-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .dash-header-right {
+    width: 100%;
+  }
+
+  .dash-refresh-btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .dash-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+
+  .dash-card {
+    padding: 16px 14px;
+  }
+
+  .dash-card-value {
+    font-size: 26px;
+  }
+
+  .dash-widgets-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .dash-title {
+    font-size: 20px;
+  }
+
+  .dash-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .dash-card {
+    padding: 14px 12px;
+  }
+
+  .dash-card-icon {
+    font-size: 22px;
+    margin-bottom: 10px;
+  }
+
+  .dash-card-value {
+    font-size: 22px;
+  }
+
+  .dash-card-label {
+    font-size: 12px;
+  }
+
+  .dash-card-description {
+    display: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ACESSIBILIDADE
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.dash-refresh-btn:focus-visible {
+  outline: 2px solid var(--accent, #4f7ef7);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-container,
+  .dash-card,
+  .dash-widget {
+    animation: none;
+    transition: none;
+  }
+
+  .dash-card:hover {
+    transform: none;
+  }
+}
