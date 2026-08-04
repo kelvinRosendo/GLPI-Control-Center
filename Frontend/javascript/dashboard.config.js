@@ -204,6 +204,85 @@ window.DASHBOARD_CONFIG = {
   ],
 
   // ══════════════════════════════════════════════════════════════════════════
+  // CONFIGURAÇÃO DE GRÁFICOS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  charts: [
+    // ── Chamados por Status ───────────────────────────────────────────────
+    {
+      id: 'chamados_por_status',
+      titulo: 'Chamados por Status',
+      tipo: 'donut', // pie, bar, horizontalBar, donut, line
+      source: 'chart_chamados_status',
+      cores: ['#f59e0b', '#22c55e'],
+      visible: true,
+      order: 1,
+      clickable: true,
+      tab: 'chamados',
+    },
+
+    // ── Equipamentos por Categoria ────────────────────────────────────────
+    {
+      id: 'equipamentos_por_categoria',
+      titulo: 'Equipamentos por Categoria',
+      tipo: 'bar',
+      source: 'chart_equipamentos_categoria',
+      cores: ['#4f7ef7', '#00c896', '#6c5ce7', '#ffc107', '#ff5555'],
+      visible: true,
+      order: 2,
+      clickable: true,
+      tab: 'computadores',
+    },
+
+    // ── Status dos Equipamentos ───────────────────────────────────────────
+    {
+      id: 'equipamentos_manutencao',
+      titulo: 'Status dos Equipamentos',
+      tipo: 'donut',
+      source: 'chart_status_ativos',
+      cores: ['#22c55e', '#f59e0b'],
+      visible: true,
+      order: 3,
+      clickable: false,
+    },
+
+    // ── Ações por Fornecedor ──────────────────────────────────────────────
+    {
+      id: 'equipamentos_por_fornecedor',
+      titulo: 'Ações por Fornecedor',
+      tipo: 'horizontalBar',
+      source: 'chart_fornecedores',
+      cores: ['#4f7ef7', '#00c896', '#6c5ce7', '#ffc107', '#ff5555'],
+      visible: true,
+      order: 4,
+      clickable: false,
+    },
+
+    // ── Evolução de Chamados ─────────────────────────────────────────────
+    {
+      id: 'evolucao_chamados',
+      titulo: 'Evolução de Chamados',
+      tipo: 'line',
+      source: 'chart_evolucao_chamados',
+      cores: ['#f59e0b', '#22c55e'],
+      visible: true,
+      order: 5,
+      clickable: false,
+    },
+  ],
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CONFIGURAÇÃO DE ANALYTICS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  analytics: {
+    enabled: true,
+    showPercentages: true,
+    showComparisons: true,
+    showTrends: false, // Futuro - Sprint 7+
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
   // API PÚBLICA
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -244,6 +323,23 @@ window.DASHBOARD_CONFIG = {
    */
   getWidget(id) {
     return this.widgets.find(w => w.id === id) || null;
+  },
+
+  /**
+   * Retorna gráficos ordenados.
+   * @returns {array}
+   */
+  getCharts() {
+    return [...this.charts].sort((a, b) => a.order - b.order);
+  },
+
+  /**
+   * Retorna um gráfico pelo ID.
+   * @param {string} id
+   * @returns {object|null}
+   */
+  getChart(id) {
+    return this.charts.find(c => c.id === id) || null;
   },
 
   /**

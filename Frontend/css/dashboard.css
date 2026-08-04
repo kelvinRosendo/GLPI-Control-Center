@@ -392,8 +392,16 @@
     grid-template-columns: 1fr;
   }
 
-  .dash-charts-placeholder {
+  .dash-charts-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dash-chart-container {
+    height: 200px;
+  }
+
+  .dash-analytics-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -427,48 +435,141 @@
   .dash-card-description {
     display: none;
   }
+
+  .dash-analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-analytics-card {
+    padding: 12px;
+  }
+
+  .dash-analytics-value {
+    font-size: 18px;
+  }
 }
 
-/* ── Charts Placeholder ──────────────────────────────────────────────────── */
-.dash-charts-placeholder {
+/* ── Charts Grid ─────────────────────────────────────────────────────────── */
+.dash-charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+  margin-bottom: 28px;
+}
+
+/* ── Chart Card ──────────────────────────────────────────────────────────── */
+.dash-chart-card {
+  background: var(--surface, #1a1d27);
+  border: 1px solid var(--border, #2e3347);
+  border-radius: 14px;
+  padding: 20px;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.dash-chart-clickable {
+  cursor: pointer;
+}
+
+.dash-chart-clickable:hover {
+  border-color: var(--accent, #4f7ef7);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+}
+
+.dash-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.dash-chart-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #e8eaf6);
+}
+
+.dash-chart-container {
+  position: relative;
+  height: 250px;
+}
+
+/* ── Chart States ────────────────────────────────────────────────────────── */
+.dash-chart-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 250px;
+  color: var(--text3, #5a6080);
+  gap: 12px;
+}
+
+.dash-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 250px;
+  color: var(--text3, #5a6080);
+  font-style: italic;
+}
+
+.dash-chart-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 250px;
+  color: var(--red, #ff5555);
+  gap: 8px;
+  text-align: center;
+}
+
+/* ── Analytics Grid ──────────────────────────────────────────────────────── */
+.dash-analytics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 14px;
 }
 
-.dash-chart-placeholder-card {
+/* ── Analytics Card ──────────────────────────────────────────────────────── */
+.dash-analytics-card {
   background: var(--surface, #1a1d27);
-  border: 1px dashed var(--border, #2e3347);
+  border: 1px solid var(--border, #2e3347);
   border-radius: 12px;
-  padding: 24px;
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  opacity: 0.7;
+  padding: 16px;
+  text-align: center;
+  transition: all 0.2s ease;
 }
 
-.dash-chart-placeholder-icon {
-  font-size: 28px;
-  flex-shrink: 0;
+.dash-analytics-card:hover {
+  border-color: var(--surface3, #2a2e42);
+}
+
+.dash-analytics-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
   color: var(--text3, #5a6080);
 }
 
-.dash-chart-placeholder-text {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.dash-analytics-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent, #4f7ef7);
+  line-height: 1.2;
+  margin-bottom: 4px;
 }
 
-.dash-chart-placeholder-title {
-  font-size: 14px;
+.dash-analytics-label {
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text2, #9299b8);
-}
-
-.dash-chart-placeholder-desc {
-  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--text3, #5a6080);
-  line-height: 1.4;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -482,6 +583,11 @@
 
 .dash-card-clickable:focus-visible {
   outline: 2px solid var(--card-accent, var(--accent));
+  outline-offset: 2px;
+}
+
+.dash-chart-clickable:focus-visible {
+  outline: 2px solid var(--accent, #4f7ef7);
   outline-offset: 2px;
 }
 

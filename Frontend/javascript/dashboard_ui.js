@@ -131,8 +131,8 @@ window.DashboardUI = {
     // Widgets
     html += this._renderWidgetsSection(widgets);
 
-    // Área reservada para gráficos futuros
-    html += this._renderChartsPlaceholder();
+    // Gráficos e Analytics
+    html += this._renderChartsSection();
 
     html += '</div>';
     return html;
@@ -450,7 +450,46 @@ window.DashboardUI = {
         refreshBtn.disabled = false;
         refreshBtn.innerHTML = '&#8635; Atualizar';
       }
+      // Renderizar gráficos após dados carregados
+      this._renderCharts();
     });
+
+    // Escutar eventos de recalculo
+    document.addEventListener('dashboard:recalculated', () => {
+      // Atualizar gráficos quando dados são recalculados
+      this._updateCharts();
+    });
+
+    // Destruir gráficos ao sair da página
+    window.addEventListener('beforeunload', () => {
+      window.DashboardCharts.destroy();
+    });
+
+    // Gráficos clicáveis
+    document.querySelectorAll('.dash-chart-clickable[data-dash-tab]').forEach(chart => {
+      chart.addEventListener('click', () => {
+        const tab = chart.dataset.dashTab;
+        if (tab && window.App && window.App.go) {
+          window.App.go(tab);
+        }
+      });
+    });
+  },
+
+  /**
+   * Renderiza os gráficos após o dashboard carregar.
+   */
+  _renderCharts() {
+    setTimeout(() => {
+      window.DashboardCharts.render('dash-charts-container');
+    }, 100); // Pequeno delay para garantir que o DOM está pronto
+  },
+
+  /**
+   * Atualiza os gráficos quando dados são recalculados.
+   */
+  _updateCharts() {
+    window.DashboardCharts.update();
   },
 
   /**
@@ -468,40 +507,169 @@ window.DashboardUI = {
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDERIZAÇÃO: GRÁFICOS FUTUROS
+  // RENDERIZAÇÃO: GRÁFICOS E ANALYTICS
   // ══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Renderiza área reservada para gráficos futuros.
+   * Renderiza a seção de gráficos e analytics.
    * @returns {string}
    */
-  _renderChartsPlaceholder() {
-    return `
+  _renderChartsSection() {
+    const config = window.DASHBOARD_CONFIG;
+    const analytics = window.Dashboard.getAnalytics();
+    const chartConfigs = config.getCharts();
+
+    let html = `
       <div class="dash-section">
         <h2 class="dash-section-title">Visualizações</h2>
-        <div class="dash-charts-placeholder">
-          <div class="dash-chart-placeholder-card">
-            <div class="dash-chart-placeholder-icon">&#128200;</div>
-            <div class="dash-chart-placeholder-text">
-              <span class="dash-chart-placeholder-title">Gráficos</span>
-              <span class="dash-chart-placeholder-desc">Visualizações de dados serão implementadas em uma sprint futura</span>
-            </div>
-          </div>
-          <div class="dash-chart-placeholder-card">
-            <div class="dash-chart-placeholder-icon">&#128196;</div>
-            <div class="dash-chart-placeholder-text">
-              <span class="dash-chart-placeholder-title">Relatórios</span>
-              <span class="dash-chart-placeholder-desc">Exportação e relatórios serão disponibilizados em breve</span>
-            </div>
-          </div>
-          <div class="dash-chart-placeholder-card">
-            <div class="dash-chart-placeholder-icon">&#128202;</div>
-            <div class="dash-chart-placeholder-text">
-              <span class="dash-chart-placeholder-title">Analytics</span>
-              <span class="dash-chart-placeholder-desc">Métricas avançadas e tendências em desenvolvimento</span>
-            </div>
+        <div class="dash-charts-grid" id="dash-charts-container">
+    `;
+
+    // Renderizar cada gráfico
+    for (const cc of chartConfigs) {
+      if (!cc.visible) continue;
+      html += this._renderChartCard(cc);
+    }
+
+    html += '</div>';
+
+    // Renderizar analytics se habilitado
+    if (config.analytics?.enabled) {
+      html += this._renderAnalyticsSection(analytics);
+    }
+
+    html += '</div>';
+    return html;
+  },
+
+  /**
+   * Renderiza um card de gráfico.
+   * @param {object} chartConfig - Configuração do gráfico
+   * @returns {string}
+   */
+  _renderChartCard(chartConfig) {
+    const clickableClass = chartConfig.clickable ? 'dash-chart-clickable' : '';
+    const dataAttr = chartConfig.clickable && chartConfig.tab ? `data-dash-tab="${this._esc(chartConfig.tab)}"` : '';
+    const titleAttr = chartConfig.clickable ? `title="Clique para ir para mais detalhes"` : '';
+
+    return `
+      <div class="dash-chart-card ${clickableClass}"
+           data-chart-id="${this._esc(chartConfig.id)}"
+           ${dataAttr}
+           ${titleAttr}>
+        <div class="dash-chart-header">
+          <h3 class="dash-chart-title">${this._esc(chartConfig.titulo)}</h3>
+        </div>
+        <div class="dash-chart-container" id="chart-container-${this._esc(chartConfig.id)}">
+          <div class="dash-chart-loading">
+            <div class="dash-skeleton-icon"></div>
+            <span>Carregando gráfico...</span>
           </div>
         </div>
+      </div>
+    `;
+  },
+
+  /**
+   * Renderiza a seção de analytics.
+   * @param {object} analytics - Dados de analytics
+   * @returns {string}
+   */
+  _renderAnalyticsSection(analytics) {
+    const config = window.DASHBOARD_CONFIG;
+    if (!config.analytics?.enabled) return '';
+
+    let html = `
+      <div class="dash-section">
+        <h2 class="dash-section-title">Analytics</h2>
+        <div class="dash-analytics-grid">
+    `;
+
+    // Card: Total de Ativos
+    html += this._renderAnalyticsCard({
+      valor: this._formatNumber(analytics.total_ativos || 0),
+      label: 'Total de Ativos',
+      icon: '&#128202;',
+    });
+
+    // Card: Percentual Disponível
+    html += this._renderAnalyticsCard({
+      valor: `${analytics.percentual_disponivel || 0}%`,
+      label: 'Disponíveis',
+      icon: '&#9989;',
+      cor: '#22c55e',
+    });
+
+    // Card: Percentual em Manutenção
+    html += this._renderAnalyticsCard({
+      valor: `${analytics.percentual_manutencao || 0}%`,
+      label: 'Em Manutenção',
+      icon: '&#128295;',
+      cor: '#f59e0b',
+    });
+
+    // Card: Categoria Maior
+    if (analytics.categoria_maior) {
+      html += this._renderAnalyticsCard({
+        valor: analytics.categoria_maior.nome,
+        label: 'Maior Categoria',
+        icon: '&#128200;',
+      });
+    }
+
+    // Card: Fornecedor Mais Utilizado
+    if (analytics.fornecedor_mais_utilizado) {
+      html += this._renderAnalyticsCard({
+        valor: analytics.fornecedor_mais_utilizado.nome,
+        label: 'Fornecedor Top',
+        icon: '&#128188;',
+      });
+    }
+
+    // Card: Tipo de Chamado Predominante
+    if (analytics.tipo_chamado_predominante) {
+      html += this._renderAnalyticsCard({
+        valor: this._capitalizeFirst(analytics.tipo_chamado_predominante.nome),
+        label: 'Chamado Predominante',
+        icon: '&#128196;',
+      });
+    }
+
+    // Card: Tempo desde Atualização
+    if (analytics.tempo_desde_atualizacao) {
+      html += this._renderAnalyticsCard({
+        valor: analytics.tempo_desde_atualizacao.texto,
+        label: 'Última Atualização',
+        icon: '&#128339;',
+        cor: analytics.tempo_desde_atualizacao.isStale ? '#f59e0b' : '#22c55e',
+      });
+    }
+
+    // Card: Chamados Abertos
+    html += this._renderAnalyticsCard({
+      valor: `${analytics.percentual_chamados_abertos || 0}%`,
+      label: 'Chamados Abertos',
+      icon: '&#128194;',
+      cor: '#f59e0b',
+    });
+
+    html += '</div></div>';
+    return html;
+  },
+
+  /**
+   * Renderiza um card de analytics individual.
+   * @param {object} data - Dados do card (valor, label, icon, cor)
+   * @returns {string}
+   */
+  _renderAnalyticsCard(data) {
+    const corStyle = data.cor ? `style="color: ${data.cor}"` : '';
+
+    return `
+      <div class="dash-analytics-card">
+        <div class="dash-analytics-icon">${data.icon}</div>
+        <div class="dash-analytics-value" ${corStyle}>${data.valor}</div>
+        <div class="dash-analytics-label">${this._esc(data.label)}</div>
       </div>
     `;
   },
@@ -586,5 +754,15 @@ window.DashboardUI = {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  },
+
+  /**
+   * Capitaliza a primeira letra de uma string.
+   * @param {string} text
+   * @returns {string}
+   */
+  _capitalizeFirst(text) {
+    if (!text) return '';
+    return text.charAt(0).toUpperCase() + text.slice(1);
   },
 };

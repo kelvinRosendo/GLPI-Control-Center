@@ -25,6 +25,7 @@ window.Dashboard = {
     error: '',
     indicators: {},
     widgets: {},
+    analytics: {},
     loadedAt: null,
     lastRefresh: null,
     isStale: false,
@@ -59,7 +60,10 @@ window.Dashboard = {
       // 3. Calcular widgets de resumo
       this._state.widgets = this._calculateWidgets();
 
-      // 4. Marcar como carregado
+      // 4. Calcular analytics
+      this._state.analytics = window.DashboardAnalytics.calculate(this._state.indicators);
+
+      // 5. Marcar como carregado
       this._state.loaded = true;
       this._state.loadedAt = new Date().toISOString();
       this._state.lastRefresh = new Date().toISOString();
@@ -68,9 +72,10 @@ window.Dashboard = {
       this._emit('dashboard:loaded', {
         indicators: this._state.indicators,
         widgets: this._state.widgets,
+        analytics: this._state.analytics,
       });
 
-      // 5. Iniciar auto-refresh
+      // 6. Iniciar auto-refresh
       this._startAutoRefresh();
 
       return { ok: true };
@@ -93,11 +98,13 @@ window.Dashboard = {
 
     this._state.indicators = this._calculateIndicators();
     this._state.widgets = this._calculateWidgets();
+    this._state.analytics = window.DashboardAnalytics.calculate(this._state.indicators);
     this._state.loadedAt = new Date().toISOString();
     this._state.isStale = false;
 
     this._emit('dashboard:recalculated', {
       indicators: this._state.indicators,
+      analytics: this._state.analytics,
     });
   },
 
@@ -106,12 +113,14 @@ window.Dashboard = {
    */
   reset() {
     this._stopAutoRefresh();
+    window.DashboardAnalytics.reset();
     this._state = {
       loaded: false,
       loading: false,
       error: '',
       indicators: {},
       widgets: {},
+      analytics: {},
       loadedAt: null,
       lastRefresh: null,
       isStale: false,
@@ -391,6 +400,23 @@ window.Dashboard = {
    */
   getWidgets() {
     return { ...this._state.widgets };
+  },
+
+  /**
+   * Retorna o valor de um analytic específico.
+   * @param {string} id
+   * @returns {any}
+   */
+  getAnalytic(id) {
+    return this._state.analytics[id] ?? null;
+  },
+
+  /**
+   * Retorna todos os analytics.
+   * @returns {object}
+   */
+  getAnalytics() {
+    return { ...this._state.analytics };
   },
 
   /**
