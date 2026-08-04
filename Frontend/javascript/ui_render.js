@@ -298,51 +298,6 @@ window.UI = {
     return tabs.map(t => `<button class="tab-btn ${window.STATE.tab === t.id ? 'active' : ''}" data-tab="${t.id}">${t.label}</button>`).join('');
   },
 
-  renderHome() {
-    const D = window.DATA;
-    const cats = [
-      { label: 'Computadores', icon: '🖥️', lista: D.computadores, tab: 'computadores', cor: '#4f7ef7' },
-      { label: 'Geekiees', icon: '📗', lista: D.chromebooksGeekiees, tab: 'geekiees', cor: '#00c896' },
-      { label: 'Carrinhos', icon: '📘', lista: Object.values(D.chromebooksApoio || {}).flat(), tab: 'apoio', cor: '#6c5ce7' },
-      { label: 'Projetores', icon: '📽️', lista: D.projetores, tab: 'projetores', cor: '#ffc107' },
-      { label: 'Impressoras', icon: '🖨️', lista: D.impressoras, tab: 'impressoras', cor: '#ff5555' },
-    ];
-    const totalAtivos = cats.reduce((sum, cat) => sum + cat.lista.length, 0);
-    const cards = cats.map(cat => {
-      const total = cat.lista.length;
-      const ativos = cat.lista.filter(a => a.status === 'ativo').length;
-      const manut = cat.lista.filter(a => a.status === 'manutencao').length;
-      const emprestado = cat.lista.filter(a => a.status === 'emprestado').length;
-      return `<div class="home-card" data-tab="${cat.tab}" onclick="window.App.go('${cat.tab}')" style="cursor: pointer;"><div class="home-card-icon">${cat.icon}</div><div class="home-card-info"><h3>${this._escapeHtml(cat.label)}</h3><p class="home-card-total">${total} ativos</p><div class="home-card-pills"><span class="pill-ativo">${ativos} ativos</span>${manut ? `<span class="pill-manut">${manut} manutencao</span>` : ''}${emprestado ? `<span class="pill-emp">${emprestado} emprestado${emprestado > 1 ? 's' : ''}</span>` : ''}</div></div></div>`;
-    }).join('');
-    const chartSvg = this._renderPieChart(cats, totalAtivos);
-    return `<div class="home-wrapper"><h2 class="section-title">Resumo de Ativos</h2><div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 24px;"><div style="display: flex; align-items: center; gap: 32px; flex-wrap: wrap;"><div style="flex-shrink: 0;">${chartSvg}</div><div style="flex: 1; min-width: 200px;"><h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px;">Distribuicao por Categoria</h3><div style="display: flex; flex-direction: column; gap: 10px;">${cats.map(cat => { const percentual = totalAtivos > 0 ? ((cat.lista.length / totalAtivos) * 100).toFixed(1) : 0; return `<div style="display: flex; align-items: center; gap: 10px;"><div style="width: 16px; height: 16px; background: ${cat.cor}; border-radius: 4px; flex-shrink: 0;"></div><span style="font-size: 14px; color: var(--text2); flex: 1;">${this._escapeHtml(cat.label)}</span><span style="font-size: 14px; font-weight: 600; color: var(--text);">${cat.lista.length}</span><span style="font-size: 13px; color: var(--text3); min-width: 45px; text-align: right;">(${percentual}%)</span></div>`; }).join('')}<div style="margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; justify-content: space-between;"><span style="font-size: 15px; font-weight: 600; color: var(--text);">Total</span><span style="font-size: 15px; font-weight: 700; color: var(--accent);">${totalAtivos} ativos</span></div></div></div></div></div><div class="home-grid">${cards}</div></div>`;
-  },
-
-  _renderPieChart(cats, total) {
-    if (total === 0) return '<div style="width: 200px; height: 200px; display: flex; align-items: center; justify-content: center; color: var(--text3); font-size: 14px;">Sem dados</div>';
-    const size = 200;
-    const center = size / 2;
-    const radius = 80;
-    let currentAngle = -90;
-    const slices = cats.map(cat => {
-      const angle = (cat.lista.length / total) * 360;
-      const startAngle = currentAngle;
-      const endAngle = currentAngle + angle;
-      currentAngle = endAngle;
-      const startRad = (startAngle * Math.PI) / 180;
-      const endRad = (endAngle * Math.PI) / 180;
-      const x1 = center + radius * Math.cos(startRad);
-      const y1 = center + radius * Math.sin(startRad);
-      const x2 = center + radius * Math.cos(endRad);
-      const y2 = center + radius * Math.sin(endRad);
-      const largeArcFlag = angle > 180 ? 1 : 0;
-      const path = `M ${center} ${center} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArcFlag} 1 ${x2} ${y2} Z`;
-      return `<path d="${path}" fill="${cat.cor}" opacity="0.9" stroke="var(--surface)" stroke-width="2"/>`;
-    }).join('');
-    return `<svg width="200" height="200" viewBox="0 0 200 200" style="filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));">${slices}<circle cx="${center}" cy="${center}" r="50" fill="var(--surface)"/><text x="${center}" y="${center - 8}" text-anchor="middle" font-size="28" font-weight="700" fill="var(--text)">${total}</text><text x="${center}" y="${center + 12}" text-anchor="middle" font-size="13" fill="var(--text2)">ativos</text></svg>`;
-  },
-
   renderAssetList(lista, placeholder, tipo = 'generic') {
     const filtrada = this._filtrar(lista);
     const cardsHtml = filtrada.length ? filtrada.map(a => this._renderCard(a, tipo)).join('') : '<p class="empty-msg">Nenhum ativo encontrado para a busca.</p>';

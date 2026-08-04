@@ -26,7 +26,14 @@ window.Dashboard = {
     indicators: {},
     widgets: {},
     loadedAt: null,
+    lastRefresh: null,
+    isStale: false,
   },
+
+  // ── Timer de Auto-Refresh ──────────────────────────────────────────────
+
+  _autoRefreshTimer: null,
+  _visibilityChangeHandler: null,
 
   // ── Ciclo de Vida ────────────────────────────────────────────────────────
 
@@ -55,11 +62,16 @@ window.Dashboard = {
       // 4. Marcar como carregado
       this._state.loaded = true;
       this._state.loadedAt = new Date().toISOString();
+      this._state.lastRefresh = new Date().toISOString();
+      this._state.isStale = false;
 
       this._emit('dashboard:loaded', {
         indicators: this._state.indicators,
         widgets: this._state.widgets,
       });
+
+      // 5. Iniciar auto-refresh
+      this._startAutoRefresh();
 
       return { ok: true };
     } catch (err) {
@@ -82,6 +94,7 @@ window.Dashboard = {
     this._state.indicators = this._calculateIndicators();
     this._state.widgets = this._calculateWidgets();
     this._state.loadedAt = new Date().toISOString();
+    this._state.isStale = false;
 
     this._emit('dashboard:recalculated', {
       indicators: this._state.indicators,
@@ -92,6 +105,7 @@ window.Dashboard = {
    * Reseta o estado do dashboard.
    */
   reset() {
+    this._stopAutoRefresh();
     this._state = {
       loaded: false,
       loading: false,
@@ -99,7 +113,76 @@ window.Dashboard = {
       indicators: {},
       widgets: {},
       loadedAt: null,
+      lastRefresh: null,
+      isStale: false,
     };
+  },
+
+  // ── Auto-Refresh ─────────────────────────────────────────────────────────
+
+  /**
+   * Inicia o auto-refresh baseado na configuração.
+   */
+  _startAutoRefresh() {
+    const config = window.DASHBOARD_CONFIG?.performance;
+    if (!config?.enableAutoRefresh) return;
+
+    this._stopAutoRefresh();
+
+    this._autoRefreshTimer = setInterval(() => {
+      if (this._state.loaded && !this._state.loading) {
+        this._state.isStale = true;
+        this._emit('dashboard:stale', { loadedAt: this._state.loadedAt });
+        this.recalculate();
+      }
+    }, config.autoRefreshInterval);
+
+    // Pausar quando aba estiver inativa
+    if (config.pauseOnInactiveTab) {
+      this._visibilityChangeHandler = () => {
+        if (document.hidden) {
+          this._stopAutoRefresh();
+        } else {
+          this._startAutoRefresh();
+        }
+      };
+      document.addEventListener('visibilitychange', this._visibilityChangeHandler);
+    }
+  },
+
+  /**
+   * Para o auto-refresh.
+   */
+  _stopAutoRefresh() {
+    if (this._autoRefreshTimer) {
+      clearInterval(this._autoRefreshTimer);
+      this._autoRefreshTimer = null;
+    }
+    if (this._visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this._visibilityChangeHandler);
+      this._visibilityChangeHandler = null;
+    }
+  },
+
+  /**
+   * Verifica se os dados estão desatualizados.
+   * @returns {boolean}
+   */
+  isStale() {
+    if (!this._state.loadedAt) return false;
+    const config = window.DASHBOARD_CONFIG?.performance;
+    const threshold = config?.staleThreshold || 60000;
+    return Date.now() - new Date(this._state.loadedAt).getTime() > threshold;
+  },
+
+  /**
+   * Força refresh manual dos dados.
+   */
+  async forceRefresh() {
+    this._state.isStale = false;
+    this._state.loadedAt = new Date().toISOString();
+    this._emit('dashboard:refreshing', {});
+    await this.load();
   },
 
   // ── Garantia de Dados ────────────────────────────────────────────────────

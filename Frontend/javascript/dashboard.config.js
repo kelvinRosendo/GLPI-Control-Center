@@ -34,6 +34,8 @@ window.DASHBOARD_CONFIG = {
       source: 'computadores',
       order: 1,
       group: 'ativos',
+      tab: 'computadores',
+      clickable: true,
     },
 
     {
@@ -45,6 +47,8 @@ window.DASHBOARD_CONFIG = {
       source: 'chromebooksGeekiees',
       order: 2,
       group: 'ativos',
+      tab: 'geekiees',
+      clickable: true,
     },
 
     {
@@ -56,6 +60,8 @@ window.DASHBOARD_CONFIG = {
       source: 'chromebooksApoio',
       order: 3,
       group: 'ativos',
+      tab: 'apoio',
+      clickable: true,
     },
 
     {
@@ -67,6 +73,8 @@ window.DASHBOARD_CONFIG = {
       source: 'projetores',
       order: 4,
       group: 'ativos',
+      tab: 'projetores',
+      clickable: true,
     },
 
     {
@@ -78,6 +86,8 @@ window.DASHBOARD_CONFIG = {
       source: 'impressoras',
       order: 5,
       group: 'ativos',
+      tab: 'impressoras',
+      clickable: true,
     },
 
     // ── Chamados ─────────────────────────────────────────────────────────
@@ -91,6 +101,8 @@ window.DASHBOARD_CONFIG = {
       source: 'tickets',
       order: 6,
       group: 'chamados',
+      tab: 'chamados',
+      clickable: true,
     },
 
     {
@@ -103,6 +115,8 @@ window.DASHBOARD_CONFIG = {
       filter: 'abertos',
       order: 7,
       group: 'chamados',
+      tab: 'chamados',
+      clickable: true,
     },
 
     {
@@ -115,6 +129,8 @@ window.DASHBOARD_CONFIG = {
       filter: 'fechados',
       order: 8,
       group: 'chamados',
+      tab: 'chamados',
+      clickable: true,
     },
 
     // ── Status dos Ativos ────────────────────────────────────────────────
@@ -129,6 +145,7 @@ window.DASHBOARD_CONFIG = {
       filter: 'manutencao',
       order: 9,
       group: 'status',
+      clickable: false,
     },
 
     {
@@ -141,6 +158,7 @@ window.DASHBOARD_CONFIG = {
       filter: 'ativo',
       order: 10,
       group: 'status',
+      clickable: false,
     },
   ],
 
@@ -235,5 +253,27 @@ window.DASHBOARD_CONFIG = {
     ativos: 'Inventário',
     chamados: 'Chamados',
     status: 'Status dos Ativos',
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CONFIGURAÇÕES DE PERFORMANCE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  performance: {
+    autoRefreshInterval: 300000, // 5 minutos em milissegundos
+    staleThreshold: 60000, // 1 minuto para considerar dados desatualizados
+    enableAutoRefresh: true,
+    pauseOnInactiveTab: true,
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PLACEHOLDERS PARA FUTURA INTEGRAÇÃO
+  // ══════════════════════════════════════════════════════════════════════════
+
+  placeholders: {
+    ultimoChamado: 'Nenhum chamado registrado',
+    ultimaIntegracao: 'Nenhuma integração realizada',
+    ultimoFornecedor: 'Nenhum fornecedor acessado',
+    ultimaAtualizacao: 'Aguardando primeira atualização',
   },
 };

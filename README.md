@@ -4,6 +4,19 @@ Painel web para consulta rápida dos ativos do GLPI, com backend PHP atuando com
 
 ## Novidades desta versão
 
+### Sprint 5 — Dashboard Operacional
+- Dashboard Operacional modular com arquitetura 3-camadas (config, data, UI)
+- 10 cards de indicadores em 3 grupos (Inventário, Chamados, Status)
+- 4 widgets de resumo operacional
+- Auto-refresh configurável (5 minutos)
+- Navegação por click nos cards
+- Indicador de dados desatualizados
+- Loading skeleton e estados visuais
+- Layout responsivo (desktop, tablet, mobile)
+- Acessibilidade completa (aria, keyboard, focus)
+- Área reservada para gráficos futuros
+
+### Sprint 4 — Integrações
 - Cards de computadores agora podem ser expandidos dentro da própria interface.
 - O painel interno mostra os dados em blocos como identificação, alocação, dados técnicos e rastreio.
 - Campos textuais importantes podem ser editados e salvos direto no GLPI.
@@ -28,7 +41,35 @@ GLPI-Control-Center/
 |-- Frontend/
 |   |-- index.html
 |   |-- css/
+|   |   |-- dashboard.css
+|   |   |-- styles.css
+|   |   |-- workflow.css
+|   |   |-- portal-viewer.css
+|   |   `-- search.css
 |   `-- javascript/
+|       |-- dashboard.config.js
+|       |-- dashboard.js
+|       |-- dashboard_ui.js
+|       |-- app.js
+|       |-- auth.js
+|       |-- data.js
+|       |-- state.js
+|       |-- glpi.client.js
+|       |-- ui_render.js
+|       |-- workflow.js
+|       |-- workflow_ui.js
+|       |-- workflow.config.js
+|       |-- integration-engine.js
+|       |-- integration-audit.js
+|       |-- integrations.config.js
+|       |-- portal-viewer.js
+|       |-- portal-viewer.utils.js
+|       |-- tickets.js
+|       |-- chat.js
+|       `-- assistance_flows.js
+|-- Docs/
+|   |-- Sprint5-TechnicalDocumentation.md
+|   `-- Sprint5-Checklist.md
 |-- satrt-server.bat
 `-- start-local.bat
 ```

@@ -96,11 +96,16 @@ window.DashboardUI = {
     let html = '<div class="dash-container">';
 
     // Header
+    const staleClass = window.Dashboard.isStale() ? 'dash-stale' : '';
+    const staleIndicator = window.Dashboard.isStale() 
+      ? '<span class="dash-stale-indicator">&#9888; Dados podem estar desatualizados</span>' 
+      : '';
+    
     html += `
       <div class="dash-header">
         <div class="dash-header-left">
           <h1 class="dash-title">Dashboard Operacional</h1>
-          <p class="dash-subtitle">Visão geral dos ativos e chamados</p>
+          <p class="dash-subtitle ${staleClass}">Visão geral dos ativos e chamados ${staleIndicator}</p>
         </div>
         <div class="dash-header-right">
           <button class="dash-refresh-btn" id="dash-refresh" title="Atualizar dados">
@@ -126,6 +131,9 @@ window.DashboardUI = {
     // Widgets
     html += this._renderWidgetsSection(widgets);
 
+    // Área reservada para gráficos futuros
+    html += this._renderChartsPlaceholder();
+
     html += '</div>';
     return html;
   },
@@ -141,8 +149,20 @@ window.DashboardUI = {
    * @returns {string}
    */
   _renderCard(card, value) {
+    const clickableClass = card.clickable ? 'dash-card-clickable' : '';
+    const dataAttr = card.clickable && card.tab ? `data-dash-tab="${this._esc(card.tab)}"` : '';
+    const titleAttr = card.clickable ? `title="Clique para ir para ${this._esc(card.label)}"` : '';
+    const ariaLabel = card.clickable ? `aria-label="Navegar para ${this._esc(card.label)}"` : '';
+    const roleAttr = card.clickable ? 'role="button" tabindex="0"' : '';
+    
     return `
-      <div class="dash-card" style="--card-accent: ${this._esc(card.color)}" data-card-id="${this._esc(card.id)}">
+      <div class="dash-card ${clickableClass}" 
+           style="--card-accent: ${this._esc(card.color)}" 
+           data-card-id="${this._esc(card.id)}"
+           ${dataAttr}
+           ${titleAttr}
+           ${ariaLabel}
+           ${roleAttr}>
         <div class="dash-card-icon" style="color: ${this._esc(card.color)}">
           ${card.icon}
         </div>
@@ -370,8 +390,7 @@ window.DashboardUI = {
         refreshBtn.disabled = true;
         refreshBtn.textContent = 'Atualizando...';
 
-        window.Dashboard.reset();
-        await window.Dashboard.load();
+        await window.Dashboard.forceRefresh();
         this.render();
 
         refreshBtn.disabled = false;
@@ -389,6 +408,102 @@ window.DashboardUI = {
         this.render();
       });
     }
+
+    // Cards clicáveis - navegação para abas
+    document.querySelectorAll('.dash-card-clickable[data-dash-tab]').forEach(card => {
+      card.addEventListener('click', () => {
+        const tab = card.dataset.dashTab;
+        if (tab && window.App && window.App.go) {
+          window.App.go(tab);
+        }
+      });
+
+      // Navegação por teclado
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          const tab = card.dataset.dashTab;
+          if (tab && window.App && window.App.go) {
+            window.App.go(tab);
+          }
+        }
+      });
+    });
+
+    // Escutar eventos de stale data
+    document.addEventListener('dashboard:stale', () => {
+      this._updateStaleIndicator();
+    });
+
+    // Escutar eventos de refresh
+    document.addEventListener('dashboard:refreshing', () => {
+      const refreshBtn = document.getElementById('dash-refresh');
+      if (refreshBtn) {
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '&#8635; Atualizando...';
+      }
+    });
+
+    document.addEventListener('dashboard:loaded', () => {
+      const refreshBtn = document.getElementById('dash-refresh');
+      if (refreshBtn) {
+        refreshBtn.disabled = false;
+        refreshBtn.innerHTML = '&#8635; Atualizar';
+      }
+    });
+  },
+
+  /**
+   * Atualiza o indicador de dados desatualizados.
+   */
+  _updateStaleIndicator() {
+    const subtitle = document.querySelector('.dash-subtitle');
+    if (subtitle && !subtitle.classList.contains('dash-stale')) {
+      subtitle.classList.add('dash-stale');
+      const staleIndicator = document.createElement('span');
+      staleIndicator.className = 'dash-stale-indicator';
+      staleIndicator.innerHTML = '&#9888; Dados podem estar desatualizados';
+      subtitle.appendChild(staleIndicator);
+    }
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // RENDERIZAÇÃO: GRÁFICOS FUTUROS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Renderiza área reservada para gráficos futuros.
+   * @returns {string}
+   */
+  _renderChartsPlaceholder() {
+    return `
+      <div class="dash-section">
+        <h2 class="dash-section-title">Visualizações</h2>
+        <div class="dash-charts-placeholder">
+          <div class="dash-chart-placeholder-card">
+            <div class="dash-chart-placeholder-icon">&#128200;</div>
+            <div class="dash-chart-placeholder-text">
+              <span class="dash-chart-placeholder-title">Gráficos</span>
+              <span class="dash-chart-placeholder-desc">Visualizações de dados serão implementadas em uma sprint futura</span>
+            </div>
+          </div>
+          <div class="dash-chart-placeholder-card">
+            <div class="dash-chart-placeholder-icon">&#128196;</div>
+            <div class="dash-chart-placeholder-text">
+              <span class="dash-chart-placeholder-title">Relatórios</span>
+              <span class="dash-chart-placeholder-desc">Exportação e relatórios serão disponibilizados em breve</span>
+            </div>
+          </div>
+          <div class="dash-chart-placeholder-card">
+            <div class="dash-chart-placeholder-icon">&#128202;</div>
+            <div class="dash-chart-placeholder-text">
+              <span class="dash-chart-placeholder-title">Analytics</span>
+              <span class="dash-chart-placeholder-desc">Métricas avançadas e tendências em desenvolvimento</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   },
 
   // ══════════════════════════════════════════════════════════════════════════

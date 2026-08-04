@@ -52,6 +52,23 @@
   color: var(--red, #ff5555);
 }
 
+.dash-subtitle.dash-stale {
+  color: var(--yellow, #f59e0b);
+}
+
+.dash-stale-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--yellow, #f59e0b);
+  background: rgba(245, 158, 11, 0.1);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
 /* ── Refresh Button ─────────────────────────────────────────────────────── */
 .dash-refresh-btn {
   padding: 10px 18px;
@@ -107,6 +124,16 @@
   position: relative;
   overflow: hidden;
   cursor: default;
+}
+
+.dash-card-clickable {
+  cursor: pointer;
+}
+
+.dash-card-clickable:hover {
+  border-color: var(--card-accent, var(--accent));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .dash-card::before {
@@ -364,6 +391,10 @@
   .dash-widgets-grid {
     grid-template-columns: 1fr;
   }
+
+  .dash-charts-placeholder {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 480px) {
@@ -398,12 +429,59 @@
   }
 }
 
+/* ── Charts Placeholder ──────────────────────────────────────────────────── */
+.dash-charts-placeholder {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.dash-chart-placeholder-card {
+  background: var(--surface, #1a1d27);
+  border: 1px dashed var(--border, #2e3347);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  opacity: 0.7;
+}
+
+.dash-chart-placeholder-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  color: var(--text3, #5a6080);
+}
+
+.dash-chart-placeholder-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-chart-placeholder-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text2, #9299b8);
+}
+
+.dash-chart-placeholder-desc {
+  font-size: 12px;
+  color: var(--text3, #5a6080);
+  line-height: 1.4;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    ACESSIBILIDADE
    ══════════════════════════════════════════════════════════════════════════ */
 
 .dash-refresh-btn:focus-visible {
   outline: 2px solid var(--accent, #4f7ef7);
+  outline-offset: 2px;
+}
+
+.dash-card-clickable:focus-visible {
+  outline: 2px solid var(--card-accent, var(--accent));
   outline-offset: 2px;
 }
 
