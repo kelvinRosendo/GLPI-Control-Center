@@ -160,6 +160,47 @@ window.DASHBOARD_CONFIG = {
       group: 'status',
       clickable: false,
     },
+
+    // ── Status dos Projetores ────────────────────────────────────────────
+
+    {
+      id: 'pj_operando',
+      label: 'Projetores Operando',
+      icon: '&#9989;',
+      color: '#00c896',
+      description: 'Projetores funcionando normalmente',
+      source: 'projectors_operando',
+      order: 11,
+      group: 'projetores',
+      tab: 'projetores',
+      clickable: true,
+    },
+
+    {
+      id: 'pj_atencao',
+      label: 'Projetores em Atenção',
+      icon: '&#9888;',
+      color: '#ffc107',
+      description: 'Projetores com alerta pendente',
+      source: 'projectors_atencao',
+      order: 12,
+      group: 'projetores',
+      tab: 'projetores',
+      clickable: true,
+    },
+
+    {
+      id: 'pj_lampada',
+      label: 'Lâmpadas no Limite',
+      icon: '&#128161;',
+      color: '#ff5555',
+      description: 'Lâmpadas próximas do fim da vida útil',
+      source: 'projectors_lampWarning',
+      order: 13,
+      group: 'projetores',
+      tab: 'projetores',
+      clickable: true,
+    },
   ],
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -349,6 +390,7 @@ window.DASHBOARD_CONFIG = {
     ativos: 'Inventário',
     chamados: 'Chamados',
     status: 'Status dos Ativos',
+    projetores: 'Projetores',
   },
 
   // ══════════════════════════════════════════════════════════════════════════

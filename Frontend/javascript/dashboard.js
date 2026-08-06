@@ -224,6 +224,15 @@ window.Dashboard = {
         // Tickets podem falhar — não é crítico para o dashboard
       }
     }
+
+    // Garantir dados de projetores
+    if (window.Projectors && !window.Projectors.isLoaded() && !window.Projectors.isLoading()) {
+      try {
+        await window.Projectors.load();
+      } catch {
+        // Projetores podem falhar — não é crítico para o dashboard
+      }
+    }
   },
 
   // ── Cálculo de Indicadores ───────────────────────────────────────────────
@@ -268,6 +277,18 @@ window.Dashboard = {
     indicators.disponiveis = todosAtivos.filter(a =>
       a.status === 'ativo'
     ).length;
+
+    // ── Indicadores de Projetores ──────────────────────────────────────
+    if (window.Projectors && window.Projectors.isLoaded()) {
+      const pjInd = window.Projectors.getIndicators();
+      indicators.projectors_operando = pjInd.operando || 0;
+      indicators.projectors_atencao = pjInd.atencao || 0;
+      indicators.projectors_lampWarning = pjInd.lampWarning || 0;
+    } else {
+      indicators.projectors_operando = 0;
+      indicators.projectors_atencao = 0;
+      indicators.projectors_lampWarning = 0;
+    }
 
     return indicators;
   },

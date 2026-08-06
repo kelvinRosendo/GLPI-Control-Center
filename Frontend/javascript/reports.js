@@ -76,6 +76,15 @@ window.Reports = {
         // Tickets podem falhar
       }
     }
+
+    // Garantir dados de projetores
+    if (window.Projectors && !window.Projectors.isLoaded() && !window.Projectors.isLoading()) {
+      try {
+        await window.Projectors.load();
+      } catch {
+        // Projetores podem falhar
+      }
+    }
   },
 
   /**
@@ -95,6 +104,12 @@ window.Reports = {
 
       case 'integracoes':
         return this._getAuditRecords();
+
+      case 'projetores':
+        return this._getProjectorsData();
+
+      case 'projector_maintenance':
+        return this._getProjectorMaintenanceData();
 
       default:
         return [];
@@ -146,6 +161,40 @@ window.Reports = {
       // Ignorar erros
     }
     return [];
+  },
+
+  /**
+   * Retorna dados dos projetores enriquecidos com cálculos.
+   * @returns {array}
+   */
+  _getProjectorsData() {
+    const projectors = window.Projectors?.isLoaded()
+      ? window.Projectors.getProjectors()
+      : (window.DATA.projetores || []);
+
+    return projectors.map(p => ({
+      ...p,
+      status_calculado: p.calculatedStatus || p.status || 'ativo',
+      percentual_vida: p.horas_lampada && p.vida_util_estimada
+        ? Math.round((p.horas_lampada / p.vida_util_estimada) * 100) + '%'
+        : '-',
+    }));
+  },
+
+  /**
+   * Retorna registros de manutenção de projetores.
+   * @returns {array}
+   */
+  _getProjectorMaintenanceData() {
+    const records = window.ProjectorsMaintenance?.getAllRecords() || [];
+    const projectors = window.DATA.projetores || [];
+    const pjMap = {};
+    projectors.forEach(p => { pjMap[p.glpiId] = p.nome || p.patrimonio || `#${p.glpiId}`; });
+
+    return records.map(r => ({
+      ...r,
+      nome_projetor: pjMap[r.glpiId] || `ID: ${r.glpiId}`,
+    }));
   },
 
   // ── Processamento ────────────────────────────────────────────────────────

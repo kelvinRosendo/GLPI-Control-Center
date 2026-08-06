@@ -129,7 +129,11 @@ window.App = {
         if (this.assetsLoading && !window.DATA.projetores.length) {
           return window.UI.renderSectionLoading('Carregando projetores...');
         }
-        return window.UI.renderAssetList(window.DATA.projetores, 'Buscar projetor por nome ou serial...', 'projetor');
+        if (!window.Projectors.isLoaded() && !window.Projectors.isLoading()) {
+          window.Projectors.load();
+        }
+        window.ProjectorsUI.render('main-content');
+        return '';
       case 'impressoras':
         if (this.assetsLoading && !window.DATA.impressoras.length) {
           return window.UI.renderSectionLoading('Carregando impressoras...');
