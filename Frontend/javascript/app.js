@@ -149,6 +149,9 @@ window.App = {
         }
 
         return window.UI.renderTickets(window.STATE.tickets);
+      case 'relatorios':
+        window.ReportsUI.render('main-content');
+        return '';
       case 'assistente':
         return `
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px;">
