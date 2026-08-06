@@ -89,6 +89,16 @@ window.IntegrationEngine = {
       timestamp: this._state.startedAt,
     });
 
+    // Registrar auditoria
+    if (window.Audit) {
+      window.Audit.register({
+        action: 'integracao_iniciada',
+        module: 'integration_engine',
+        descricao: `Integração ${config.nome} iniciada`,
+        fornecedor: config.nome,
+      });
+    }
+
     return { ok: true, config };
   },
 
@@ -104,6 +114,17 @@ window.IntegrationEngine = {
       actionsExecuted: this._state.actionsExecuted.length,
       timestamp: new Date().toISOString(),
     });
+
+    // Registrar auditoria
+    if (window.Audit) {
+      window.Audit.register({
+        action: 'integracao_cancelada',
+        module: 'integration_engine',
+        severity: 'warning',
+        descricao: `Integração ${this._state.integrationConfig?.nome || this._state.integrationKey} cancelada`,
+        fornecedor: this._state.integrationConfig?.nome || null,
+      });
+    }
 
     this.reset();
   },
@@ -168,6 +189,18 @@ window.IntegrationEngine = {
 
       // 6. Registrar auditoria
       this._registrarAuditoria(record);
+
+      // 7. Registrar no Sistema de Auditoria
+      if (window.Audit) {
+        window.Audit.register({
+          action: 'integracao_sucesso',
+          module: 'integration_engine',
+          descricao: `Ação ${actionId} executada com sucesso na integração ${this._state.integrationConfig?.nome || integrationKey}`,
+          fornecedor: this._state.integrationConfig?.nome || null,
+          equipamento: this._state.workflowData?.asset?.nome || null,
+          extras: { actionId, type: result.type, auditEvent: result.auditEvent },
+        });
+      }
     } else {
       // 4b. Emitir integration:error
       this._emit('integration:error', {
@@ -177,6 +210,19 @@ window.IntegrationEngine = {
         resultado: 'falha',
         timestamp,
       });
+
+      // Registrar no Sistema de Auditoria
+      if (window.Audit) {
+        window.Audit.register({
+          action: 'integracao_falha',
+          module: 'integration_engine',
+          severity: 'error',
+          descricao: `Falha na ação ${actionId}: ${result.error}`,
+          fornecedor: this._state.integrationConfig?.nome || null,
+          equipamento: this._state.workflowData?.asset?.nome || null,
+          extras: { actionId, error: result.error },
+        });
+      }
     }
 
     return result;

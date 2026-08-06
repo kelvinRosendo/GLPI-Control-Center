@@ -242,6 +242,44 @@ window.DASHBOARD_CONFIG = {
       source: 'system',
       order: 4,
     },
+
+    // ── Auditoria ────────────────────────────────────────────────────────
+
+    {
+      id: 'audit_ultimos_eventos',
+      label: 'Últimos Eventos de Auditoria',
+      icon: '&#128737;',
+      source: 'audit',
+      sort: 'recente',
+      order: 5,
+    },
+
+    {
+      id: 'audit_erros',
+      label: 'Erros Recentes',
+      icon: '&#10060;',
+      source: 'audit_errors',
+      sort: 'recente',
+      order: 6,
+    },
+
+    {
+      id: 'audit_integracoes',
+      label: 'Últimas Integrações',
+      icon: '&#128279;',
+      source: 'audit_integrations',
+      sort: 'recente',
+      order: 7,
+    },
+
+    {
+      id: 'audit_atividades_diarias',
+      label: 'Atividades Diárias',
+      icon: '&#128197;',
+      source: 'audit_daily',
+      sort: 'recente',
+      order: 8,
+    },
   ],
 
   // ══════════════════════════════════════════════════════════════════════════

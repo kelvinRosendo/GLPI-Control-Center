@@ -77,6 +77,16 @@ window.ProjectorsMaintenance = {
       record,
     });
 
+    // Registrar auditoria global
+    if (window.Audit) {
+      window.Audit.register({
+        action: 'manutencao_registrada',
+        module: 'projectors',
+        descricao: `${typeConfig.label} registrada para projetor #${glpiId}: ${record.description || 'Sem descrição'}`,
+        equipamento: `Projetor #${glpiId}`,
+      });
+    }
+
     return { ok: true, record };
   },
 
@@ -245,6 +255,17 @@ window.ProjectorsMaintenance = {
         glpiId: record.glpiId,
         recordId,
       });
+
+      // Registrar auditoria global
+      if (window.Audit) {
+        window.Audit.register({
+          action: 'manutencao_excluida',
+          module: 'projectors',
+          severity: 'warning',
+          descricao: `Manutenção ${record.typeLabel} excluída do projetor #${record.glpiId}`,
+          equipamento: `Projetor #${record.glpiId}`,
+        });
+      }
 
       return { ok: true };
     } catch (e) {

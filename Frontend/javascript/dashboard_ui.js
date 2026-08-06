@@ -278,6 +278,39 @@ window.DashboardUI = {
           <span class="dash-widget-main">${this._esc(this._formatDateTime(data.data))}</span>
         `;
 
+      case 'audit_ultimos_eventos':
+        if (!data.events || !data.events.length) {
+          return '<span class="dash-widget-empty">Nenhum evento</span>';
+        }
+        return data.events.slice(0, 3).map(e =>
+          `<div class="dash-widget-audit-item"><span class="dash-widget-audit-icon" style="color:${e.categoryColor}">${e.categoryIcon}</span><span class="dash-widget-audit-desc">${this._esc(e.acaoLabel)}</span></div>`
+        ).join('') + `<span class="dash-widget-meta">${data.total} evento(s) no total</span>`;
+
+      case 'audit_erros':
+        if (!data.events || !data.events.length) {
+          return '<span class="dash-widget-empty">Nenhum erro registrado</span>';
+        }
+        return data.events.slice(0, 3).map(e =>
+          `<div class="dash-widget-audit-item"><span class="dash-widget-audit-icon" style="color:#ff5555">&#10060;</span><span class="dash-widget-audit-desc">${this._esc(e.acaoLabel)}</span></div>`
+        ).join('') + `<span class="dash-widget-meta">${data.total} erro(s) no total</span>`;
+
+      case 'audit_integracoes':
+        if (!data.events || !data.events.length) {
+          return '<span class="dash-widget-empty">Nenhuma integração</span>';
+        }
+        return data.events.slice(0, 3).map(e =>
+          `<div class="dash-widget-audit-item"><span class="dash-widget-audit-icon" style="color:${e.categoryColor}">${e.categoryIcon}</span><span class="dash-widget-audit-desc">${this._esc(e.acaoLabel)}</span></div>`
+        ).join('') + `<span class="dash-widget-meta">${data.total} integração(ões) no total</span>`;
+
+      case 'audit_atividades_diarias':
+        return `
+          <div class="dash-widget-audit-stats">
+            <div class="dash-widget-audit-stat"><span class="dash-widget-audit-stat-value">${data.today || 0}</span><span class="dash-widget-audit-stat-label">Hoje</span></div>
+            <div class="dash-widget-audit-stat"><span class="dash-widget-audit-stat-value">${data.yesterday || 0}</span><span class="dash-widget-audit-stat-label">Ontem</span></div>
+            <div class="dash-widget-audit-stat"><span class="dash-widget-audit-stat-value">${data.thisWeek || 0}</span><span class="dash-widget-audit-stat-label">Semana</span></div>
+          </div>
+        `;
+
       default:
         return '<span class="dash-widget-empty">-</span>';
     }

@@ -75,6 +75,11 @@ window.Auth = {
     const errorEl = document.getElementById("login-error");
     if (errorEl) errorEl.style.display = "none";
 
+    // Registrar auditoria
+    if (window.Audit) {
+      window.Audit.register({ action: 'login', module: 'auth', descricao: `Login realizado: ${username}`, usuario: username });
+    }
+
     // Delega ao App (que mostra a tela e carrega os dados reais do GLPI)
     if (window.App?.onLoginSuccess) {
       window.App.onLoginSuccess(username);
@@ -85,6 +90,14 @@ window.Auth = {
    * Executado quando login falha.
    */
   onLoginError() {
+    const userInput = document.getElementById("login-user");
+    const username = userInput ? userInput.value.trim() : 'desconhecido';
+
+    // Registrar auditoria
+    if (window.Audit) {
+      window.Audit.register({ action: 'login_falha', module: 'auth', severity: 'warning', descricao: `Falha de login: ${username}`, usuario: username });
+    }
+
     console.warn("Falha no login: credenciais inválidas");
   },
 
@@ -100,6 +113,11 @@ window.Auth = {
     if (userInput) userInput.value = "";
     if (passInput) passInput.value = "";
     if (errorEl) errorEl.style.display = "none";
+
+    // Registrar auditoria
+    if (window.Audit) {
+      window.Audit.register({ action: 'logout', module: 'auth', descricao: 'Logout realizado' });
+    }
 
     // Reseta estado global
     if (window.State?.resetFilters) {

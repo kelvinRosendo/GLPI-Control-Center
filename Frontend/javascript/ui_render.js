@@ -294,6 +294,7 @@ window.UI = {
       { id: 'impressoras', label: 'Impressoras' },
       { id: 'chamados', label: 'Chamados' },
       { id: 'relatorios', label: 'Relatórios' },
+      { id: 'auditoria', label: 'Auditoria' },
       { id: 'assistente', label: 'Assistente' },
     ];
     return tabs.map(t => `<button class="tab-btn ${window.STATE.tab === t.id ? 'active' : ''}" data-tab="${t.id}">${t.label}</button>`).join('');

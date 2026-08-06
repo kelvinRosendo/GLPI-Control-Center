@@ -85,6 +85,16 @@ window.ReportExport = {
       this._state.progress = 100;
       this._emit('export:complete', { format, count: data.length });
 
+      // Registrar auditoria
+      if (window.Audit) {
+        window.Audit.register({
+          action: 'relatorio_exportado',
+          module: 'reports',
+          descricao: `Relatório exportado em ${format.toUpperCase()} (${data.length} registros)`,
+          extras: { format, count: data.length, reportTitle: config?.titulo || 'Desconhecido' },
+        });
+      }
+
       this._state.exporting = false;
       return { ok: true };
 

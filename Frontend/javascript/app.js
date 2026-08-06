@@ -9,6 +9,7 @@ window.App = {
   async init() {
     this.showLoginScreen();
     window.Auth.init();
+    if (window.Audit) window.Audit.init();
   },
 
   async onLoginSuccess(username) {
@@ -155,6 +156,9 @@ window.App = {
         return window.UI.renderTickets(window.STATE.tickets);
       case 'relatorios':
         window.ReportsUI.render('main-content');
+        return '';
+      case 'auditoria':
+        window.AuditUI.render('main-content');
         return '';
       case 'assistente':
         return `

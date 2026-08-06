@@ -111,6 +111,9 @@ window.Reports = {
       case 'projector_maintenance':
         return this._getProjectorMaintenanceData();
 
+      case 'audit':
+        return this._getAuditGlobalData(config);
+
       default:
         return [];
     }
@@ -197,6 +200,48 @@ window.Reports = {
     }));
   },
 
+  /**
+   * Retorna dados de auditoria global.
+   * @param {object} config
+   * @returns {array}
+   */
+  _getAuditGlobalData(config) {
+    if (!window.Audit) return [];
+
+    const all = window.Audit.getAll();
+    let data = all;
+
+    // Filtrar por severidade se configurado
+    if (config.severityFilter) {
+      data = data.filter(r => r.severity === config.severityFilter);
+    }
+
+    // Enriquecer dados para agrupamento
+    if (config.groupBy === 'usuario') {
+      const groups = {};
+      data.forEach(r => {
+        const key = r.usuario || 'Desconhecido';
+        if (!groups[key]) groups[key] = { usuario: key, quantidade: 0, erros: 0 };
+        groups[key].quantidade++;
+        if (r.severity === 'error') groups[key].erros++;
+      });
+      return Object.values(groups);
+    }
+
+    if (config.groupBy === 'equipamento') {
+      const groups = {};
+      data.forEach(r => {
+        const key = r.equipamento || 'Sem equipamento';
+        if (!groups[key]) groups[key] = { equipamento: key, quantidade: 0, erros: 0 };
+        groups[key].quantidade++;
+        if (r.severity === 'error') groups[key].erros++;
+      });
+      return Object.values(groups);
+    }
+
+    return data;
+  },
+
   // ── Processamento ────────────────────────────────────────────────────────
 
   /**
@@ -264,6 +309,16 @@ window.Reports = {
         filtered: this._state.filteredRecords,
         count: processed.length,
       });
+
+      // 9. Registrar auditoria
+      if (window.Audit) {
+        window.Audit.register({
+          action: 'relatorio_visualizado',
+          module: 'reports',
+          descricao: `Relatório "${config.titulo}" visualizado (${processed.length} registros)`,
+          extras: { reportId, total: this._state.totalRecords, filtered: this._state.filteredRecords },
+        });
+      }
 
       this._state.loading = false;
 
@@ -334,6 +389,17 @@ window.Reports = {
           .map(c => String(item[c.key] || '').toLowerCase());
         return campos.some(c => c.includes(q));
       });
+    }
+
+    // Filtros de auditoria
+    if (filters.audit_category && filters.audit_category !== 'todos') {
+      result = result.filter(item => item.categoria === filters.audit_category);
+    }
+    if (filters.audit_severity && filters.audit_severity !== 'todas') {
+      result = result.filter(item => item.severity === filters.audit_severity);
+    }
+    if (filters.audit_module && filters.audit_module !== 'todos') {
+      result = result.filter(item => item.modulo === filters.audit_module);
     }
 
     return result;

@@ -241,6 +241,16 @@ window.Workflow = {
         this.state.currentStep = this.TOTAL_STEPS + 1;
         window.WorkflowUI.render();
 
+        // Registrar auditoria: chamado aberto
+        if (window.Audit) {
+          window.Audit.register({
+            action: 'chamado_aberto',
+            module: 'workflow',
+            descricao: `Chamado #${result.ticketId} aberto com sucesso`,
+            equipamento: this.workflowData.asset?.nome || null,
+          });
+        }
+
         // Abrir PortalViewer após 1.5s (tempo para o usuário ver a confirmação)
         const integrationKey = this.workflowData.assistance;
         if (integrationKey && window.PortalViewer) {
@@ -257,6 +267,18 @@ window.Workflow = {
     } catch (err) {
       this.state.sending = false;
       this.state.error = err.message || 'Falha ao criar chamado.';
+
+      // Registrar auditoria: falha ao abrir chamado
+      if (window.Audit) {
+        window.Audit.register({
+          action: 'chamado_falha',
+          module: 'workflow',
+          severity: 'error',
+          descricao: `Falha ao abrir chamado: ${err.message}`,
+          equipamento: this.workflowData.asset?.nome || null,
+        });
+      }
+
       window.WorkflowUI.render();
     }
   },

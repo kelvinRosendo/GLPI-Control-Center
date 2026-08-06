@@ -190,6 +190,17 @@ window.PortalViewer = {
     this._emit('portal:iframe-loaded', { integrationKey: this._integrationKey, url });
     this._audit('iframe-loaded', 'sucesso', { url });
 
+    // Registrar auditoria global
+    if (window.Audit) {
+      window.Audit.register({
+        action: 'portal_aberto',
+        module: 'portal_viewer',
+        descricao: `Portal ${this._integrationConfig?.nome || this._integrationKey} carregado via iframe`,
+        fornecedor: this._integrationConfig?.nome || null,
+        equipamento: this._workflowData?.asset?.nome || null,
+      });
+    }
+
     // Mostrar iframe, esconder loading
     const iframeContainer = this._modalEl?.querySelector('.pv-iframe-container');
     if (iframeContainer) iframeContainer.style.display = 'block';
@@ -208,6 +219,19 @@ window.PortalViewer = {
       reason,
     });
     this._audit('iframe-blocked', 'falha', { url, reason });
+
+    // Registrar auditoria global
+    if (window.Audit) {
+      window.Audit.register({
+        action: 'portal_bloqueado',
+        module: 'portal_viewer',
+        severity: 'warning',
+        descricao: `Portal ${this._integrationConfig?.nome || this._integrationKey} bloqueou iframe (${reason}). Fallback para nova aba.`,
+        fornecedor: this._integrationConfig?.nome || null,
+        equipamento: this._workflowData?.asset?.nome || null,
+        extras: { url, reason },
+      });
+    }
 
     // Iniciar fallback automático após 2 segundos
     this._startFallbackCountdown();
@@ -275,6 +299,18 @@ window.PortalViewer = {
       url: this._fallbackUrl,
     });
     this._audit('fallback-finished', 'sucesso', { url: this._fallbackUrl });
+
+    // Registrar auditoria global
+    if (window.Audit) {
+      window.Audit.register({
+        action: 'portal_fallback',
+        module: 'portal_viewer',
+        descricao: `Portal ${this._integrationConfig?.nome || this._integrationKey} aberto em nova aba via fallback`,
+        fornecedor: this._integrationConfig?.nome || null,
+        equipamento: this._workflowData?.asset?.nome || null,
+        extras: { url: this._fallbackUrl },
+      });
+    }
   },
 
   /**

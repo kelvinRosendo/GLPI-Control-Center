@@ -75,6 +75,15 @@ window.Dashboard = {
         analytics: this._state.analytics,
       });
 
+      // Registrar auditoria
+      if (window.Audit) {
+        window.Audit.register({
+          action: 'dashboard_carregado',
+          module: 'dashboard',
+          descricao: 'Dashboard operacional carregado',
+        });
+      }
+
       // 6. Iniciar auto-refresh
       this._startAutoRefresh();
 
@@ -345,6 +354,34 @@ window.Dashboard = {
     widgets.ultima_atualizacao = {
       data: this._state.loadedAt || new Date().toISOString(),
     };
+
+    // ── Auditoria: Últimos Eventos ──────────────────────────────────────
+    if (window.Audit) {
+      const auditResult = window.Audit.query({ pageSize: 5 });
+      widgets.audit_ultimos_eventos = {
+        events: auditResult.records,
+        total: auditResult.total,
+      };
+
+      const errorResult = window.Audit.query({ severity: 'error', pageSize: 5 });
+      widgets.audit_erros = {
+        events: errorResult.records,
+        total: errorResult.total,
+      };
+
+      const integrationResult = window.Audit.query({ category: 'integracoes', pageSize: 5 });
+      widgets.audit_integracoes = {
+        events: integrationResult.records,
+        total: integrationResult.total,
+      };
+
+      const auditStats = window.Audit.getStats();
+      widgets.audit_atividades_diarias = {
+        today: auditStats.today,
+        yesterday: auditStats.yesterday,
+        thisWeek: auditStats.thisWeek,
+      };
+    }
 
     return widgets;
   },

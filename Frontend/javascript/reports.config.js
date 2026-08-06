@@ -295,6 +295,96 @@ window.REPORTS_CONFIG = {
       visible: true,
       order: 12,
     },
+
+    // ── Auditoria ─────────────────────────────────────────────────────────
+
+    {
+      id: 'audit_geral',
+      titulo: 'Auditoria Geral',
+      descricao: 'Relatório completo de todos os eventos de auditoria do sistema.',
+      icone: '&#128737;',
+      categoria: 'auditoria',
+      endpoint: 'audit',
+      tipo: 'audit',
+      campos: [
+        { key: 'timestamp', label: 'Data/Hora', tipo: 'data_hora' },
+        { key: 'usuario', label: 'Usuário', tipo: 'texto' },
+        { key: 'acaoLabel', label: 'Ação', tipo: 'texto' },
+        { key: 'categoria', label: 'Categoria', tipo: 'texto' },
+        { key: 'modulo', label: 'Módulo', tipo: 'texto' },
+        { key: 'severity', label: 'Severidade', tipo: 'status' },
+        { key: 'descricao', label: 'Descrição', tipo: 'texto' },
+        { key: 'equipamento', label: 'Equipamento', tipo: 'texto' },
+        { key: 'fornecedor', label: 'Fornecedor', tipo: 'texto' },
+      ],
+      filtros: ['audit_category', 'audit_severity', 'audit_module', 'periodo', 'texto_livre'],
+      exportadores: ['csv'],
+      visible: true,
+      order: 13,
+    },
+
+    {
+      id: 'audit_por_usuario',
+      titulo: 'Eventos por Usuário',
+      descricao: 'Quantidade de eventos de auditoria agrupados por usuário.',
+      icone: '&#128101;',
+      categoria: 'auditoria',
+      endpoint: 'audit',
+      tipo: 'audit_grouped',
+      groupBy: 'usuario',
+      campos: [
+        { key: 'usuario', label: 'Usuário', tipo: 'texto' },
+        { key: 'quantidade', label: 'Quantidade', tipo: 'numero' },
+        { key: 'erros', label: 'Erros', tipo: 'numero' },
+      ],
+      filtros: ['periodo', 'texto_livre'],
+      exportadores: ['csv'],
+      visible: true,
+      order: 14,
+    },
+
+    {
+      id: 'audit_por_equipamento',
+      titulo: 'Eventos por Equipamento',
+      descricao: 'Quantidade de eventos de auditoria agrupados por equipamento.',
+      icone: '&#128421;',
+      categoria: 'auditoria',
+      endpoint: 'audit',
+      tipo: 'audit_grouped',
+      groupBy: 'equipamento',
+      campos: [
+        { key: 'equipamento', label: 'Equipamento', tipo: 'texto' },
+        { key: 'quantidade', label: 'Quantidade', tipo: 'numero' },
+        { key: 'erros', label: 'Erros', tipo: 'numero' },
+      ],
+      filtros: ['periodo', 'texto_livre'],
+      exportadores: ['csv'],
+      visible: true,
+      order: 15,
+    },
+
+    {
+      id: 'audit_erros',
+      titulo: 'Eventos com Erro',
+      descricao: 'Lista de todos os eventos com severidade de erro.',
+      icone: '&#10060;',
+      categoria: 'auditoria',
+      endpoint: 'audit',
+      tipo: 'audit',
+      severityFilter: 'error',
+      campos: [
+        { key: 'timestamp', label: 'Data/Hora', tipo: 'data_hora' },
+        { key: 'usuario', label: 'Usuário', tipo: 'texto' },
+        { key: 'acaoLabel', label: 'Ação', tipo: 'texto' },
+        { key: 'categoria', label: 'Categoria', tipo: 'texto' },
+        { key: 'descricao', label: 'Descrição', tipo: 'texto' },
+        { key: 'equipamento', label: 'Equipamento', tipo: 'texto' },
+      ],
+      filtros: ['periodo', 'texto_livre'],
+      exportadores: ['csv'],
+      visible: true,
+      order: 16,
+    },
   ],
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -306,6 +396,7 @@ window.REPORTS_CONFIG = {
     chamados: { label: 'Chamados', icone: '&#128196;', ordem: 2 },
     integracoes: { label: 'Integrações', icone: '&#128279;', ordem: 3 },
     projetores: { label: 'Projetores', icone: '&#128249;', ordem: 4 },
+    auditoria: { label: 'Auditoria', icone: '&#128737;', ordem: 5 },
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -377,6 +468,53 @@ window.REPORTS_CONFIG = {
       label: 'Busca',
       tipo: 'text',
       placeholder: 'Buscar...',
+    },
+
+    audit_category: {
+      label: 'Categoria',
+      tipo: 'select',
+      placeholder: 'Todas as categorias',
+      options: [
+        { value: 'todos', label: 'Todas' },
+        { value: 'auth', label: 'Autenticação' },
+        { value: 'workflow', label: 'Workflow' },
+        { value: 'integracoes', label: 'Integrações' },
+        { value: 'portal', label: 'Portal' },
+        { value: 'projetores', label: 'Projetores' },
+        { value: 'relatorios', label: 'Relatórios' },
+        { value: 'dashboard', label: 'Dashboard' },
+        { value: 'sistema', label: 'Sistema' },
+      ],
+    },
+
+    audit_severity: {
+      label: 'Severidade',
+      tipo: 'select',
+      placeholder: 'Todas as severidades',
+      options: [
+        { value: 'todas', label: 'Todas' },
+        { value: 'info', label: 'Info' },
+        { value: 'success', label: 'Sucesso' },
+        { value: 'warning', label: 'Aviso' },
+        { value: 'error', label: 'Erro' },
+      ],
+    },
+
+    audit_module: {
+      label: 'Módulo',
+      tipo: 'select',
+      placeholder: 'Todos os módulos',
+      options: [
+        { value: 'todos', label: 'Todos' },
+        { value: 'auth', label: 'Autenticação' },
+        { value: 'workflow', label: 'Workflow' },
+        { value: 'integration_engine', label: 'Integration Engine' },
+        { value: 'portal_viewer', label: 'Portal Viewer' },
+        { value: 'dashboard', label: 'Dashboard' },
+        { value: 'reports', label: 'Relatórios' },
+        { value: 'projectors', label: 'Projetores' },
+        { value: 'app', label: 'Aplicação' },
+      ],
     },
   },
 
