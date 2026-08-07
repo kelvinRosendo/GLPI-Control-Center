@@ -15,6 +15,7 @@
   <link rel="stylesheet" href="css/reports.css" />
   <link rel="stylesheet" href="css/projectors.css" />
   <link rel="stylesheet" href="css/audit.css" />
+  <link rel="stylesheet" href="css/notifications.css" />
 
 <link rel="stylesheet" href="css/styles.css" />
 </head>
@@ -49,6 +50,12 @@
         <span id="glpi-status" class="glpi-status" style="font-size:13px;color:var(--green)">
           ● Conectado ao GLPI
         </span>
+        <div class="notif-bell-wrapper">
+          <button class="notif-bell-btn" id="notification-bell-btn" data-notif-action="toggle" title="Central de Notificações">
+            🔔
+          </button>
+          <span class="notif-badge" id="notification-badge" style="display:none;"></span>
+        </div>
         <div class="user-info">
           <span id="user-name" class="user-name"></span>
           <span id="user-role" class="user-role"></span>
@@ -61,6 +68,9 @@
     <div class="tabs-bar"  id="tabs-bar"></div>
     <div class="content"   id="main-content"></div>
   </div>
+
+  <!-- CENTRAL DE NOTIFICAÇÕES -->
+  <div id="notifications-panel"></div>
 
   <div id="computer-details-modal" class="computer-modal" style="display:none;">
     <div class="computer-modal-backdrop" data-computer-modal-close="backdrop"></div>
@@ -107,6 +117,13 @@
 <script src="javascript/audit_storage.js"></script>
 <script src="javascript/audit.js"></script>
 <script src="javascript/audit_ui.js"></script>
+<script src="javascript/notifications.config.js"></script>
+<script src="javascript/notifications_events.js"></script>
+<script src="javascript/notifications_storage.js"></script>
+<script src="javascript/notifications_templates.js"></script>
+<script src="javascript/notifications.js"></script>
+<script src="javascript/notifications_center.js"></script>
+<script src="javascript/notifications_ui.js"></script>
 <script src="javascript/app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- MODAL DE CHAMADO -->

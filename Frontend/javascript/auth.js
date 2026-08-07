@@ -301,6 +301,13 @@ window.Auth = (function () {
       });
     }
 
+    // Despertar evento de notificação
+    if (window.NotificationEvents) {
+      window.NotificationEvents.dispatchAuth('logout', {
+        usuario: user?.nome || 'desconhecido',
+      });
+    }
+
     // Mostrar tela de login
     if (window.App?.showLoginScreen) {
       window.App.showLoginScreen();
@@ -323,6 +330,14 @@ window.Auth = (function () {
         dados: { email: googleUser.email, provedor: 'google' },
       });
     }
+
+    // Despertar evento de notificação
+    if (window.NotificationEvents) {
+      window.NotificationEvents.dispatchAuth('login', {
+        usuario: googleUser.name,
+        email: googleUser.email,
+      });
+    }
   }
 
   function _auditLoginFailed(email, reason) {
@@ -334,6 +349,14 @@ window.Auth = (function () {
         descricao: `Falha de login: ${email} (${reason})`,
         usuario: email,
         dados: { reason },
+      });
+    }
+
+    // Despertar evento de notificação
+    if (window.NotificationEvents) {
+      window.NotificationEvents.dispatchAuth('domain_denied', {
+        email: email,
+        reason: reason,
       });
     }
   }

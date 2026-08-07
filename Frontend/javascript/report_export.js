@@ -95,6 +95,16 @@ window.ReportExport = {
         });
       }
 
+      // Despertar evento de notificação
+      if (window.NotificationEvents) {
+        window.NotificationEvents.dispatchReport('exported', {
+          nome: config?.titulo || 'Relatório',
+          format: format,
+          count: data.length,
+          usuario: window.UserContext?.getCurrentUser()?.nome || 'Sistema',
+        });
+      }
+
       this._state.exporting = false;
       return { ok: true };
 
@@ -102,6 +112,15 @@ window.ReportExport = {
       this._state.error = err.message || 'Erro na exportação.';
       this._state.exporting = false;
       this._emit('export:error', { format, error: this._state.error });
+
+      // Despertar evento de notificação de erro
+      if (window.NotificationEvents) {
+        window.NotificationEvents.dispatchReport('error', {
+          erro: err.message,
+          nome: config?.titulo || 'Relatório',
+        });
+      }
+
       return { ok: false, error: this._state.error };
     }
   },

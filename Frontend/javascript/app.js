@@ -13,6 +13,12 @@ window.App = {
     if (window.Auth) window.Auth.init();
     if (window.Audit) window.Audit.init();
 
+    // Inicializar sistema de notificações
+    if (window.NotificationEvents) window.NotificationEvents.dispatch('system:init', { module: 'app' });
+    if (window.NotificationsCenter) window.NotificationsCenter.init();
+    if (window.Notifications) window.Notifications.init();
+    if (window.NotificationsUI) window.NotificationsUI.init();
+
     // Verificar se há sessão válida
     const hasSession = window.UserContext?.isAuthenticated();
 

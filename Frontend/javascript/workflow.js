@@ -251,6 +251,15 @@ window.Workflow = {
           });
         }
 
+        // Despertar evento de notificação
+        if (window.NotificationEvents) {
+          window.NotificationEvents.dispatchWorkflow('created', {
+            id: result.ticketId,
+            ativo: this.workflowData.asset?.nome || 'Ativo',
+            usuario: window.UserContext?.getCurrentUser()?.nome || 'Sistema',
+          });
+        }
+
         // Abrir PortalViewer após 1.5s (tempo para o usuário ver a confirmação)
         const integrationKey = this.workflowData.assistance;
         if (integrationKey && window.PortalViewer) {
@@ -276,6 +285,15 @@ window.Workflow = {
           severity: 'error',
           descricao: `Falha ao abrir chamado: ${err.message}`,
           equipamento: this.workflowData.asset?.nome || null,
+        });
+      }
+
+      // Despertar evento de notificação de erro
+      if (window.NotificationEvents) {
+        window.NotificationEvents.dispatchWorkflow('error', {
+          erro: err.message,
+          ativo: this.workflowData.asset?.nome || 'Ativo',
+          usuario: window.UserContext?.getCurrentUser()?.nome || 'Sistema',
         });
       }
 

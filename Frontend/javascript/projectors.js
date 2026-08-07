@@ -446,6 +446,15 @@ window.Projectors = {
         });
       }
 
+      // Despertar evento de notificação para manutenção
+      if (window.NotificationEvents && updates.maintenanceDate) {
+        window.NotificationEvents.dispatchProjector('maint_done', {
+          id: glpiId,
+          nome: `Projetor #${glpiId}`,
+          usuario: window.UserContext?.getCurrentUser()?.nome || 'Sistema',
+        });
+      }
+
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message };
