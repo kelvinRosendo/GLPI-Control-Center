@@ -2,35 +2,46 @@
  * GLPI Control Center - data.js
  * -----------------------------------------------------------------------------
  * Configurações do ambiente e estado inicial dos dados.
+ *
+ * ATUALIZADO: Agora usa config.env.js para variáveis de ambiente.
  */
 
 (function initConfig() {
-  const params = new URLSearchParams(window.location.search);
-  const forcedMode = params.get('mode');
-  const hostname = window.location.hostname;
-  const detectedLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
-  const mode = forcedMode === 'local' || forcedMode === 'server'
+  'use strict';
+
+  var params = new URLSearchParams(window.location.search);
+  var forcedMode = params.get('mode');
+  var hostname = window.location.hostname;
+  var detectedLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+  var mode = forcedMode === 'local' || forcedMode === 'server'
     ? forcedMode
     : (detectedLocalHost ? 'local' : 'server');
 
-  const serverHost = '192.168.1.20';
-  const runtime = {
+  // Usar config.env.js se disponível
+  var envConfig = window.ENV_CONFIG || {};
+  var backendUrl = envConfig.backend?.url;
+  var glpiUrl = envConfig.glpi?.url;
+
+  var serverHost = '192.168.1.20';
+
+  var runtime = {
     local: {
       label: 'local',
-      glpiUrl: 'http://localhost/glpi',
-      backendUrl: 'http://localhost:8080',
+      glpiUrl: glpiUrl || 'http://localhost/glpi',
+      backendUrl: backendUrl || 'http://localhost:8080',
     },
     server: {
       label: 'server',
-      glpiUrl: `http://${serverHost}/glpi`,
-      backendUrl: `http://${serverHost}:9090`,
+      glpiUrl: glpiUrl || 'http://' + serverHost + '/glpi',
+      backendUrl: backendUrl || 'http://' + serverHost + ':9090',
     },
   }[mode];
 
   window.CONFIG = {
-    mode,
+    mode: mode,
     modeWasForced: forcedMode === 'local' || forcedMode === 'server',
-    detectedLocalHost,
+    detectedLocalHost: detectedLocalHost,
     glpiUrl: runtime.glpiUrl,
     backendUrl: runtime.backendUrl,
     users: {

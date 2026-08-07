@@ -1,4 +1,39 @@
-.env
-Backend/.env
-Backend/.env.local
+# =============================================================================
+# GLPI Control Center - .gitignore
+# =============================================================================
 
+# Environment files (NUNCA commite)
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+*.env
+.env.*
+
+# Exceção: manter .env.example como template
+!Backend/.env.example
+
+# PHP
+vendor/
+composer.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temp
+tmp/
+temp/
+.cache/
