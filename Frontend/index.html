@@ -23,15 +23,17 @@
   <!-- LOGIN -->
   <div id="login-screen">
     <div class="login-card">
-      <div class="login-logo">🖥️</div>
+      <div class="login-logo-area">
+        <span class="login-logo-icon">🖥️</span>
+      </div>
       <h2>GLPI Control Center</h2>
-      <p>Entre com suas credenciais para acessar</p>
+      <p>Entre com sua conta Google institucional</p>
 
-      <input class="login-input" type="text"     id="login-user" placeholder="Usuário" />
-      <input class="login-input" type="password" id="login-pass" placeholder="Senha"   />
+      <div id="google-btn-container"></div>
 
-      <button class="login-btn" id="login-btn">Entrar</button>
-      <p class="login-error" id="login-error">Usuário ou senha incorretos</p>
+      <p class="login-hint">@colegiosatelite.com.br</p>
+
+      <p class="login-error" id="login-error" style="display:none;"></p>
     </div>
   </div>
 
@@ -47,8 +49,12 @@
         <span id="glpi-status" class="glpi-status" style="font-size:13px;color:var(--green)">
           ● Conectado ao GLPI
         </span>
-        <div class="avatar" id="user-avatar">A</div>
-        <button class="logout-btn" id="logout-btn">Sair</button>
+        <div class="user-info">
+          <span id="user-name" class="user-name"></span>
+          <span id="user-role" class="user-role"></span>
+        </div>
+        <div class="avatar" id="user-avatar">U</div>
+        <button class="logout-btn" id="logout-btn" onclick="window.App.logout()">Sair</button>
       </div>
     </div>
 
@@ -66,6 +72,10 @@
   <!-- SCRIPTS (ordem importa) -->
 <script src="javascript/data.js"></script>
 <script src="javascript/state.js"></script>
+<script src="javascript/auth.config.js"></script>
+<script src="javascript/permissions.js"></script>
+<script src="javascript/user_context.js"></script>
+<script src="javascript/auth_guard.js"></script>
 <script src="javascript/auth.js"></script>
 <script src="javascript/glpi.client.js"></script>
 <script src="javascript/ui_render.js"></script>

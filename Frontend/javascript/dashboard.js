@@ -200,6 +200,15 @@ window.Dashboard = {
     this._state.isStale = false;
     this._state.loadedAt = new Date().toISOString();
     this._emit('dashboard:refreshing', {});
+
+    if (window.Audit) {
+      window.Audit.register({
+        action: 'dashboard_atualizado',
+        module: 'dashboard',
+        descricao: 'Dashboard atualizado manualmente',
+      });
+    }
+
     await this.load();
   },
 

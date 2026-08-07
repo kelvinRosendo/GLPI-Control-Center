@@ -112,7 +112,7 @@ window.Reports = {
         return this._getProjectorMaintenanceData();
 
       case 'audit':
-        return this._getAuditGlobalData(config);
+        return this._getAuditGlobalData(reportConfig);
 
       default:
         return [];
@@ -317,6 +317,17 @@ window.Reports = {
           module: 'reports',
           descricao: `Relatório "${config.titulo}" visualizado (${processed.length} registros)`,
           extras: { reportId, total: this._state.totalRecords, filtered: this._state.filteredRecords },
+        });
+      }
+
+      // 10. Registrar filtros aplicados (se houver)
+      const hasFilters = Object.keys(filters).some(k => filters[k] && filters[k] !== 'todos' && filters[k] !== 'todas');
+      if (hasFilters && window.Audit) {
+        window.Audit.register({
+          action: 'relatorio_filtro',
+          module: 'reports',
+          descricao: `Filtros aplicados no relatório "${config.titulo}"`,
+          extras: { reportId, filters },
         });
       }
 

@@ -285,18 +285,29 @@ window.UI = {
   },
 
   renderTabs() {
-    const tabs = [
-      { id: 'home', label: 'Home' },
-      { id: 'computadores', label: 'Computadores' },
-      { id: 'geekiees', label: 'Geekiees' },
-      { id: 'apoio', label: 'Carrinhos' },
-      { id: 'projetores', label: 'Projetores' },
-      { id: 'impressoras', label: 'Impressoras' },
-      { id: 'chamados', label: 'Chamados' },
-      { id: 'relatorios', label: 'Relatórios' },
-      { id: 'auditoria', label: 'Auditoria' },
-      { id: 'assistente', label: 'Assistente' },
-    ];
+    // Usar módulos visíveis do perfil do usuário
+    let tabs = [];
+    if (window.UserContext?.isAuthenticated()) {
+      const visibleModules = window.UserContext.getVisibleModules();
+      tabs = visibleModules.map(key => ({
+        id: key,
+        label: window.Permissions?.getModules()?.[key]?.label || key,
+      }));
+    } else {
+      // Fallback: todos os módulos (para quando não autenticado)
+      tabs = [
+        { id: 'home', label: 'Home' },
+        { id: 'computadores', label: 'Computadores' },
+        { id: 'geekiees', label: 'Geekiees' },
+        { id: 'apoio', label: 'Carrinhos' },
+        { id: 'projetores', label: 'Projetores' },
+        { id: 'impressoras', label: 'Impressoras' },
+        { id: 'chamados', label: 'Chamados' },
+        { id: 'relatorios', label: 'Relatórios' },
+        { id: 'auditoria', label: 'Auditoria' },
+        { id: 'assistente', label: 'Assistente' },
+      ];
+    }
     return tabs.map(t => `<button class="tab-btn ${window.STATE.tab === t.id ? 'active' : ''}" data-tab="${t.id}">${t.label}</button>`).join('');
   },
 

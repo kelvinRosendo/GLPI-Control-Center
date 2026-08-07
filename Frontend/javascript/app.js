@@ -1,5 +1,6 @@
 /**
  * GLPI Control Center - app.js
+ * Sprint 9.5: Integrado com Auth, UserContext e AuthGuard.
  */
 
 window.App = {
@@ -7,14 +8,50 @@ window.App = {
   assetsLoaded: false,
 
   async init() {
-    this.showLoginScreen();
-    window.Auth.init();
+    // Inicializar módulos de autenticação
+    if (window.AuthGuard) window.AuthGuard.init();
+    if (window.Auth) window.Auth.init();
     if (window.Audit) window.Audit.init();
+
+    // Verificar se há sessão válida
+    const hasSession = window.UserContext?.isAuthenticated();
+
+    if (hasSession) {
+      // Sessão restaurada do localStorage
+      const user = window.UserContext.getCurrentUser();
+      this.onLoginSuccess(user?.nome || user?.email);
+    } else {
+      // Sem sessão, mostrar login
+      this.showLoginScreen();
+    }
   },
 
   async onLoginSuccess(username) {
+    const user = window.UserContext?.getCurrentUser();
+
+    // Atualizar avatar com foto do Google ou inicial
     const avatar = document.getElementById('user-avatar');
-    if (avatar) avatar.textContent = username.charAt(0).toUpperCase();
+    if (avatar && user) {
+      if (user.foto) {
+        avatar.innerHTML = `<img src="${user.foto}" alt="${user.nome}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+      } else {
+        avatar.textContent = user.nome?.charAt(0).toUpperCase() || username?.charAt(0).toUpperCase() || 'U';
+      }
+    }
+
+    // Atualizar nome e perfil no header
+    const userNameEl = document.getElementById('user-name');
+    if (userNameEl && user) {
+      userNameEl.textContent = user.nome || username;
+    }
+
+    const userRoleEl = document.getElementById('user-role');
+    if (userRoleEl && user?.perfil) {
+      const profileLabel = window.Permissions?.getProfileLabel(user.perfil) || user.perfil;
+      const profileColor = window.Permissions?.getProfileColor(user.perfil) || '#6b7280';
+      userRoleEl.textContent = profileLabel;
+      userRoleEl.style.color = profileColor;
+    }
 
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
@@ -56,12 +93,26 @@ window.App = {
   showLoginScreen() {
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
-    window.State.resetFilters();
-    window.State.setTab('home');
-    window.State.setExpandedComputer(null);
+    window.State?.resetFilters();
+    window.State?.setTab('home');
+    window.State?.setExpandedComputer(null);
+  },
+
+  logout() {
+    if (window.Auth) {
+      window.Auth.logout();
+    } else {
+      window.UserContext?.invalidate();
+      this.showLoginScreen();
+    }
   },
 
   go(tabId) {
+    // Verificar acesso ao módulo
+    if (tabId !== 'home' && window.AuthGuard && !window.AuthGuard.checkModule(tabId)) {
+      return;
+    }
+
     window.State.setTab(tabId);
     window.State.resetFilters();
     if (tabId !== 'computadores') {
@@ -323,7 +374,6 @@ window.App = {
     }
   },
 
-
   _replaceComputerSummary(asset) {
     if (!asset?.glpiId) return;
     window.DATA.computadores = (window.DATA.computadores || []).map(item => item.glpiId === asset.glpiId ? { ...item, ...asset } : item);
@@ -346,7 +396,7 @@ window.App = {
     mainEl.classList.add('tab-switching');
   },
 
-    _bindTicketEvents() {
+  _bindTicketEvents() {
     const input = document.getElementById('ticket-search');
     const clearBtn = document.getElementById('ticket-search-clear');
 
@@ -372,7 +422,6 @@ window.App = {
     });
   },
 
-  
   _renderComputerModal() {
     const modalEl = document.getElementById('computer-details-modal');
     const contentEl = document.getElementById('computer-details-modal-content');

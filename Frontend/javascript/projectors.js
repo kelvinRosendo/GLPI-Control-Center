@@ -435,6 +435,17 @@ window.Projectors = {
       this._cache = { details: null, timestamp: 0 };
       this.recalculate();
       this._emit('projectors:updated', { glpiId, updates });
+
+      if (window.Audit) {
+        window.Audit.register({
+          action: 'projetor_atualizado',
+          module: 'projectors',
+          descricao: `Projetor #${glpiId} atualizado`,
+          equipamento: `Projetor #${glpiId}`,
+          dados: updates,
+        });
+      }
+
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message };

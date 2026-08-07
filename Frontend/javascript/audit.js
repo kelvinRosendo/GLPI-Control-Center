@@ -113,6 +113,29 @@ window.Audit = (function () {
     return null;
   }
 
+  /**
+   * Obtém versão do sistema (preparado para implementação futura).
+   * @returns {string}
+   */
+  function _getSystemVersion() {
+    return '1.0.0';
+  }
+
+  /**
+   * Obtém ID da sessão (preparado para implementação futura).
+   * @returns {string}
+   */
+  function _getSessionId() {
+    try {
+      if (!window._auditSessionId) {
+        window._auditSessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 9);
+      }
+      return window._auditSessionId;
+    } catch {
+      return 'unknown';
+    }
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // REGISTRO DE EVENTOS
   // ══════════════════════════════════════════════════════════════════════════
@@ -157,13 +180,18 @@ window.Audit = (function () {
       equipamento: params.equipamento || null,
       fornecedor: params.fornecedor || null,
       descricao: params.descricao || (actionConfig ? actionConfig.label : params.action),
+      dados: params.dados || params.extras || null,
       extras: params.extras || null,
+      severidade: severityKey,
+      origem: params.origem || 'frontend',
       ip: _getIP(),
       browser: _getBrowserInfo(),
       severity: severityKey,
       severityColor: severityConfig ? severityConfig.color : '#4f7ef7',
       categoryIcon: categoryConfig ? categoryConfig.icon : '&#9881;',
       categoryColor: categoryConfig ? categoryConfig.color : '#9299b8',
+      versaoSistema: _getSystemVersion(),
+      sessionId: _getSessionId(),
     };
 
     // Persistir

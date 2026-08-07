@@ -1,0 +1,106 @@
+/**
+ * GLPI Control Center - auth.config.js
+ * -----------------------------------------------------------------------------
+ * Configuração centralizada do sistema de autenticação.
+ *
+ * Define:
+ * - Client ID do Google OAuth
+ * - Domínios permitidos
+ * - URLs de redirecionamento
+ * - Configurações de sessão
+ * - Provedores de autenticação (preparado para múltiplos)
+ *
+ * PRINCÍPIO: Configuration Driven Design
+ * - Nenhum valor hardcoded nos módulos de autenticação
+ * - Novos provedores são adicionados APENAS neste arquivo
+ *
+ * Sprint 9.5: Google OAuth, Controle de Acesso e Perfis de Usuário
+ */
+
+window.AUTH_CONFIG = {
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // GOOGLE OAUTH 2.0
+  // ══════════════════════════════════════════════════════════════════════════
+
+  google: {
+    clientId: 'SEU_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+    discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/oauth2/v2/rest'],
+    scope: 'openid email profile',
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DOMÍNIOS PERMITIDOS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  allowedDomains: [
+    'colegiosatelite.com.br',
+  ],
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SESSÃO
+  // ══════════════════════════════════════════════════════════════════════════
+
+  session: {
+    storageKey: 'glpi:gcc:session',
+    tokenRefreshIntervalMs: 30 * 60 * 1000,   // 30 minutos
+    maxSessionDurationMs: 12 * 60 * 60 * 1000, // 12 horas
+    rememberMe: true,
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // MENSAGENS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  messages: {
+    domainNotAllowed: 'Este sistema é exclusivo para colaboradores do Colégio Satélite.',
+    loginRequired: 'Faça login para acessar o sistema.',
+    sessionExpired: 'Sua sessão expirou. Faça login novamente.',
+    networkError: 'Erro de conexão. Verifique sua internet.',
+    genericError: 'Ocorreu um erro ao tentar fazer login.',
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // PROVEDORES PREPARADOS (futuro)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  providers: {
+    google: { enabled: true, label: 'Google' },
+    azure: { enabled: false, label: 'Microsoft Entra ID' },
+    ldap: { enabled: false, label: 'LDAP' },
+    ad: { enabled: false, label: 'Active Directory' },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // API PÚBLICA
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Verifica se o domínio do email é permitido.
+   * @param {string} email
+   * @returns {boolean}
+   */
+  isDomainAllowed(email) {
+    if (!email || typeof email !== 'string') return false;
+    const domain = email.split('@')[1]?.toLowerCase();
+    return this.allowedDomains.includes(domain);
+  },
+
+  /**
+   * Retorna o provedor ativo.
+   * @returns {object}
+   */
+  getActiveProvider() {
+    return Object.entries(this.providers)
+      .find(([, p]) => p.enabled)?.[0] || 'google';
+  },
+
+  /**
+   * Verifica se um provedor está habilitado.
+   * @param {string} providerKey
+   * @returns {boolean}
+   */
+  isProviderEnabled(providerKey) {
+    return this.providers[providerKey]?.enabled ?? false;
+  },
+};
