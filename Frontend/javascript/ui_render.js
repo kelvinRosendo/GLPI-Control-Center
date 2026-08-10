@@ -289,9 +289,9 @@ window.UI = {
     let tabs = [];
     if (window.UserContext?.isAuthenticated()) {
       const visibleModules = window.UserContext.getVisibleModules();
-      tabs = visibleModules.map(key => ({
-        id: key,
-        label: window.Permissions?.getModules()?.[key]?.label || key,
+      tabs = visibleModules.map(mod => ({
+        id: mod.key,
+        label: mod.label,
       }));
     } else {
       // Fallback: todos os módulos (para quando não autenticado)

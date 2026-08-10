@@ -35,7 +35,7 @@
 
       // Backend API
       backend: {
-        url: 'http://localhost:8080',
+        url: 'http://localhost:3000',
         timeout: 30000,
       },
 
@@ -46,7 +46,7 @@
 
       // Google OAuth
       auth: {
-        googleClientId: 'SEU_GOOGLE_CLIENT_ID_DEV.apps.googleusercontent.com',
+        googleClientId: '985292439142-lveqa6pff29h4c3pb5951a1gn69lpomv.apps.googleusercontent.com',
         allowedDomains: ['colegiosatelite.com.br'],
         sessionKey: 'glpi:gcc:session:dev',
       },
