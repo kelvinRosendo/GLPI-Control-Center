@@ -36,6 +36,7 @@ require_once __DIR__ . '/integration_audit.php';
 require_once __DIR__ . '/integration_audit_repository.php';
 require_once __DIR__ . '/integration_audit_service.php';
 require_once __DIR__ . '/chat.php';
+require_once __DIR__ . '/projetors.php';
 
 function isConfigValid(array $config): array
 {
@@ -275,6 +276,23 @@ try {
     '/api/assets/chromebooks-apoio' => Endpoints::chromebooksApoio($config),
     '/api/assets/projetores' => Endpoints::projetores($config),
     '/api/assets/impressoras' => Endpoints::impressoras($config),
+    '/api/projetors' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET' => ProjectorsEndpoint::list($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
+    '/api/projetors/alerts' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET' => ProjectorsEndpoint::alerts($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
+    '/api/projetors/check' => match ($_SERVER['REQUEST_METHOD'] ?? 'POST') {
+      'POST' => ProjectorsEndpoint::check($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
+    '/api/projetors/config' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET' => ProjectorsEndpoint::getConfig($config),
+      'PUT' => ProjectorsEndpoint::updateConfig($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
     '/api/chat' => ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
       ? ChatEndpoint::handle()
       : Responde::erro('Método não permitido.', 405),
@@ -323,6 +341,39 @@ try {
           return;
         }
         Responde::erro('Método não permitido.', 405);
+      }
+
+      if (preg_match('#^/api/projetors/(\d+)$#', $path, $m)) {
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        if ($method === 'GET') {
+          ProjectorsEndpoint::detail($config, (int) $m[1]);
+          return;
+        }
+        Responde::erro('Método não permitido.', 405);
+      }
+
+      if (preg_match('#^/api/projetors/(\d+)/lamp$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'PUT') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        ProjectorsEndpoint::updateLamp($config, (int) $m[1]);
+        return;
+      }
+
+      if (preg_match('#^/api/projetors/(\d+)/maintenance$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        ProjectorsEndpoint::registerMaintenance($config, (int) $m[1]);
+        return;
+      }
+
+      if (preg_match('#^/api/projetors/(\d+)/history$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        ProjectorsEndpoint::history($config, (int) $m[1]);
+        return;
       }
 
       if (preg_match('#^/api/tickets/asset/(\d+)$#', $path, $m)) {

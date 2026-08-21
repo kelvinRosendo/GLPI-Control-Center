@@ -1,0 +1,12 @@
+{
+  "config": {
+    "lamp_life_hours": 3000,
+    "warning_percentage": 80,
+    "critical_percentage": 95,
+    "maintenance_interval_days": 90,
+    "cleaning_interval_days": 30,
+    "email_enabled": false,
+    "email_recipients": []
+  },
+  "projectors": {}
+}
