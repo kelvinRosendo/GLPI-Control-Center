@@ -133,8 +133,10 @@ final class MailTemplates
       $text .= "CRITICO (" . count($critical) . ")\n";
       $text .= str_repeat('-', 30) . "\n";
       foreach ($critical as $a) {
-        $text .= "- {$a['nome']} ({$a['patrimonio'] ?? ''})\n";
-        $text .= "  Lampada: {$a['horas_lampada']}h (" . ($a['percentual_uso'] ?? '?') . "%)\n";
+        $pat = $a['patrimonio'] ?? '';
+        $pct = $a['percentual_uso'] ?? '?';
+        $text .= "- {$a['nome']} ({$pat})\n";
+        $text .= "  Lampada: {$a['horas_lampada']}h ({$pct}%)\n";
         $text .= "  SUBSTITUIR URGENTE\n\n";
       }
     }
@@ -143,8 +145,10 @@ final class MailTemplates
       $text .= "ATENCAO (" . count($warning) . ")\n";
       $text .= str_repeat('-', 30) . "\n";
       foreach ($warning as $a) {
-        $text .= "- {$a['nome']} ({$a['patrimonio'] ?? ''})\n";
-        $text .= "  Lampada: {$a['horas_lampada']}h (" . ($a['percentual_uso'] ?? '?') . "%)\n";
+        $pat = $a['patrimonio'] ?? '';
+        $pct = $a['percentual_uso'] ?? '?';
+        $text .= "- {$a['nome']} ({$pat})\n";
+        $text .= "  Lampada: {$a['horas_lampada']}h ({$pct}%)\n";
         $text .= "  Agendar substituicao\n\n";
       }
     }
@@ -154,7 +158,8 @@ final class MailTemplates
       $text .= str_repeat('-', 30) . "\n";
       foreach ($maintenance as $a) {
         $dias = $a['dias_desde_manutencao'] ?? '?';
-        $text .= "- {$a['nome']} ({$a['patrimonio'] ?? ''})\n";
+        $pat = $a['patrimonio'] ?? '';
+        $text .= "- {$a['nome']} ({$pat})\n";
         $text .= "  Dias sem manutencao: {$dias}\n\n";
       }
     }

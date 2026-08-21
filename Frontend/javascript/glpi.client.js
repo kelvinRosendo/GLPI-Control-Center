@@ -68,6 +68,47 @@ window.GlpiClient = {
     return json.data ?? [];
   },
 
+  async fetchProjectorsEnriched() {
+    const json = await this._fetch('/api/projetors');
+    return json;
+  },
+
+  async fetchProjectorDetail(glpiId) {
+    const json = await this._fetch(`/api/projetors/${glpiId}`);
+    return json.data ?? null;
+  },
+
+  async updateProjectorLamp(glpiId, data) {
+    const json = await this._fetch(`/api/projetors/${glpiId}/lamp`, {
+      method: 'PUT',
+      body: data,
+    });
+    return json;
+  },
+
+  async registerProjectorMaintenance(glpiId, data) {
+    const json = await this._fetch(`/api/projetors/${glpiId}/maintenance`, {
+      method: 'POST',
+      body: data,
+    });
+    return json;
+  },
+
+  async fetchProjectorHistory(glpiId) {
+    const json = await this._fetch(`/api/projetors/${glpiId}/history`);
+    return json.data ?? [];
+  },
+
+  async fetchProjectorAlerts() {
+    const json = await this._fetch('/api/projetors/alerts');
+    return json;
+  },
+
+  async triggerProjectorCheck() {
+    const json = await this._fetch('/api/projetors/check', { method: 'POST' });
+    return json;
+  },
+
   async fetchImpressoras() {
     const json = await this._fetch('/api/assets/impressoras');
     return json.data ?? [];

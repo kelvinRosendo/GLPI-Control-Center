@@ -45,7 +45,7 @@ window.Projectors = {
   // ══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Carrega e processa dados dos projetores.
+   * Carrega e processa dados dos projetores via backend API.
    * @returns {{ ok: boolean, error?: string }}
    */
   async load() {
@@ -55,35 +55,33 @@ window.Projectors = {
     this._state.error = '';
 
     try {
-      // 1. Garantir dados base do GLPI
-      await this._ensureData();
+      // 1. Buscar dados enriquecidos do backend
+      const response = await window.GlpiClient.fetchProjectorsEnriched();
 
-      // 2. Carregar detalhes salvos em localStorage
-      const savedDetails = this._loadSavedDetails();
+      if (!response || !response.data) {
+        throw new Error('Resposta invalida do backend');
+      }
 
-      // 3. Enriquecer projetores com dados salvos
-      const enriched = this._enrichProjectors(savedDetails);
-
-      // 4. Calcular status automático para cada projetor
-      const withStatus = enriched.map(p => ({
+      // 2. Usar dados do backend (ja enriquecidos com alertas e status)
+      const projectors = response.data.map(p => ({
         ...p,
-        calculatedStatus: this._calculateStatus(p),
+        calculatedStatus: p.status_calculado || 'operando',
       }));
 
-      // 5. Calcular indicadores gerais
-      this._state.indicators = this._calculateIndicators(withStatus);
+      // 3. Usar indicadores do backend
+      this._state.indicators = response.indicators || this._calculateIndicators(projectors);
 
-      // 6. Calcular alertas
-      this._state.alerts = this._calculateAlerts(withStatus);
+      // 4. Calcular alertas para o frontend
+      this._state.alerts = this._calculateAlerts(projectors);
 
-      // 7. Armazenar
-      this._state.projectors = withStatus;
+      // 5. Armazenar
+      this._state.projectors = projectors;
       this._state.loaded = true;
       this._state.loadedAt = new Date().toISOString();
 
-      // 8. Emitir evento
+      // 6. Emitir evento
       this._emit('projectors:loaded', {
-        count: withStatus.length,
+        count: projectors.length,
         indicators: this._state.indicators,
         alerts: this._state.alerts,
       });
@@ -153,87 +151,9 @@ window.Projectors = {
       try {
         await window.GlpiClient.loadAll();
       } catch {
-        // Pode falhar — tentar usar dados existentes
+        // Pode falhar - tentar usar dados existentes
       }
     }
-  },
-
-  /**
-   * Carrega detalhes salvos do localStorage.
-   * @returns {object} Map de glpiId -> details
-   */
-  _loadSavedDetails() {
-    const now = Date.now();
-    const ttl = window.PROJECTORS_CONFIG.storage;
-
-    // Usar cache se válido (5 min)
-    if (this._cache.details && (now - this._cache.timestamp) < 300000) {
-      return this._cache.details;
-    }
-
-    try {
-      const key = window.PROJECTORS_CONFIG.storage.prefix + window.PROJECTORS_CONFIG.storage.detailsKey;
-      const raw = localStorage.getItem(key);
-      const details = raw ? JSON.parse(raw) : {};
-      this._cache.details = details;
-      this._cache.timestamp = now;
-      return details;
-    } catch {
-      return {};
-    }
-  },
-
-  /**
-   * Salva detalhes de um projetor no localStorage.
-   * @param {number} glpiId
-   * @param {object} details
-   */
-  _saveDetails(glpiId, details) {
-    try {
-      const all = this._loadSavedDetails();
-      all[glpiId] = { ...(all[glpiId] || {}), ...details, _updatedAt: new Date().toISOString() };
-      const key = window.PROJECTORS_CONFIG.storage.prefix + window.PROJECTORS_CONFIG.storage.detailsKey;
-      localStorage.setItem(key, JSON.stringify(all));
-      this._cache.details = all;
-      this._cache.timestamp = Date.now();
-    } catch (e) {
-      console.warn('[Projectors] Erro ao salvar detalhes:', e);
-    }
-  },
-
-  /**
-   * Enriquece dados do GLPI com informações salvas.
-   * @param {object} savedDetails
-   * @returns {array}
-   */
-  _enrichProjectors(savedDetails) {
-    const glpiData = window.DATA.projetores || [];
-
-    return glpiData.map(p => {
-      const saved = savedDetails[p.glpiId] || {};
-      return {
-        ...p,
-        // Campos do GLPI (já existentes)
-        nome: p.nome || '',
-        serial: p.serial || '',
-        patrimonio: p.patrimonio || '',
-        modelo: p.modelo || '',
-        reparticao: p.reparticao || '',
-        status: p.status || 'ativo',
-        // Campos salvos localmente
-        data_aquisicao: saved.data_aquisicao || '',
-        fabricante: saved.fabricante || '',
-        horas_lampada: Number(saved.horas_lampada) || 0,
-        vida_util_estimada: Number(saved.vida_util_estimada) || window.PROJECTORS_CONFIG.lamp.lifeHours,
-        data_troca_lampada: saved.data_troca_lampada || '',
-        ultima_manutencao: saved.ultima_manutencao || '',
-        ultima_limpeza: saved.ultima_limpeza || '',
-        horas_totais: Number(saved.horas_totais) || 0,
-        // Metadados
-        _hasLocalData: !!saved._updatedAt,
-        _updatedAt: saved._updatedAt || null,
-      };
-    });
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -424,16 +344,24 @@ window.Projectors = {
   // ══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Atualiza detalhes de um projetor.
+   * Atualiza detalhes de um projetor via backend API.
    * @param {number} glpiId
    * @param {object} updates
    * @returns {{ ok: boolean }}
    */
-  updateProjector(glpiId, updates) {
+  async updateProjector(glpiId, updates) {
     try {
-      this._saveDetails(glpiId, updates);
-      this._cache = { details: null, timestamp: 0 };
-      this.recalculate();
+      // Enviar atualizacao de lampada para o backend
+      if (updates.horas_lampada !== undefined || updates.vida_util_estimada !== undefined) {
+        await window.GlpiClient.updateProjectorLamp(glpiId, {
+          horas_lampada: updates.horas_lampada,
+          vida_util_estimada: updates.vida_util_estimada,
+        });
+      }
+
+      // Recarregar dados
+      await this.load();
+
       this._emit('projectors:updated', { glpiId, updates });
 
       if (window.Audit) {
@@ -443,15 +371,6 @@ window.Projectors = {
           descricao: `Projetor #${glpiId} atualizado`,
           equipamento: `Projetor #${glpiId}`,
           dados: updates,
-        });
-      }
-
-      // Despertar evento de notificação para manutenção
-      if (window.NotificationEvents && updates.maintenanceDate) {
-        window.NotificationEvents.dispatchProjector('maint_done', {
-          id: glpiId,
-          nome: `Projetor #${glpiId}`,
-          usuario: window.UserContext?.getCurrentUser()?.nome || 'Sistema',
         });
       }
 
