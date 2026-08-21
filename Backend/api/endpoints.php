@@ -37,6 +37,8 @@ require_once __DIR__ . '/integration_audit_repository.php';
 require_once __DIR__ . '/integration_audit_service.php';
 require_once __DIR__ . '/chat.php';
 require_once __DIR__ . '/projetors.php';
+require_once __DIR__ . '/utils/mailer.php';
+require_once __DIR__ . '/utils/mail_templates.php';
 
 function isConfigValid(array $config): array
 {

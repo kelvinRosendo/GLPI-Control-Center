@@ -448,7 +448,7 @@ final class ProjectorsEndpoint
 
   /**
    * POST /api/projetors/check
-   * Dispara verificação preventiva (para scheduler).
+   * Dispara verificacao preventiva (para scheduler).
    */
   public static function check(array $config): void
   {
@@ -459,12 +459,14 @@ final class ProjectorsEndpoint
     // Buscar projetores do GLPI
     $glpiProjectors = self::getProjectorsFromGlpi($config);
 
+    $allAlerts = [];
     $results = [
       'checked' => 0,
       'alerts' => 0,
       'critical' => 0,
       'warning' => 0,
       'maintenance_overdue' => 0,
+      'email_sent' => false,
       'timestamp' => date('c'),
     ];
 
@@ -486,9 +488,33 @@ final class ProjectorsEndpoint
       if (in_array('manutencao_atrasada', $enriched['alertas'])) {
         $results['maintenance_overdue']++;
       }
+
+      // Coletar alertas para envio
+      foreach ($enriched['alertas'] as $alertType) {
+        $allAlerts[] = [
+          'glpiId' => $glpiId,
+          'nome' => $enriched['nome'],
+          'patrimonio' => $enriched['patrimonio'],
+          'tipo' => $alertType,
+          'horas_lampada' => $enriched['horas_lampada'],
+          'percentual_uso' => $enriched['percentual_uso'],
+          'dias_desde_manutencao' => $enriched['dias_desde_manutencao'],
+        ];
+      }
     }
 
-    // Salvar log da verificação
+    // Enviar e-mail se houver alertas e estiver configurado
+    if (!empty($allAlerts) && !empty($configData['email_enabled']) && !empty($configData['email_recipients'])) {
+      $emailResult = Mailer::sendWithAlerts(
+        $configData['email_recipients'],
+        $allAlerts,
+        $results
+      );
+      $results['email_sent'] = $emailResult['ok'] ?? false;
+      $results['email_result'] = $emailResult;
+    }
+
+    // Salvar log da verificacao
     $logDir = self::DATA_DIR . '/logs';
     if (!is_dir($logDir)) {
       @mkdir($logDir, 0755, true);
@@ -497,7 +523,7 @@ final class ProjectorsEndpoint
     @file_put_contents($logFile, json_encode($results, JSON_PRETTY_PRINT), LOCK_EX);
 
     Responde::ok([
-      'message' => 'Verificação preventiva concluída.',
+      'message' => 'Verificacao preventiva concluida.',
       'results' => $results,
     ]);
   }
