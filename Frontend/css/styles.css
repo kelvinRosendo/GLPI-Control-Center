@@ -114,6 +114,11 @@ textarea,
   margin-bottom: 24px;
 }
 
+.login-logo-img {
+  max-width: 200px;
+  height: auto;
+}
+
 .login-logo-icon {
   width: 64px;
   height: 64px;
@@ -126,6 +131,18 @@ textarea,
 }
 
 /* Título e texto descritivo do login */
+.login-title {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.login-subtitle {
+  color: var(--text2);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
 .login-card h2 {
   font-size: 22px;
   font-weight: 700;
@@ -143,6 +160,27 @@ textarea,
   font-size: 12px;
   margin-top: 16px;
   margin-bottom: 0;
+}
+
+/* Mano Isa */
+.login-mano-isa {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.mano-isa-emoji {
+  font-size: 24px;
+}
+
+.mano-isa-text {
+  font-size: 13px;
+  color: var(--text2);
+  font-weight: 500;
 }
 
 /* Botão Google (fallback) */
@@ -240,6 +278,11 @@ textarea,
   font-size: 16px;
   color: var(--text);
   text-decoration: none;
+}
+
+.topbar-logo-img {
+  height: 32px;
+  width: auto;
 }
 
 /* Ícone pequeno do logo na topbar */

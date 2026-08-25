@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="css/projectors.css" />
   <link rel="stylesheet" href="css/audit.css" />
   <link rel="stylesheet" href="css/notifications.css" />
+  <link rel="stylesheet" href="css/mano-isa.css" />
 
 <link rel="stylesheet" href="css/styles.css" />
 </head>
@@ -26,14 +27,19 @@
   <div id="login-screen">
     <div class="login-card">
       <div class="login-logo-area">
-        <span class="login-logo-icon">🖥️</span>
+        <img src="assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite" class="login-logo-img" />
       </div>
-      <h2>GLPI Control Center</h2>
-      <p>Entre com sua conta Google institucional</p>
+      <h2 class="login-title">GLPI Control Center</h2>
+      <p class="login-subtitle">Central Operacional de Tecnologia</p>
 
       <div id="google-btn-container"></div>
 
       <p class="login-hint">@colegiosatelite.com.br</p>
+
+      <div class="login-mano-isa">
+        <span class="mano-isa-emoji">👋</span>
+        <span class="mano-isa-text">Mano Isa</span>
+      </div>
 
       <p class="login-error" id="login-error" style="display:none;"></p>
     </div>
@@ -43,8 +49,7 @@
   <div id="app">
     <div class="topbar">
       <a class="topbar-logo" href="#">
-        <span>🖥️</span>
-        GLPI Control Center
+        <img src="assets/branding/logo/logotextoesquerdabranco.png" alt="GCC" class="topbar-logo-img" />
       </a>
 
       <div class="topbar-right">
@@ -83,6 +88,7 @@
   <!-- SCRIPTS (ordem importa) -->
 <script src="javascript/config.env.js"></script>
 <script src="javascript/theme.js"></script>
+<script src="javascript/mano-isa.js"></script>
 <script src="javascript/data.js"></script>
 <script src="javascript/state.js"></script>
 <script src="javascript/auth.config.js"></script>

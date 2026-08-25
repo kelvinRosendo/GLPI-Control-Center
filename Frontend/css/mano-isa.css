@@ -1,0 +1,88 @@
+/**
+ * GLPI Control Center - mano-isa.css
+ * -----------------------------------------------------------------------------
+ * Estilos do componente Mano Isa — mascote institucional.
+ *
+ * Sprint 13: Branding Colégio Satélite
+ */
+
+/* ── Container principal ──────────────────────────────────────────────── */
+.mano-isa-empty,
+.mano-isa-error,
+.mano-isa-404 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+/* ── Avatar do Mano Isa ──────────────────────────────────────────────── */
+.mano-isa-avatar {
+  width: 80px;
+  height: 80px;
+  background: var(--color-surface2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.mano-isa-wave,
+.mano-isa-sad,
+.mano-isa-confused,
+.mano-isa-idea {
+  font-size: 40px;
+  line-height: 1;
+}
+
+/* ── Tipografia ──────────────────────────────────────────────────────── */
+.mano-isa-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 8px;
+}
+
+.mano-isa-subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* ── Help ────────────────────────────────────────────────────────────── */
+.mano-isa-help {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.mano-isa-help .mano-isa-avatar {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+.mano-isa-help .mano-isa-idea {
+  font-size: 24px;
+}
+
+.mano-isa-help-content {
+  flex: 1;
+}
+
+.mano-isa-tip {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
