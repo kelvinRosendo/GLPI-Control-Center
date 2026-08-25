@@ -1,0 +1,286 @@
+/**
+ * GLPI Control Center - responsive.css
+ * -----------------------------------------------------------------------------
+ * Sistema de design responsivo.
+ *
+ * Breakpoints padronizados e utilitários para mobile.
+ *
+ * Sprint 25: Responsive Design
+ */
+
+/* ════════════════════════════════════════════════════════════════════════════
+   BREAKPOINTS
+   ════════════════════════════════════════════════════════════════════════════
+   --bp-xs:  0-479px    (Mobile pequeno)
+   --bp-sm:  480-767px  (Mobile)
+   --bp-md:  768-1023px (Tablet)
+   --bp-lg:  1024-1279px (Desktop)
+   --bp-xl:  1280px+    (Desktop grande)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --bp-xs: 0;
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   UTILITÁRIOS DE VISIBILIDADE
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Esconder em mobile */
+@media (max-width: 767px) {
+  .hide-mobile { display: none !important; }
+}
+
+/* Esconder em tablet */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .hide-tablet { display: none !important; }
+}
+
+/* Esconder em desktop */
+@media (min-width: 1024px) {
+  .hide-desktop { display: none !important; }
+}
+
+/* Mostrar apenas em mobile */
+@media (min-width: 768px) {
+  .show-mobile-only { display: none !important; }
+}
+
+/* Mostrar apenas em tablet */
+@media (max-width: 767px), (min-width: 1024px) {
+  .show-tablet-only { display: none !important; }
+}
+
+/* Mostrar apenas em desktop */
+@media (max-width: 1023px) {
+  .show-desktop-only { display: none !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   LAYOUT RESPONSIVO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Grid responsivo */
+.grid-responsive {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+@media (max-width: 767px) {
+  .grid-responsive {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Flex responsivo */
+.flex-responsive {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.flex-responsive > * {
+  flex: 1 1 300px;
+}
+
+@media (max-width: 767px) {
+  .flex-responsive > * {
+    flex: 1 1 100%;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SPACING MOBILE
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  .p-responsive { padding: 12px !important; }
+  .px-responsive { padding-left: 12px !important; padding-right: 12px !important; }
+  .py-responsive { padding-top: 12px !important; padding-bottom: 12px !important; }
+  .m-responsive { margin: 12px !important; }
+  .mx-responsive { margin-left: 12px !important; margin-right: 12px !important; }
+  .my-responsive { margin-top: 12px !important; margin-bottom: 12px !important; }
+  .gap-responsive { gap: 8px !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TIPOGRAFIA RESPONSIVA
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  .text-responsive-sm { font-size: 12px !important; }
+  .text-responsive-base { font-size: 14px !important; }
+  .text-responsive-lg { font-size: 16px !important; }
+  .text-responsive-xl { font-size: 20px !important; }
+  .text-responsive-center { text-align: center !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CARD RESPONSIVO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  .card-responsive {
+    border-radius: 8px !important;
+    padding: 12px !important;
+  }
+
+  .card-responsive-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .card-responsive-actions {
+    width: 100% !important;
+    justify-content: flex-start !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TABELA RESPONSIVA
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  .table-responsive {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-responsive table {
+    min-width: 600px;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   FORMULÁRIO RESPONSIVO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  .form-responsive .form-group {
+    margin-bottom: 16px !important;
+  }
+
+  .form-responsive .form-row {
+    flex-direction: column !important;
+  }
+
+  .form-responsive .form-actions {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .form-responsive .form-actions button {
+    width: 100% !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MODAL RESPONSIVO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  .modal-responsive {
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  .modal-responsive-content {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .modal-responsive-body {
+    flex: 1 !important;
+    overflow-y: auto !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   UTILITÁRIOS GERAIS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Touch-friendly */
+@media (pointer: coarse) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  button, .btn, [role="button"] {
+    min-height: 44px;
+  }
+}
+
+/* Safe area (notch) */
+@supports (padding: env(safe-area-inset-top)) {
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PRINT
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   LANDSCAPE
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 767px) and (orientation: landscape) {
+  .landscape-hide { display: none !important; }
+
+  .landscape-row {
+    flex-direction: row !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   DARK MODE AUTO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-color-scheme: dark) {
+  .auto-dark {
+    background: #1a1b26;
+    color: #c0caf5;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .auto-light {
+    background: #ffffff;
+    color: #1a1b26;
+  }
+}

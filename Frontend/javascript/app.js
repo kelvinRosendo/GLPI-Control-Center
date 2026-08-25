@@ -34,6 +34,7 @@ window.App = {
     if (window.SettingsUI) window.SettingsUI.init();
     if (window.ErrorHandler) window.ErrorHandler.init();
     if (window.ErrorUI) window.ErrorUI.init();
+    if (window.Mobile) window.Mobile.init();
     if (window.NotificationsUI) window.NotificationsUI.init();
 
     // Verificar se há sessão válida
