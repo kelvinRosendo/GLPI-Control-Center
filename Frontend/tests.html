@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GLPI Control Center - Testes</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #1a1b26; color: #c0caf5; padding: 24px; }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    .subtitle { color: #565f89; margin-bottom: 24px; }
+    #results { margin-top: 24px; }
+    .summary { display: flex; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+    .summary-card { padding: 16px 24px; border-radius: 8px; background: #24283b; min-width: 120px; }
+    .summary-card .label { font-size: 12px; color: #565f89; text-transform: uppercase; }
+    .summary-card .value { font-size: 32px; font-weight: 700; }
+    .summary-card.passed .value { color: #9ece6a; }
+    .summary-card.failed .value { color: #f7768e; }
+    .summary-card.skipped .value { color: #e0af68; }
+    .summary-card.total .value { color: #7aa2f7; }
+    .suite { margin-bottom: 24px; }
+    .suite-name { font-size: 16px; font-weight: 600; padding: 8px 12px; background: #1e2030; border-radius: 6px; margin-bottom: 8px; }
+    .test { padding: 6px 12px 6px 24px; font-size: 14px; border-left: 3px solid transparent; }
+    .test.pass { border-left-color: #9ece6a; color: #9ece6a; }
+    .test.fail { border-left-color: #f7768e; color: #f7768e; }
+    .test.skip { border-left-color: #e0af68; color: #e0af68; }
+    .error { margin-left: 36px; font-size: 12px; color: #f7768e; margin-top: 4px; }
+    button { padding: 10px 20px; background: #7aa2f7; color: #1a1b26; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+    button:hover { background: #89b4fa; }
+    #console { margin-top: 24px; padding: 16px; background: #1e2030; border-radius: 8px; font-family: monospace; font-size: 12px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; color: #565f89; }
+  </style>
+</head>
+<body>
+  <h1>Testes - GLPI Control Center</h1>
+  <p class="subtitle">Sprint 23: Testing</p>
+
+  <button onclick="runTests()">Executar Testes</button>
+
+  <div id="results"></div>
+  <div id="console"></div>
+
+  <!-- Core modules -->
+  <script src="../javascript/utils.js"></script>
+  <script src="../javascript/cache.js"></script>
+  <script src="../javascript/loading-states.js"></script>
+  <script src="../javascript/permissions.js"></script>
+  <script src="../javascript/permission-checker.js"></script>
+  <script src="../javascript/user_context.js"></script>
+  <script src="../javascript/theme.js"></script>
+  <script src="../javascript/settings.js"></script>
+  <script src="../javascript/search_storage.js"></script>
+  <script src="../javascript/search.js"></script>
+  <script src="../javascript/keyboard_shortcuts.js"></script>
+  <script src="../javascript/notification-preferences.js"></script>
+  <script src="../javascript/audit_storage.js"></script>
+  <script src="../javascript/audit.config.js"></script>
+  <script src="../javascript/audit.js"></script>
+  <script src="../javascript/audit_analytics.js"></script>
+
+  <!-- Test runner -->
+  <script src="../javascript/test-runner.js"></script>
+
+  <!-- Tests -->
+  <script src="unit.js"></script>
+  <script src="integration.js"></script>
+
+  <script>
+    function runTests() {
+      const resultsDiv = document.getElementById('results');
+      const consoleDiv = document.getElementById('console');
+      resultsDiv.innerHTML = '';
+      consoleDiv.innerHTML = '';
+
+      // Override console.log to capture output
+      const originalLog = console.log;
+      console.log = function (...args) {
+        originalLog.apply(console, args);
+        consoleDiv.innerHTML += args.join(' ') + '\n';
+      };
+
+      window.DATA = {
+        computadores: [],
+        chromebooksGeekiees: [],
+        chromebooksApoio: {},
+        projetores: [],
+        impressoras: [],
+      };
+
+      const results = TestRunner.run(function (r) {
+        console.log = originalLog;
+
+        resultsDiv.innerHTML = `
+          <div class="summary">
+            <div class="summary-card total">
+              <div class="label">Total</div>
+              <div class="value">${r.total}</div>
+            </div>
+            <div class="summary-card passed">
+              <div class="label">Passou</div>
+              <div class="value">${r.passed}</div>
+            </div>
+            <div class="summary-card failed">
+              <div class="label">Falhou</div>
+              <div class="value">${r.failed}</div>
+            </div>
+            <div class="summary-card skipped">
+              <div class="label">Pulados</div>
+              <div class="value">${r.skipped}</div>
+            </div>
+          </div>
+        `;
+      });
+    }
+  </script>
+</body>
+</html>
