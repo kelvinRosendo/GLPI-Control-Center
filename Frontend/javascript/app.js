@@ -30,6 +30,8 @@ window.App = {
     if (window.Search) window.Search.init();
     if (window.SearchUI) window.SearchUI.init();
     if (window.KeyboardShortcuts) window.KeyboardShortcuts.init();
+    if (window.Settings) window.Settings.init();
+    if (window.SettingsUI) window.SettingsUI.init();
     if (window.NotificationsUI) window.NotificationsUI.init();
 
     // Verificar se há sessão válida

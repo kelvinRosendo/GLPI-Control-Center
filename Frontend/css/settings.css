@@ -1,0 +1,428 @@
+/**
+ * GLPI Control Center - settings.css
+ * -----------------------------------------------------------------------------
+ * Estilos para o modal de configurações.
+ *
+ * Sprint 20: Settings
+ */
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MODAL
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings-modal.open {
+  display: flex;
+  animation: fadeIn 0.15s ease;
+}
+
+.settings-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.settings-content {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 700px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.2s ease;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   HEADER
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 24px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.settings-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   BODY
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SIDEBAR
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-sidebar {
+  width: 200px;
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  flex-shrink: 0;
+  padding: 8px;
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.settings-nav-item:hover {
+  background: var(--bg-hover);
+}
+
+.settings-nav-item.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.settings-nav-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.settings-nav-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.settings-nav-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.settings-nav-item.active .settings-nav-label {
+  color: var(--accent);
+}
+
+.settings-nav-desc {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MAIN CONTENT
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.settings-section-title {
+  margin: 0 0 20px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   FIELDS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings-field:last-child {
+  border-bottom: none;
+}
+
+.settings-label {
+  font-size: 14px;
+  color: var(--text);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TOGGLE BUTTONS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-toggle-group {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-secondary);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.settings-toggle-btn {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.settings-toggle-btn:hover {
+  color: var(--text);
+}
+
+.settings-toggle-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SWITCH
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.settings-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.settings-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  transition: all 0.2s ease;
+}
+
+.settings-switch-slider::before {
+  content: '';
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  left: 2px;
+  bottom: 2px;
+  background: var(--text-secondary);
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.settings-switch input:checked + .settings-switch-slider {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.settings-switch input:checked + .settings-switch-slider::before {
+  background: white;
+  transform: translateX(20px);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   INPUTS E SELECTS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-input,
+.settings-select {
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  min-width: 120px;
+}
+
+.settings-input:focus,
+.settings-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.settings-file {
+  font-size: 12px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   BUTTONS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.settings-btn:hover {
+  background: var(--bg-hover);
+}
+
+.settings-btn-danger {
+  border-color: var(--danger, #ff5555);
+  color: var(--danger, #ff5555);
+}
+
+.settings-btn-danger:hover {
+  background: rgba(255, 85, 85, 0.1);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ABOUT
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.settings-about {
+  text-align: center;
+  padding: 20px 0;
+}
+
+.settings-about-logo {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.settings-about h3 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.settings-about-version {
+  font-size: 14px;
+  color: var(--accent);
+  margin: 8px 0 4px;
+}
+
+.settings-about-build {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.settings-about-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 12px 0;
+}
+
+.settings-about-copy {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.settings-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   RESPONSIVO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .settings-content {
+    width: 95%;
+    height: 90vh;
+  }
+
+  .settings-body {
+    flex-direction: column;
+  }
+
+  .settings-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    overflow-x: auto;
+    padding: 8px;
+  }
+
+  .settings-nav-item {
+    flex-direction: column;
+    min-width: 80px;
+    padding: 8px;
+    gap: 4px;
+  }
+
+  .settings-nav-info {
+    align-items: center;
+  }
+
+  .settings-nav-desc {
+    display: none;
+  }
+}
