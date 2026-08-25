@@ -187,8 +187,6 @@ window.Audit = (function () {
       fornecedor: params.fornecedor || null,
       descricao: params.descricao || (actionConfig ? actionConfig.label : params.action),
       dados: params.dados || params.extras || null,
-      extras: params.extras || null,
-      severidade: severityKey,
       origem: params.origem || 'frontend',
       ip: _getIP(),
       browser: _getBrowserInfo(),
