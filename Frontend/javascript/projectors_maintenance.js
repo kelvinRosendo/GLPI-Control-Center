@@ -20,6 +20,8 @@
 
 window.ProjectorsMaintenance = {
 
+  STORAGE_KEY: 'gcc_projector_maintenance',
+
   // ══════════════════════════════════════════════════════════════════════════
   // API PÚBLICA
   // ══════════════════════════════════════════════════════════════════════════
@@ -127,6 +129,19 @@ window.ProjectorsMaintenance = {
   // ══════════════════════════════════════════════════════════════════════════
 
   /**
+   * Retorna todos os registros de manutencao (sincrono, do localStorage).
+   * @returns {array}
+   */
+  getAllRecords() {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  /**
    * Retorna historico de manutencoes de um projetor via backend API.
    * @param {number} glpiId
    * @returns {array}
@@ -134,15 +149,63 @@ window.ProjectorsMaintenance = {
   async getHistory(glpiId) {
     try {
       const records = await window.GlpiClient.fetchProjectorHistory(glpiId);
+      this._saveToStorage(records);
       return records;
     } catch {
-      return [];
+      return this._getFromStorage(glpiId);
     }
+  },
+
+  /**
+   * Retorna estatisticas de manutencoes de um projetor.
+   * @param {number} glpiId
+   * @returns {{ total: number, byType: object }}
+   */
+  async getStats(glpiId) {
+    const history = await this.getHistory(glpiId);
+    const byType = {};
+    history.forEach(record => {
+      const key = record.type || record.tipo || 'outro';
+      byType[key] = (byType[key] || 0) + 1;
+    });
+    return { total: history.length, byType };
   },
 
   // ══════════════════════════════════════════════════════════════════════════
   // INTERNOS
   // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Salva registros no localStorage.
+   * @param {array} records
+   */
+  _saveToStorage(records) {
+    try {
+      const existing = this.getAllRecords();
+      const merged = [...existing];
+      records.forEach(newRecord => {
+        const idx = merged.findIndex(r => r.id === newRecord.id);
+        if (idx >= 0) {
+          merged[idx] = newRecord;
+        } else {
+          merged.push(newRecord);
+        }
+      });
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(merged));
+    } catch {
+      // Ignorar erros de storage
+    }
+  },
+
+  /**
+   * Retorna registros de um projetor do localStorage.
+   * @param {number} glpiId
+   * @returns {array}
+   */
+  _getFromStorage(glpiId) {
+    const all = this.getAllRecords();
+    return all.filter(r => r.glpiId === glpiId);
+  },
 
   // ── Eventos ──────────────────────────────────────────────────────────────
 

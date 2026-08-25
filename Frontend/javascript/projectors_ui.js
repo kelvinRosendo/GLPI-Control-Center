@@ -37,7 +37,7 @@ window.ProjectorsUI = {
    * Renderiza o conteúdo do módulo de projetores.
    * @param {string} containerId
    */
-  render(containerId = 'main-content') {
+  async render(containerId = 'main-content') {
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -46,7 +46,7 @@ window.ProjectorsUI = {
         container.innerHTML = this._renderGridView();
         break;
       case 'detail':
-        container.innerHTML = this._renderDetailView();
+        container.innerHTML = await this._renderDetailView();
         break;
       case 'maintenance_form':
         container.innerHTML = this._renderMaintenanceFormView();
@@ -170,7 +170,7 @@ window.ProjectorsUI = {
       <div class="pj-alerts-banner" role="alert">
         <span class="pj-alerts-icon">&#9888;</span>
         <span class="pj-alerts-text">
-          ${critical > 0 ? `<strong>${critical}</strong> crítico${critical > 1 ? 's'}` : ''}
+          ${critical > 0 ? `<strong>${critical}</strong> crítico${critical > 1 ? 's' : ''}` : ''}
           ${critical > 0 && warning > 0 ? ' · ' : ''}
           ${warning > 0 ? `<strong>${warning}</strong> com atenção` : ''}
           ${alerts.length === 1 ? '1 alerta ativo' : `${alerts.length} alertas ativos`}
@@ -327,7 +327,7 @@ window.ProjectorsUI = {
    * Renderiza a view de detalhes de um projetor.
    * @returns {string} HTML
    */
-  _renderDetailView() {
+  async _renderDetailView() {
     const projector = this._uiState.selectedProjector;
     if (!projector) return this._renderGridView();
 
@@ -335,8 +335,8 @@ window.ProjectorsUI = {
     const statusConfig = config.getStatus(projector.calculatedStatus) || config.status.operando;
     const lampPct = window.Projectors.getLampPercentage(projector);
     const lampColor = window.Projectors.getLampColor(lampPct);
-    const history = window.ProjectorsMaintenance.getHistory(projector.glpiId);
-    const stats = window.ProjectorsMaintenance.getStats(projector.glpiId);
+    const history = await window.ProjectorsMaintenance.getHistory(projector.glpiId);
+    const stats = await window.ProjectorsMaintenance.getStats(projector.glpiId);
 
     return `
       <div class="pj-container">
@@ -688,7 +688,7 @@ window.ProjectorsUI = {
   /**
    * Handler: Submeter formulário de manutenção.
    */
-  _onSubmitMaintenance(form) {
+  async _onSubmitMaintenance(form) {
     const glpiId = Number(form.dataset.pjFormProjector);
     const type = document.getElementById('pj-maint-type').value;
     const date = document.getElementById('pj-maint-date').value;
@@ -706,7 +706,7 @@ window.ProjectorsUI = {
       return;
     }
 
-    const result = window.ProjectorsMaintenance.register(glpiId, {
+    const result = await window.ProjectorsMaintenance.register(glpiId, {
       type,
       date,
       responsible,
@@ -761,11 +761,11 @@ window.ProjectorsUI = {
   /**
    * Navega para o módulo de projetores.
    */
-  open() {
+  async open() {
     this._uiState.view = 'grid';
     this._uiState.selectedProjector = null;
     this._uiState.searchQuery = '';
     this._uiState.statusFilter = 'todos';
-    window.ProjectorsUI.render();
+    await window.ProjectorsUI.render();
   },
 };

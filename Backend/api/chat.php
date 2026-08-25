@@ -149,8 +149,8 @@ CONTEXTO;
                 'Authorization: Bearer ' . getenv('OPENAI_API_KEY'),
             ],
             CURLOPT_TIMEOUT => 30,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
         ]);
 
         $raw = curl_exec($ch);
