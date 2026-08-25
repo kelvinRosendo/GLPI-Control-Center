@@ -32,6 +32,8 @@ window.App = {
     if (window.KeyboardShortcuts) window.KeyboardShortcuts.init();
     if (window.Settings) window.Settings.init();
     if (window.SettingsUI) window.SettingsUI.init();
+    if (window.ErrorHandler) window.ErrorHandler.init();
+    if (window.ErrorUI) window.ErrorUI.init();
     if (window.NotificationsUI) window.NotificationsUI.init();
 
     // Verificar se há sessão válida

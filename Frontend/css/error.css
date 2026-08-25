@@ -1,0 +1,337 @@
+/**
+ * GLPI Control Center - error.css
+ * -----------------------------------------------------------------------------
+ * Estilos para o sistema de erros.
+ *
+ * Sprint 24: Error Handling
+ */
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TOAST CONTAINER
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.error-toast-container {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 400px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TOAST
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.error-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  transform: translateX(120%);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+
+.error-toast.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.error-toast.hide {
+  transform: translateX(120%);
+  opacity: 0;
+}
+
+.error-toast--error {
+  border-left: 4px solid #f7768e;
+}
+
+.error-toast--warning {
+  border-left: 4px solid #e0af68;
+}
+
+.error-toast--success {
+  border-left: 4px solid #9ece6a;
+}
+
+.error-toast--info {
+  border-left: 4px solid #7aa2f7;
+}
+
+.error-toast--critical {
+  border-left: 4px solid #f7768e;
+  background: rgba(247, 118, 142, 0.1);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TOAST CONTENT
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.error-toast-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.error-toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.error-toast-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.error-toast-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.error-toast-module {
+  background: var(--bg-secondary);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.error-toast-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.error-toast-close:hover {
+  color: var(--text);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MODAL
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.error-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10002;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.error-modal.show {
+  opacity: 1;
+}
+
+.error-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.error-modal-content {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MODAL HEADER
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.error-modal-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.error-modal-header h3 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.error-modal-icon {
+  font-size: 24px;
+}
+
+.error-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 24px;
+  cursor: pointer;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MODAL BODY
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.error-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 140px);
+}
+
+.error-modal-message {
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 16px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.error-modal-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.error-detail-row {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.error-detail-label {
+  color: var(--text-secondary);
+  min-width: 80px;
+}
+
+.error-detail-value {
+  color: var(--text);
+}
+
+.error-detail-stack {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.error-stack {
+  background: var(--bg-secondary);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  overflow-x: auto;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MODAL FOOTER
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.error-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   BUTTONS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.error-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.error-btn:hover {
+  background: var(--bg-hover);
+}
+
+.error-btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.error-btn--primary:hover {
+  opacity: 0.9;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ERROR BOUNDARY
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.error-boundary-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.error-boundary-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.error-boundary-message {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   RESPONSIVO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .error-toast-container {
+    left: 8px;
+    right: 8px;
+    max-width: none;
+  }
+
+  .error-modal-content {
+    width: 95%;
+  }
+}
