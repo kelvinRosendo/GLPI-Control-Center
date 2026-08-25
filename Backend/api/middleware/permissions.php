@@ -1,0 +1,265 @@
+<?php
+/**
+ * api/middleware/permissions.php
+ * -----------------------------------------------------------------------------
+ * Middleware de verificação de permissões no backend.
+ *
+ * Uso:
+ *   require_once __DIR__ . '/middleware/permissions.php';
+ *   PermissionMiddleware::requireModule('projetores', 'edit');
+ *   PermissionMiddleware::requireAction('reports', 'export');
+ *
+ * Sprint 16: RBAC e Permissões
+ */
+
+declare(strict_types=1);
+
+class PermissionMiddleware
+{
+    /**
+     * Módulos e suas ações permitidas por perfil.
+     */
+    private static array $moduleActions = [
+        'home' => [
+            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA', 'SUPORTE', 'VISUALIZADOR'],
+        ],
+        'computadores' => [
+            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
+            'search' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
+            'edit' => ['ADMIN', 'TI'],
+            'openTicket' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
+        ],
+        'projetores' => [
+            'view' => ['ADMIN', 'TI', 'SUPORTE'],
+            'edit' => ['ADMIN', 'TI'],
+            'maintenance' => ['ADMIN', 'TI'],
+        ],
+        'chamados' => [
+            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA', 'SUPORTE'],
+            'create' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
+            'edit' => ['ADMIN', 'TI'],
+        ],
+        'relatorios' => [
+            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA'],
+            'export' => ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA'],
+            'configure' => ['ADMIN'],
+        ],
+        'auditoria' => [
+            'view' => ['ADMIN', 'TI'],
+            'export' => ['ADMIN', 'TI'],
+            'clear' => ['ADMIN'],
+        ],
+        'assistente' => [
+            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
+            'chat' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
+        ],
+        'settings' => [
+            'view' => ['ADMIN'],
+            'manage' => ['ADMIN'],
+        ],
+        'notifications' => [
+            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA', 'SUPORTE', 'VISUALIZADOR'],
+        ],
+        'integrations' => [
+            'view' => ['ADMIN', 'TI'],
+            'manage' => ['ADMIN'],
+        ],
+    ];
+
+    /**
+     * Verifica se o usuário tem permissão para acessar um módulo.
+     *
+     * @param string $module Chave do módulo
+     * @param string $action Ação desejada (view, edit, delete, etc.)
+     * @return bool
+     */
+    public static function can(string $module, string $action = 'view'): bool
+    {
+        $profile = self::getUserProfile();
+        if (!$profile) {
+            return false;
+        }
+
+        $modulePerms = self::$moduleActions[$module] ?? null;
+        if (!$modulePerms) {
+            return false;
+        }
+
+        $allowedProfiles = $modulePerms[$action] ?? [];
+        return in_array($profile, $allowedProfiles, true);
+    }
+
+    /**
+     * Verifica se o usuário pode acessar um módulo.
+     *
+     * @param string $module Chave do módulo
+     * @return bool
+     */
+    public static function canAccess(string $module): bool
+    {
+        return self::can($module, 'view');
+    }
+
+    /**
+     * Requer permissão para acessar um módulo. Retorna erro 403 se não tiver.
+     *
+     * @param string $module Chave do módulo
+     * @return void
+     */
+    public static function requireModule(string $module): void
+    {
+        if (!self::canAccess($module)) {
+            self::denyAccess($module, 'view');
+        }
+    }
+
+    /**
+     * Requer permissão para executar uma ação. Retorna erro 403 se não tiver.
+     *
+     * @param string $module Chave do módulo
+     * @param string $action Ação desejada
+     * @return void
+     */
+    public static function requireAction(string $module, string $action): void
+    {
+        if (!self::can($module, $action)) {
+            self::denyAccess($module, $action);
+        }
+    }
+
+    /**
+     * Requer perfil mínimo. Retorna erro 403 se não tiver nível suficiente.
+     *
+     * @param string $minProfile Perfil mínimo exigido
+     * @return void
+     */
+    public static function requireMinLevel(string $minProfile): void
+    {
+        $profile = self::getUserProfile();
+        if (!$profile) {
+            self::denyAccess('system', 'auth');
+        }
+
+        $levels = [
+            'ADMIN' => 100,
+            'TI' => 80,
+            'COORDENADORA' => 60,
+            'DIRETORA' => 55,
+            'VICE_DIRETORA' => 50,
+            'SUPORTE' => 40,
+            'VISUALIZADOR' => 10,
+        ];
+
+        $currentLevel = $levels[$profile] ?? 0;
+        $requiredLevel = $levels[$minProfile] ?? 0;
+
+        if ($currentLevel < $requiredLevel) {
+            self::denyAccess('system', 'level');
+        }
+    }
+
+    /**
+     * Retorna o perfil do usuário a partir do token/header.
+     *
+     * @return string|null
+     */
+    public static function getUserProfile(): ?string
+    {
+        // Buscar perfil do header de autorização
+        $profile = $_SERVER['HTTP_X_GCC_PROFILE'] ?? null;
+        if ($profile) {
+            return strtoupper($profile);
+        }
+
+        // Fallback: buscar do token JWT decoded
+        // Preparado para implementação futura com validação backend
+        return null;
+    }
+
+    /**
+     * Retorna o email do usuário a partir do token/header.
+     *
+     * @return string|null
+     */
+    public static function getUserEmail(): ?string
+    {
+        return $_SERVER['HTTP_X_GCC_EMAIL'] ?? null;
+    }
+
+    /**
+     * Retorna o nome do usuário a partir do token/header.
+     *
+     * @return string|null
+     */
+    public static function getUserName(): ?string
+    {
+        return $_SERVER['HTTP_X_GCC_NAME'] ?? null;
+    }
+
+    /**
+     * Negar acesso e retornar erro 403.
+     *
+     * @param string $module Módulo tentado
+     * @param string $action Ação tentada
+     * @return void
+     */
+    private static function denyAccess(string $module, string $action): void
+    {
+        http_response_code(403);
+
+        // Registrar tentativa de acesso negado
+        self::logAccessDenied($module, $action);
+
+        echo json_encode([
+            'ok' => false,
+            'error' => 'Acesso negado.',
+            'code' => 'PERMISSION_DENIED',
+            'module' => $module,
+            'action' => $action,
+        ], JSON_UNESCAPED_UNICODE);
+
+        exit;
+    }
+
+    /**
+     * Registra tentativa de acesso negado em log.
+     *
+     * @param string $module
+     * @param string $action
+     * @return void
+     */
+    private static function logAccessDenied(string $module, string $action): void
+    {
+        $email = self::getUserEmail() ?? 'unknown';
+        $profile = self::getUserProfile() ?? 'unknown';
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $timestamp = date('c');
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+
+        $logMessage = "[{$timestamp}] ACCESS_DENIED | User: {$email} | Profile: {$profile} | Module: {$module} | Action: {$action} | IP: {$ip} | UA: {$userAgent}\n";
+
+        $logFile = __DIR__ . '/../logs/access_denied_' . date('Y-m-d') . '.log';
+        @file_put_contents($logFile, $logMessage, FILE_APPEND | LOCK_EX);
+    }
+
+    /**
+     * Registra ação administrativa em log.
+     *
+     * @param string $action Ação realizada
+     * @param array $details Detalhes adicionais
+     * @return void
+     */
+    public static function logAdminAction(string $action, array $details = []): void
+    {
+        $email = self::getUserEmail() ?? 'unknown';
+        $profile = self::getUserProfile() ?? 'unknown';
+        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $timestamp = date('c');
+
+        $detailsJson = json_encode($details, JSON_UNESCAPED_UNICODE);
+        $logMessage = "[{$timestamp}] ADMIN_ACTION | User: {$email} | Profile: {$profile} | Action: {$action} | Details: {$detailsJson} | IP: {$ip}\n";
+
+        $logFile = __DIR__ . '/../logs/admin_actions_' . date('Y-m-d') . '.log';
+        @file_put_contents($logFile, $logMessage, FILE_APPEND | LOCK_EX);
+    }
+}

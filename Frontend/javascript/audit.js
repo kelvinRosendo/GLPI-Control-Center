@@ -81,7 +81,13 @@ window.Audit = (function () {
    */
   function _getCurrentUser() {
     try {
-      if (window.STATE && window.STATE.auth && window.STATE.auth.currentUser) {
+      // Usar UserContext (Sprint 9.5) se disponível
+      if (window.UserContext?.isAuthenticated()) {
+        const user = window.UserContext.getCurrentUser();
+        return user?.nome || user?.email || 'desconhecido';
+      }
+      // Fallback para estado antigo
+      if (window.STATE?.auth?.currentUser) {
         return window.STATE.auth.currentUser.name || window.STATE.auth.currentUser.login || 'desconhecido';
       }
     } catch {}

@@ -1,0 +1,146 @@
+/**
+ * GLPI Control Center - session-warning.css
+ * -----------------------------------------------------------------------------
+ * Estilos do modal de alerta de sessão expirando.
+ *
+ * Sprint 15: Autenticação
+ */
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   OVERLAY
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.session-warning-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  animation: sessionWarningFadeIn 0.3s ease forwards;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   MODAL
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.session-warning-modal {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 32px;
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  animation: sessionWarningSlideUp 0.3s ease forwards;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ÍCONE
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.session-warning-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  animation: sessionWarningPulse 2s ease-in-out infinite;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TIPOGRAFIA
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.session-warning-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 12px;
+}
+
+.session-warning-text {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.session-warning-text strong {
+  color: var(--color-yellow);
+  font-family: var(--font-mono);
+  font-size: 18px;
+}
+
+.session-warning-subtext {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0 0 24px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   BOTÕES
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.session-warning-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.session-warning-btn {
+  flex: 1;
+  padding: 12px 20px;
+  font-family: var(--font-family);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+}
+
+.session-warning-btn--primary {
+  background: var(--gradient-primary);
+  color: var(--color-text-inverse);
+}
+
+.session-warning-btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-button-hover);
+}
+
+.session-warning-btn--secondary {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.session-warning-btn--secondary:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ANIMAÇÕES
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes sessionWarningFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sessionWarningSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sessionWarningPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}

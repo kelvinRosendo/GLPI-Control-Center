@@ -1,0 +1,178 @@
+/**
+ * GLPI Control Center - access-denied.css
+ * -----------------------------------------------------------------------------
+ * Estilos da tela de acesso negado.
+ *
+ * Sprint 15: Autenticação
+ */
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CONTAINER
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.access-denied {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 24px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CARD
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.access-denied-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  padding: 40px;
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ÍCONE
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.access-denied-icon {
+  font-size: 56px;
+  margin-bottom: 16px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   TIPOGRAFIA
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.access-denied-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 12px;
+}
+
+.access-denied-module {
+  font-size: 15px;
+  color: var(--color-text-secondary);
+  margin: 0 0 8px;
+  line-height: 1.5;
+}
+
+.access-denied-module strong {
+  color: var(--color-accent);
+}
+
+.access-denied-reason {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0 0 16px;
+  font-style: italic;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   INFO DO USUÁRIO
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.access-denied-info {
+  background: var(--color-surface2);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.access-denied-profile,
+.access-denied-email {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.access-denied-profile + .access-denied-email {
+  border-top: 1px solid var(--color-border);
+}
+
+.access-denied-label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.access-denied-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   BOTÕES
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.access-denied-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.access-denied-btn {
+  width: 100%;
+  padding: 12px 20px;
+  font-family: var(--font-family);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: none;
+}
+
+.access-denied-btn--primary {
+  background: var(--gradient-primary);
+  color: var(--color-text-inverse);
+}
+
+.access-denied-btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-button-hover);
+}
+
+.access-denied-btn--secondary {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.access-denied-btn--secondary:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   HELP
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+.access-denied-help {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   RESPONSIVIDADE
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+  .access-denied-card {
+    padding: 32px 24px;
+  }
+
+  .access-denied-icon {
+    font-size: 48px;
+  }
+
+  .access-denied-title {
+    font-size: 20px;
+  }
+}

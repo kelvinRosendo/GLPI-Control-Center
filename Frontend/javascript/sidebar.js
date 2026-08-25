@@ -197,6 +197,11 @@ window.Sidebar = (function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   function _getVisibleModules() {
+    // Usar PermissionChecker se disponível
+    if (window.PC?.getVisibleModuleKeys) {
+      return window.PC.getVisibleModuleKeys();
+    }
+    // Fallback para UserContext
     if (window.UserContext?.getVisibleModules) {
       return window.UserContext.getVisibleModules().map(m => m.key);
     }

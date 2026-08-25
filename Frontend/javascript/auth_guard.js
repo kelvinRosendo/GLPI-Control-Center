@@ -184,7 +184,12 @@ window.AuthGuard = (function () {
     const moduleName = window.Permissions?.getModules()?.[moduleKey]?.label || moduleKey;
     console.warn(`[AuthGuard] Acesso negado ao módulo: ${moduleName}`);
 
-    _emit('guard:access-denied', { module: moduleKey, moduleName });
+    // Usar componente AccessDenied se disponível
+    if (window.AccessDenied) {
+      window.AccessDenied.show(moduleKey);
+    } else {
+      _emit('guard:access-denied', { module: moduleKey, moduleName });
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════

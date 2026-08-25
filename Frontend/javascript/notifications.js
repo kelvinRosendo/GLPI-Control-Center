@@ -432,6 +432,125 @@ window.Notifications = (function () {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // EXPORTAÇÃO
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Exporta notificações como JSON.
+   * @param {object} options - Filtros opcionais
+   * @returns {string} JSON stringificado
+   */
+  function exportJSON(options = {}) {
+    const notifications = _getFilteredForExport(options);
+    return JSON.stringify(notifications, null, 2);
+  }
+
+  /**
+   * Exporta notificações como CSV.
+   * @param {object} options - Filtros opcionais
+   * @returns {string} CSV formatado
+   */
+  function exportCSV(options = {}) {
+    const notifications = _getFilteredForExport(options);
+    const headers = ['ID', 'Título', 'Mensagem', 'Categoria', 'Tipo', 'Prioridade', 'Lida', 'Data/Hora', 'Usuário', 'Origem'];
+    const rows = notifications.map(n => [
+      n.id,
+      `"${(n.titulo || '').replace(/"/g, '""')}"`,
+      `"${(n.mensagem || '').replace(/"/g, '""')}"`,
+      n.categoria,
+      n.tipo,
+      n.prioridade,
+      n.lida ? 'Sim' : 'Não',
+      n.dataHora,
+      `"${(n.usuario || '').replace(/"/g, '""')}"`,
+      `"${(n.origem || '').replace(/"/g, '""')}"`,
+    ]);
+
+    return [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
+  }
+
+  /**
+   * Exporta e faz download de notificações.
+   * @param {string} format - 'json' ou 'csv'
+   * @param {object} options - Filtros opcionais
+   */
+  function exportAndDownload(format = 'json', options = {}) {
+    let content, filename, mimeType;
+
+    if (format === 'csv') {
+      content = exportCSV(options);
+      filename = `notificacoes_${_getDateStr()}.csv`;
+      mimeType = 'text/csv;charset=utf-8;';
+    } else {
+      content = exportJSON(options);
+      filename = `notificacoes_${_getDateStr()}.json`;
+      mimeType = 'application/json;charset=utf-8;';
+    }
+
+    const blob = new Blob(['\ufeff' + content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    _emit('notifications:exported', { format, count: _getFilteredForExport(options).length });
+  }
+
+  function _getFilteredForExport(options) {
+    let notifications = window.NotificationsStorage.findAll();
+
+    if (options.category) {
+      notifications = notifications.filter(n => n.categoria === options.category);
+    }
+    if (options.startDate) {
+      notifications = notifications.filter(n => new Date(n.dataHora) >= new Date(options.startDate));
+    }
+    if (options.endDate) {
+      notifications = notifications.filter(n => new Date(n.dataHora) <= new Date(options.endDate));
+    }
+    if (options.unreadOnly) {
+      notifications = notifications.filter(n => !n.lida);
+    }
+
+    return notifications;
+  }
+
+  function _getDateStr() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // BADGES POR MÓDULO
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Retorna contagem de não lidas por categoria/módulo.
+   * @returns {object} { WORKFLOW: 3, PROJECTORS: 1, ... }
+   */
+  function getUnreadByModule() {
+    const unread = window.NotificationsStorage.findUnread();
+    const counts = {};
+
+    unread.forEach(n => {
+      const cat = n.categoria || 'OTHER';
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+
+    return counts;
+  }
+
+  /**
+   * Emite eventos de badge por módulo.
+   */
+  function _updateModuleBadges() {
+    const counts = getUnreadByModule();
+    _emit('notifications:moduleBadges', { counts });
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // API PÚBLICA
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -450,6 +569,10 @@ window.Notifications = (function () {
     search,
     getFiltered,
     getStats,
+    exportJSON,
+    exportCSV,
+    exportAndDownload,
+    getUnreadByModule,
   };
 
 })();
