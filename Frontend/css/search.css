@@ -31,10 +31,10 @@
 .search-input {
   width: 100%;
   padding: 10px 44px 10px 40px;
-  background: var(--surface, #1e1e2e);
-  border: 1.5px solid var(--border, #2a2a3e);
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
   border-radius: 10px;
-  color: var(--text, #e2e2f0);
+  color: var(--color-text);
   font-size: 14px;
   font-family: inherit;
   outline: none;
@@ -42,12 +42,12 @@
 }
 
 .search-input::placeholder {
-  color: var(--text-muted, #555570);
+  color: var(--color-text-muted);
 }
 
 .search-input:focus {
-  border-color: var(--accent, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.15);
 }
 
 /* ── Botão limpar busca (✕) ──────────────────────────────────────────── */
@@ -56,7 +56,7 @@
   right: 12px;
   background: none;
   border: none;
-  color: var(--text-muted, #555570);
+  color: var(--color-text-muted);
   font-size: 13px;
   cursor: pointer;
   padding: 4px 6px;
@@ -66,8 +66,8 @@
 }
 
 .search-clear:hover {
-  color: var(--text, #e2e2f0);
-  background: rgba(255,255,255,0.06);
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 /* ── Filtros de status ───────────────────────────────────────────────── */
@@ -80,9 +80,9 @@
 .filter-btn {
   padding: 5px 14px;
   border-radius: 20px;
-  border: 1.5px solid var(--border, #2a2a3e);
+  border: 1.5px solid var(--color-border);
   background: transparent;
-  color: var(--text-muted, #888899);
+  color: var(--color-text-muted);
   font-size: 12px;
   font-family: inherit;
   cursor: pointer;
@@ -91,26 +91,26 @@
 }
 
 .filter-btn:hover {
-  border-color: var(--accent, #6366f1);
-  color: var(--text, #e2e2f0);
+  border-color: var(--color-accent);
+  color: var(--color-text);
 }
 
 .filter-btn.active {
-  background: var(--accent, #6366f1);
-  border-color: var(--accent, #6366f1);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
   color: #fff;
   font-weight: 500;
 }
 
 /* Cores específicas por status */
-.filter-btn[data-status="ativo"].active     { background: #22c55e; border-color: #22c55e; }
-.filter-btn[data-status="manutencao"].active{ background: #f59e0b; border-color: #f59e0b; }
-.filter-btn[data-status="emprestado"].active{ background: #3b82f6; border-color: #3b82f6; }
+.filter-btn[data-status="ativo"].active     { background: var(--color-green); border-color: var(--color-green); }
+.filter-btn[data-status="manutencao"].active{ background: var(--color-yellow); border-color: var(--color-yellow); }
+.filter-btn[data-status="emprestado"].active{ background: var(--color-accent); border-color: var(--color-accent); }
 
 /* ── Contagem de resultados ───────────────────────────────────────────── */
 .result-count {
   font-size: 12px;
-  color: var(--text-muted, #888899);
+  color: var(--color-text-muted);
   padding: 2px 20px 8px;
   margin: 0;
 }
@@ -125,8 +125,8 @@
 
 /* ── Card de ativo ───────────────────────────────────────────────────── */
 .asset-card {
-  background: var(--surface, #1e1e2e);
-  border: 1px solid var(--border, #2a2a3e);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 14px 16px;
   display: flex;
@@ -136,8 +136,8 @@
 }
 
 .asset-card:hover {
-  border-color: var(--accent, #6366f1);
-  box-shadow: 0 0 0 2px rgba(99,102,241,0.08);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(var(--color-accent-rgb), 0.08);
 }
 
 .asset-card-header {
@@ -150,7 +150,7 @@
 .asset-name {
   font-size: 14px;
   font-weight: 600;
-  color: var(--text, #e2e2f0);
+  color: var(--color-text);
   word-break: break-word;
   line-height: 1.3;
 }
@@ -164,9 +164,9 @@
   flex-shrink: 0;
 }
 
-.status-ativo      { background: rgba(34,197,94,0.12);  color: #4ade80; }
-.status-manutencao { background: rgba(245,158,11,0.12); color: #fbbf24; }
-.status-emprestado { background: rgba(59,130,246,0.12); color: #60a5fa; }
+.status-ativo      { background: rgba(var(--color-green-rgb), 0.15); color: var(--color-green); }
+.status-manutencao { background: rgba(var(--color-yellow-rgb), 0.15); color: var(--color-yellow); }
+.status-emprestado { background: rgba(var(--color-accent-rgb), 0.15); color: var(--color-accent); }
 
 .asset-card-body {
   display: flex;
@@ -176,23 +176,23 @@
 
 .asset-meta {
   font-size: 12px;
-  color: var(--text-muted, #888899);
+  color: var(--color-text-muted);
 }
 
 .asset-meta strong {
-  color: var(--text, #c8c8dc);
+  color: var(--color-text);
   font-weight: 500;
 }
 
 .asset-card-footer {
   margin-top: auto;
   padding-top: 6px;
-  border-top: 1px solid var(--border, #2a2a3e);
+  border-top: 1px solid var(--color-border);
 }
 
 .btn-glpi {
   font-size: 12px;
-  color: var(--accent, #818cf8);
+  color: var(--color-accent);
   text-decoration: none;
   font-weight: 500;
   transition: color 0.15s;
@@ -205,7 +205,7 @@
 
 /* ── Destaque de busca ───────────────────────────────────────────────── */
 .search-highlight {
-  background: rgba(99,102,241,0.3);
+  background: rgba(var(--color-accent-rgb), 0.3);
   color: #fff;
   border-radius: 3px;
   padding: 0 2px;
@@ -213,7 +213,7 @@
 
 /* ── Mensagem vazia ──────────────────────────────────────────────────── */
 .empty-msg {
-  color: var(--text-muted, #888899);
+  color: var(--color-text-muted);
   font-size: 13px;
   padding: 20px;
   grid-column: 1 / -1;
@@ -232,8 +232,8 @@
 .carrinho-col {
   min-width: 240px;
   flex: 1;
-  background: var(--surface, #1e1e2e);
-  border: 1px solid var(--border, #2a2a3e);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 14px;
   display: flex;
@@ -244,7 +244,7 @@
 .carrinho-title {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text, #e2e2f0);
+  color: var(--color-text);
   margin: 0;
   display: flex;
   justify-content: space-between;
@@ -254,7 +254,7 @@
 .carrinho-count {
   font-size: 11px;
   font-weight: 400;
-  color: var(--text-muted, #888899);
+  color: var(--color-text-muted);
 }
 
 .carrinho-list {
@@ -267,7 +267,7 @@
 
 .carrinho-list::-webkit-scrollbar { width: 4px; }
 .carrinho-list::-webkit-scrollbar-track { background: transparent; }
-.carrinho-list::-webkit-scrollbar-thumb { background: var(--border, #2a2a3e); border-radius: 4px; }
+.carrinho-list::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
 
 /* ── Home cards ──────────────────────────────────────────────────────── */
 .home-wrapper {
@@ -277,7 +277,7 @@
 .section-title {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text, #e2e2f0);
+  color: var(--color-text);
   margin: 0 0 16px;
 }
 
@@ -288,8 +288,8 @@
 }
 
 .home-card {
-  background: var(--surface, #1e1e2e);
-  border: 1px solid var(--border, #2a2a3e);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -298,21 +298,21 @@
   transition: border-color 0.2s;
 }
 
-.home-card:hover { border-color: var(--accent, #6366f1); }
+.home-card:hover { border-color: var(--color-accent); }
 
 .home-card-icon { font-size: 26px; line-height: 1; }
 
 .home-card-info h3 {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text, #e2e2f0);
+  color: var(--color-text);
   margin: 0 0 4px;
 }
 
 .home-card-total {
   font-size: 22px;
   font-weight: 700;
-  color: var(--text, #e2e2f0);
+  color: var(--color-text);
   margin: 0 0 8px;
 }
 
@@ -322,18 +322,18 @@
   gap: 4px;
 }
 
-.pill-ativo  { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(34,197,94,0.12);  color: #4ade80; }
-.pill-manut  { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(245,158,11,0.12); color: #fbbf24; }
-.pill-emp    { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(59,130,246,0.12); color: #60a5fa; }
+.pill-ativo  { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(var(--color-green-rgb), 0.15); color: var(--color-green); }
+.pill-manut  { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(var(--color-yellow-rgb), 0.15); color: var(--color-yellow); }
+.pill-emp    { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(var(--color-accent-rgb), 0.15); color: var(--color-accent); }
 
 /* ── Modal de chamado ────────────────────────────────────────────────── */
 .btn-ticket {
   display: inline-block;
   margin-top: 8px;
   font-size: 12px;
-  color: var(--green, #4ade80);
-  background: rgba(0, 200, 150, 0.08);
-  border: 1px solid rgba(0, 200, 150, 0.25);
+  color: var(--color-green);
+  background: rgba(var(--color-green-rgb), 0.08);
+  border: 1px solid rgba(var(--color-green-rgb), 0.25);
   border-radius: 6px;
   padding: 5px 10px;
   cursor: pointer;
@@ -344,8 +344,8 @@
 }
 
 .btn-ticket:hover {
-  background: rgba(0, 200, 150, 0.18);
-  border-color: rgba(0, 200, 150, 0.5);
+  background: rgba(var(--color-green-rgb), 0.18);
+  border-color: rgba(var(--color-green-rgb), 0.5);
   color: #fff;
 }
 
@@ -355,8 +355,8 @@
 }
 
 #ticket-modal > div {
-  background: var(--surface, #1e1e2e);
-  border: 1px solid var(--border, #2a2a3e);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   border-radius: 16px;
   padding: 28px;
   width: 100%;
@@ -368,13 +368,13 @@
 #ticket-modal h3 {
   font-size: 16px;
   font-weight: 600;
-  color: var(--text, #e2e2f0);
+  color: var(--color-text);
   margin: 0 0 4px;
 }
 
 #ticket-modal #modal-asset-name {
   font-size: 13px;
-  color: var(--accent, #818cf8);
+  color: var(--color-accent);
   margin: 0 0 20px;
 }
 
@@ -383,10 +383,10 @@
 #ticket-modal select {
   width: 100%;
   padding: 10px 12px;
-  background: var(--bg, #0f1117);
-  border: 1.5px solid var(--border, #2a2a3e);
+  background: var(--color-bg);
+  border: 1.5px solid var(--color-border);
   border-radius: 8px;
-  color: var(--text, #e2e2f0);
+  color: var(--color-text);
   font-size: 14px;
   font-family: inherit;
   outline: none;
@@ -398,8 +398,8 @@
 #ticket-modal input:focus,
 #ticket-modal textarea:focus,
 #ticket-modal select:focus {
-  border-color: var(--accent, #6366f1);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.15);
 }
 
 #ticket-modal textarea {
@@ -408,5 +408,5 @@
 }
 
 #ticket-modal select option {
-  background: var(--surface, #1e1e2e);
+  background: var(--color-surface);
 }

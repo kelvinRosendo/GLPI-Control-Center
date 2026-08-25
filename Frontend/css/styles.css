@@ -13,37 +13,21 @@
    - Centralizar todo o estilo visual do painel (tema dark + layout + componentes)
    - Separar aparência do comportamento (JS)
    - Facilitar manutenção, evolução e padronização
+   
+   NOTA: As variáveis CSS agora são definidas em design-system.css
    ========================================================================== */
 
 
 /* ==========================================================================
-   1) Tema / Design Tokens (variáveis globais)
+   1) Reset / Base
    --------------------------------------------------------------------------
-   - Cores base do tema (background, superfícies, bordas)
-   - Cores de status (ativo, manutenção, emprestado)
-   - Tipografia e radius (bordas arredondadas)
-   - Alterar aqui muda o sistema inteiro com consistência
+   - Remove margens/paddings padrão do browser
+   - Define box-sizing consistente para layout previsível
    ========================================================================== */
-:root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --surface2: #222535;
-  --surface3: #2a2e42;
-  --border: #2e3347;
-
-  --accent: #4f7ef7;
-  --accent2: #6c5ce7;
-
-  --green: #00c896;
-  --yellow: #ffc107;
-  --red: #ff5555;
-
-  --text: #e8eaf6;
-  --text2: #9299b8;
-  --text3: #5a6080;
-
-  --radius: 12px;
-  --radius-sm: 8px;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 

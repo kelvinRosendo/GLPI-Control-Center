@@ -8,6 +8,9 @@ window.App = {
   assetsLoaded: false,
 
   async init() {
+    // Inicializar tema
+    if (window.Theme) window.Theme.init();
+
     // Inicializar módulos de autenticação
     if (window.AuthGuard) window.AuthGuard.init();
     if (window.Auth) window.Auth.init();
