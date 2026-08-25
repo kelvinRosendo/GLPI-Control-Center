@@ -11,6 +11,9 @@ window.App = {
     // Inicializar tema
     if (window.Theme) window.Theme.init();
 
+    // Inicializar sidebar
+    if (window.Sidebar) window.Sidebar.init();
+
     // Inicializar módulos de autenticação
     if (window.AuthGuard) window.AuthGuard.init();
     if (window.Auth) window.Auth.init();
@@ -131,12 +134,21 @@ window.App = {
   },
 
   render() {
-    const tabsEl = document.getElementById('tabs-bar');
     const mainEl = document.getElementById('main-content');
-    if (!tabsEl || !mainEl) return;
+    const breadcrumbEl = document.getElementById('breadcrumb-container');
+    if (!mainEl) return;
 
-    tabsEl.innerHTML = this._renderTabs();
+    // Renderizar sidebar
+    if (window.Sidebar) {
+      window.Sidebar.render();
+    }
 
+    // Renderizar breadcrumb
+    if (breadcrumbEl && window.Sidebar) {
+      breadcrumbEl.innerHTML = window.Sidebar.renderBreadcrumb();
+    }
+
+    // Renderizar conteúdo
     if (window.STATE.tab === 'home' && window.Dashboard.isLoaded()) {
       mainEl.innerHTML = '';
       window.DashboardUI.render('main-content');
@@ -146,7 +158,7 @@ window.App = {
 
     this._animateTabContent(mainEl);
 
-    this._bindTabEvents();
+    this._bindSidebarEvents();
     if (window.STATE.tab !== 'home') {
       this._bindSearchEvents();
       this._bindComputerCardEvents();
@@ -234,9 +246,38 @@ window.App = {
     }
   },
 
-  _bindTabEvents() {
-    document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
-      btn.addEventListener('click', () => this.go(btn.dataset.tab));
+  _bindSidebarEvents() {
+    // Mobile toggle
+    const mobileToggle = document.getElementById('sidebar-mobile-toggle');
+    const overlay = document.getElementById('sidebar-overlay');
+    
+    if (mobileToggle) {
+      mobileToggle.addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar) {
+          sidebar.classList.toggle('sidebar--mobile-open');
+          overlay?.classList.toggle('active');
+        }
+      });
+    }
+
+    if (overlay) {
+      overlay.addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        sidebar?.classList.remove('sidebar--mobile-open');
+        overlay.classList.remove('active');
+      });
+    }
+
+    // Breadcrumb links
+    document.querySelectorAll('.breadcrumb-link[data-sidebar-tab]').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const tabId = link.dataset.sidebarTab;
+        if (tabId && window.App?.go) {
+          window.App.go(tabId);
+        }
+      });
     });
   },
 

@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="css/audit.css" />
   <link rel="stylesheet" href="css/notifications.css" />
   <link rel="stylesheet" href="css/mano-isa.css" />
+  <link rel="stylesheet" href="css/sidebar.css" />
 
 <link rel="stylesheet" href="css/styles.css" />
 </head>
@@ -46,33 +47,42 @@
   </div>
 
   <!-- APP -->
-  <div id="app">
-    <div class="topbar">
-      <a class="topbar-logo" href="#">
-        <img src="assets/branding/logo/logotextoesquerdabranco.png" alt="GCC" class="topbar-logo-img" />
-      </a>
+  <div id="app" class="app-layout app--sidebar-expanded">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar" role="complementary"></aside>
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-      <div class="topbar-right">
-        <span id="glpi-status" class="glpi-status" style="font-size:13px;color:var(--green)">
-          ● Conectado ao GLPI
-        </span>
-        <div class="notif-bell-wrapper">
-          <button class="notif-bell-btn" id="notification-bell-btn" data-notif-action="toggle" title="Central de Notificações">
-            🔔
-          </button>
-          <span class="notif-badge" id="notification-badge" style="display:none;"></span>
+    <!-- Conteúdo principal -->
+    <div class="app-main">
+      <div class="topbar">
+        <button class="topbar-menu-btn" id="sidebar-mobile-toggle" aria-label="Abrir menu">
+          &#9776;
+        </button>
+        <div class="topbar-right">
+          <span id="glpi-status" class="glpi-status" style="font-size:13px;color:var(--green)">
+            ● Conectado ao GLPI
+          </span>
+          <div class="notif-bell-wrapper">
+            <button class="notif-bell-btn" id="notification-bell-btn" data-notif-action="toggle" title="Central de Notificações">
+              🔔
+            </button>
+            <span class="notif-badge" id="notification-badge" style="display:none;"></span>
+          </div>
+          <div class="user-info">
+            <span id="user-name" class="user-name"></span>
+            <span id="user-role" class="user-role"></span>
+          </div>
+          <div class="avatar" id="user-avatar">U</div>
+          <button class="logout-btn" id="logout-btn" onclick="window.App.logout()">Sair</button>
         </div>
-        <div class="user-info">
-          <span id="user-name" class="user-name"></span>
-          <span id="user-role" class="user-role"></span>
-        </div>
-        <div class="avatar" id="user-avatar">U</div>
-        <button class="logout-btn" id="logout-btn" onclick="window.App.logout()">Sair</button>
       </div>
-    </div>
 
-    <div class="tabs-bar"  id="tabs-bar"></div>
-    <div class="content"   id="main-content"></div>
+      <!-- Breadcrumb -->
+      <div id="breadcrumb-container"></div>
+
+      <!-- Conteúdo -->
+      <div class="content" id="main-content"></div>
+    </div>
   </div>
 
   <!-- CENTRAL DE NOTIFICAÇÕES -->
@@ -89,6 +99,7 @@
 <script src="javascript/config.env.js"></script>
 <script src="javascript/theme.js"></script>
 <script src="javascript/mano-isa.js"></script>
+<script src="javascript/sidebar.js"></script>
 <script src="javascript/data.js"></script>
 <script src="javascript/state.js"></script>
 <script src="javascript/auth.config.js"></script>

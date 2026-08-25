@@ -269,6 +269,33 @@ textarea,
   z-index: 100;
 }
 
+/* Mobile menu button */
+.topbar-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 20px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.topbar-menu-btn:hover {
+  background: rgba(var(--color-accent-rgb), 0.08);
+  color: var(--color-accent);
+}
+
+@media (max-width: 768px) {
+  .topbar-menu-btn {
+    display: flex;
+  }
+}
+
 /* Logo / nome do app no canto esquerdo */
 .topbar-logo {
   display: flex;
