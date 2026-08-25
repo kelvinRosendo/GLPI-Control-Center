@@ -38,6 +38,7 @@ window.App = {
     if (window.ApiClient) window.ApiClient.init();
     if (window.ApiInterceptors) window.ApiInterceptors.install();
     if (window.Preload) window.Preload.init();
+    if (window.PerfMonitor) window.PerfMonitor.init();
     if (window.NotificationsUI) window.NotificationsUI.init();
 
     // Verificar se há sessão válida
