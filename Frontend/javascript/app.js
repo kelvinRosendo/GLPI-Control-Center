@@ -27,6 +27,8 @@ window.App = {
     if (window.NotificationsCenter) window.NotificationsCenter.init();
     if (window.Notifications) window.Notifications.init();
     if (window.NotificationPreferences) window.NotificationPreferences.init();
+    if (window.Search) window.Search.init();
+    if (window.SearchUI) window.SearchUI.init();
     if (window.NotificationsUI) window.NotificationsUI.init();
 
     // Verificar se há sessão válida
