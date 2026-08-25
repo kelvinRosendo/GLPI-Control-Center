@@ -1,0 +1,450 @@
+/**
+ * GLPI Control Center - keyboard_shortcuts.css
+ * -----------------------------------------------------------------------------
+ * Estilos para o modal de ajuda de atalhos de teclado.
+ *
+ * Sprint 19: Keyboard Shortcuts
+ */
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MODAL DE AJUDA
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.shortcuts-help-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+
+.shortcuts-help-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.shortcuts-help-content {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 520px;
+  max-height: 80vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.2s ease;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   HEADER
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.shortcuts-help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcuts-help-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.shortcuts-help-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.shortcuts-help-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   BODY
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.shortcuts-help-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  max-height: calc(80vh - 60px);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   GRUPOS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.shortcuts-help-group {
+  margin-bottom: 16px;
+}
+
+.shortcuts-help-group:last-child {
+  margin-bottom: 0;
+}
+
+.shortcuts-help-category {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ROWS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.shortcuts-help-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.shortcuts-help-row:last-child {
+  border-bottom: none;
+}
+
+.shortcuts-help-keys {
+  display: flex;
+  gap: 4px;
+}
+
+.shortcuts-help-keys span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 24px;
+  padding: 0 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.shortcuts-help-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SEARCH MODAL (atualizado)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.search-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: none;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+}
+
+.search-modal.open {
+  display: flex;
+  animation: fadeIn 0.15s ease;
+}
+
+.search-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+}
+
+.search-modal-content {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 70vh;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.2s ease;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SEARCH INPUT
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.search-modal-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.search-modal-icon {
+  font-size: 20px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.search-modal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.search-modal-input::placeholder {
+  color: var(--text-secondary);
+}
+
+.search-modal-kbd {
+  padding: 2px 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--text-secondary);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SEARCH FILTERS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.search-modal-filters {
+  display: flex;
+  gap: 6px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.search-filter-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.search-filter-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.search-filter-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SEARCH RESULTS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.search-modal-results {
+  max-height: calc(70vh - 120px);
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.search-modal-count {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.search-modal-group {
+  margin-bottom: 8px;
+}
+
+.search-modal-group-title {
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+}
+
+.search-modal-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.search-modal-item:hover {
+  background: var(--bg-hover);
+}
+
+.search-modal-item-icon {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.search-modal-item-icon.status-active {
+  background: rgba(72, 199, 142, 0.15);
+  color: var(--success, #48c78e);
+}
+
+.search-modal-item-icon.status-maintenance {
+  background: rgba(255, 224, 102, 0.15);
+  color: var(--warning, #ffe066);
+}
+
+.search-modal-item-icon.status-loan {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.search-modal-item-icon.history {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.search-modal-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-modal-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-modal-item-name mark {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.search-modal-item-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.search-modal-item-status {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.search-modal-item-status.status-active {
+  background: rgba(72, 199, 142, 0.15);
+  color: var(--success, #48c78e);
+}
+
+.search-modal-item-status.status-maintenance {
+  background: rgba(255, 224, 102, 0.15);
+  color: var(--warning, #ffe066);
+}
+
+.search-modal-item-status.status-loan {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.search-modal-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ANIMAÇÕES
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   RESPONSIVO
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 600px) {
+  .search-modal {
+    padding-top: 5vh;
+  }
+
+  .search-modal-content {
+    width: 95%;
+    max-height: 85vh;
+  }
+
+  .shortcuts-help-content {
+    width: 95%;
+  }
+
+  .shortcuts-help-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
