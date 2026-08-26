@@ -42,8 +42,8 @@
   --color-text-rgb: 232, 234, 246;
   --color-text-secondary: #9299b8;
   --color-text-secondary-rgb: 146, 153, 184;
-  --color-text-muted: #5a6080;
-  --color-text-muted-rgb: 90, 96, 128;
+  --color-text-muted: #6b7194;
+  --color-text-muted-rgb: 107, 113, 148;
   --color-text-inverse: #ffffff;
 
   /* ── Cores de fundo ────────────────────────────────────────────────────── */
@@ -206,7 +206,14 @@
   --text2: var(--color-text-secondary);
   --text3: var(--color-text-muted);
   --radius: var(--radius-lg);
-  --radius-sm: var(--radius-md);
+  --shadow: var(--shadow-sm);
+
+  /* ── Tokens legado (referenciados por componentes existentes) ─────────── */
+  --bg-secondary: var(--color-surface2);
+  --bg-hover: var(--color-surface3);
+  --bg-card: var(--color-surface);
+  --text-secondary: var(--color-text-secondary);
+  --card-accent: var(--color-accent);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -565,19 +572,19 @@ code, pre, .mono {
 
 .ds-alert--info {
   background: rgba(var(--status-info-rgb), 0.12);
-  color: #b5c8ff;
+  color: var(--color-accent);
   border: 1px solid rgba(var(--status-info-rgb), 0.2);
 }
 
 .ds-alert--success {
   background: rgba(var(--status-success-rgb), 0.12);
-  color: #7ae8c6;
+  color: var(--color-green);
   border: 1px solid rgba(var(--status-success-rgb), 0.2);
 }
 
 .ds-alert--error {
   background: rgba(var(--status-danger-rgb), 0.12);
-  color: #ff9c9c;
+  color: var(--color-red);
   border: 1px solid rgba(var(--status-danger-rgb), 0.2);
 }
 

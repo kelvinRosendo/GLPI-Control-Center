@@ -257,7 +257,8 @@
 .sidebar-item-label {
   flex: 1;
   overflow: hidden;
-  text-overflow: ellipsis;
+  opacity: 1;
+  transition: opacity var(--transition-fast);
 }
 
 .sidebar--collapsed .sidebar-item-label {
@@ -394,6 +395,11 @@
 
   .sidebar .sidebar-item-label {
     display: none;
+  }
+
+  .sidebar .sidebar-item-icon {
+    width: 20px;
+    height: 20px;
   }
 
   .app--sidebar-expanded .app-main,

@@ -123,8 +123,12 @@
 
 .kpi-card:hover {
   border-color: var(--kpi-accent, var(--color-accent));
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-sm);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.kpi-card:active {
+  transform: translateY(0);
 }
 
 .kpi-icon {
@@ -136,6 +140,11 @@
   justify-content: center;
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.04);
+  transition: transform var(--transition-fast);
+}
+
+.kpi-card:hover .kpi-icon {
+  transform: scale(1.1);
 }
 
 .kpi-body {
