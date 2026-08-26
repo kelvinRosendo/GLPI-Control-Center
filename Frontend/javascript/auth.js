@@ -264,6 +264,9 @@ window.Auth = (function () {
   function _determineProfile(email) {
     const lowerEmail = email.toLowerCase();
 
+    // Administradores específicos
+    if (lowerEmail === 'kelvinrosendo@colegiosatelite.com.br') return 'ADMIN';
+
     // Regras de exemplo - em produção viria do backend
     if (lowerEmail.includes('admin')) return 'ADMIN';
     if (lowerEmail.includes('ti') || lowerEmail.includes('suporte')) return 'TI';

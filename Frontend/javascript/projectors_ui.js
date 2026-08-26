@@ -95,6 +95,9 @@ window.ProjectorsUI = {
           <p class="pj-subtitle">Controle de vida útil, manutenções e alertas</p>
         </div>
         <div class="pj-header-right">
+          <button class="pj-btn pj-btn-secondary" id="pj-diagnostic" title="Diagnosticar problemas" aria-label="Diagnosticar">
+            &#128269; Diagnóstico
+          </button>
           <button class="pj-btn pj-btn-secondary" id="pj-refresh" aria-label="Atualizar dados">
             &#8635; Atualizar
           </button>
@@ -556,13 +559,24 @@ window.ProjectorsUI = {
   },
 
   _renderError(message) {
+    const isConfigError = message.includes('Configuracao') || message.includes('GLPI') || message.includes('conexao');
     return `
       <div class="pj-container">
         <div class="pj-error-state" role="alert">
           <span class="pj-error-icon">&#9888;</span>
-          <h3 class="pj-error-title">Erro ao carregar</h3>
+          <h3 class="pj-error-title">Erro ao carregar projetores</h3>
           <p class="pj-error-message">${this._escapeHtml(message)}</p>
-          <button class="pj-btn pj-btn-secondary" id="pj-retry">Tentar novamente</button>
+          ${isConfigError ? `
+            <div class="pj-error-help">
+              <p><strong>Verifique:</strong></p>
+              <ul>
+                <li>O backend esta rodando? (http://localhost:8080)</li>
+                <li>As configuracoes do GLPI estao corretas no arquivo .env</li>
+                <li>Ha projetores cadastrados no GLPI? (nome deve comecar com "Projetor")</li>
+              </ul>
+            </div>
+          ` : ''}
+          <button class="pj-btn pj-btn-primary" id="pj-retry">Tentar novamente</button>
         </div>
       </div>
     `;
@@ -573,6 +587,15 @@ window.ProjectorsUI = {
   // ══════════════════════════════════════════════════════════════════════════
 
   _bindEvents() {
+    // Re-render quando dados carregarem
+    const onLoaded = () => {
+      if (window.State?.getTab() === 'projetores') {
+        this.render();
+      }
+    };
+    document.addEventListener('projectors:loaded', onLoaded);
+    document.addEventListener('projectors:error', onLoaded);
+
     // Busca
     const searchInput = document.getElementById('pj-search');
     if (searchInput) {
@@ -683,6 +706,14 @@ window.ProjectorsUI = {
         this.render();
       });
     }
+
+    // Diagnostic
+    const diagBtn = document.getElementById('pj-diagnostic');
+    if (diagBtn) {
+      diagBtn.addEventListener('click', async () => {
+        await this._runDiagnostic();
+      });
+    }
   },
 
   /**
@@ -756,6 +787,157 @@ window.ProjectorsUI = {
     if (field.tipo === 'data' && value) return this._formatDateBR(value);
     if (field.tipo === 'numero') return String(value);
     return String(value);
+  },
+
+  /**
+   * Executa diagnóstico do sistema de projetores.
+   */
+  async _runDiagnostic() {
+    const container = document.getElementById('main-content');
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="pj-container">
+        <div class="pj-loading" role="status">
+          <div class="pj-spinner"></div>
+          <p class="pj-loading-text">Executando diagnóstico...</p>
+        </div>
+      </div>
+    `;
+
+    try {
+      const baseUrl = (window.CONFIG?.backendUrl ?? 'http://localhost:8080').replace(/\/$/, '');
+      const res = await fetch(`${baseUrl}/api/projetors/diagnostic`);
+      const json = await res.json();
+
+      if (!json.ok) {
+        throw new Error(json.error || 'Erro ao executar diagnóstico');
+      }
+
+      const diag = json.data;
+      const isOk = diag.glpi_test === 'OK' && diag.projectors_found > 0;
+
+      container.innerHTML = `
+        <div class="pj-container">
+          <div class="pj-detail-header">
+            <button class="pj-back-btn" id="pj-back-grid" aria-label="Voltar">
+              &#8592; Voltar
+            </button>
+            <div class="pj-detail-title-group">
+              <span class="pj-detail-icon">&#128269;</span>
+              <div>
+                <h2 class="pj-detail-title">Diagnóstico do Sistema</h2>
+                <p class="pj-detail-subtitle">${isOk ? '<span style="color:var(--green,#00c896)">&#10003; Tudo funcionando</span>' : '<span style="color:var(--red,#ff5555)">&#9888; Problemas detectados</span>'}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="pj-detail-grid">
+            <div class="pj-detail-section">
+              <h3 class="pj-detail-section-title">&#9881; Configuração</h3>
+              <div class="pj-detail-fields">
+                <div class="pj-detail-field">
+                  <span class="pj-detail-field-label">Backend URL</span>
+                  <span class="pj-detail-field-value">${this._escapeHtml(diag.config?.glpi_url || 'N/A')}</span>
+                </div>
+                <div class="pj-detail-field">
+                  <span class="pj-detail-field-label">App Token</span>
+                  <span class="pj-detail-field-value">${diag.config?.has_app_token ? '&#10003; Configurado' : '&#10007; Nao configurado'}</span>
+                </div>
+                <div class="pj-detail-field">
+                  <span class="pj-detail-field-label">User Token</span>
+                  <span class="pj-detail-field-value">${diag.config?.has_user_token ? '&#10003; Configurado' : '&#10007; Nao configurado'}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="pj-detail-section">
+              <h3 class="pj-detail-section-title">&#128196; Conexao GLPI</h3>
+              <div class="pj-detail-fields">
+                <div class="pj-detail-field">
+                  <span class="pj-detail-field-label">Status</span>
+                  <span class="pj-detail-field-value" style="color:${diag.glpi_test === 'OK' ? 'var(--green,#00c896)' : 'var(--red,#ff5555)'}">${this._escapeHtml(diag.glpi_test || 'N/A')}</span>
+                </div>
+                <div class="pj-detail-field">
+                  <span class="pj-detail-field-label">Total Computadores</span>
+                  <span class="pj-detail-field-value">${diag.total_computers || 0}</span>
+                </div>
+                <div class="pj-detail-field">
+                  <span class="pj-detail-field-label">Projetores Encontrados</span>
+                  <span class="pj-detail-field-value" style="color:${diag.projectors_found > 0 ? 'var(--green,#00c896)' : 'var(--red,#ff5555)'}">${diag.projectors_found}</span>
+                </div>
+              </div>
+            </div>
+
+            ${diag.projectors_names?.length > 0 ? `
+              <div class="pj-detail-section" style="grid-column: 1 / -1">
+                <h3 class="pj-detail-section-title">&#128249; Projetores Detectados</h3>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">
+                  ${diag.projectors_names.map(name => `
+                    <span style="background:var(--surface2,#222535);padding:8px 12px;border-radius:var(--radius-md,8px);border:1px solid var(--border,#2e3347);">
+                      ${this._escapeHtml(name)}
+                    </span>
+                  `).join('')}
+                </div>
+              </div>
+            ` : `
+              <div class="pj-detail-section" style="grid-column: 1 / -1">
+                <h3 class="pj-detail-section-title">&#9888; Nenhum Projetor Encontrado</h3>
+                <div style="margin-top:12px;">
+                  <p style="color:var(--text-secondary,#9299b8);margin-bottom:12px;">
+                    Nenhum computador com nome comecando por <strong>"Projetor"</strong> foi encontrado no GLPI.
+                  </p>
+                  <p style="color:var(--text-secondary,#9299b8);">
+                    <strong>Para resolver:</strong><br>
+                    1. Acesse o GLPI e cadastre os projetores como "Computador"<br>
+                    2. O nome deve comecar com "Projetor" (ex: "Projetor Sala 01")<br>
+                    3. Configure os tokens de acesso no arquivo .env do backend
+                  </p>
+                </div>
+              </div>
+            `}
+
+            <div class="pj-detail-section" style="grid-column: 1 / -1">
+              <h3 class="pj-detail-section-title">&#128190; Dados Salvos</h3>
+              <div class="pj-detail-fields">
+                <div class="pj-detail-field">
+                  <span class="pj-detail-field-label">Projetores Salvos</span>
+                  <span class="pj-detail-field-value">${diag.saved_projectors_count}</span>
+                </div>
+                <div class="pj-detail-field">
+                  <span class="pj-detail-field-label">Arquivo de Dados</span>
+                  <span class="pj-detail-field-value">${diag.data_file?.exists ? '&#10003; Existe' : '&#10007; Nao encontrado'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      // Bind back button
+      document.getElementById('pj-back-grid')?.addEventListener('click', () => {
+        this._uiState.view = 'grid';
+        this.render();
+      });
+
+    } catch (err) {
+      container.innerHTML = `
+        <div class="pj-container">
+          <div class="pj-error-state" role="alert">
+            <span class="pj-error-icon">&#9888;</span>
+            <h3 class="pj-error-title">Erro ao executar diagnóstico</h3>
+            <p class="pj-error-message">${this._escapeHtml(err.message)}</p>
+            <button class="pj-btn pj-btn-primary" id="pj-retry-diag">Tentar novamente</button>
+            <button class="pj-btn pj-btn-secondary" id="pj-back-grid" style="margin-left:8px;">Voltar</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('pj-retry-diag')?.addEventListener('click', () => this._runDiagnostic());
+      document.getElementById('pj-back-grid')?.addEventListener('click', () => {
+        this._uiState.view = 'grid';
+        this.render();
+      });
+    }
   },
 
   /**

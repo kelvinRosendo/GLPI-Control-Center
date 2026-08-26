@@ -295,6 +295,10 @@ try {
       'PUT' => ProjectorsEndpoint::updateConfig($config),
       default => Responde::erro('Método não permitido.', 405),
     },
+    '/api/projetors/diagnostic' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET' => ProjectorsEndpoint::diagnostic($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
     '/api/chat' => ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
       ? ChatEndpoint::handle()
       : Responde::erro('Método não permitido.', 405),

@@ -48,38 +48,55 @@ window.Projectors = {
    * Carrega e processa dados dos projetores via backend API.
    * @returns {{ ok: boolean, error?: string }}
    */
-  async load() {
+   async load() {
     if (this._state.loading) return { ok: true };
 
     this._state.loading = true;
     this._state.error = '';
 
     try {
-      // 1. Buscar dados enriquecidos do backend
-      const response = await window.GlpiClient.fetchProjectorsEnriched();
+      // 1. Tentar buscar dados enriquecidos do backend
+      let projectors = [];
+      let indicators = {};
 
-      if (!response || !response.data) {
-        throw new Error('Resposta invalida do backend');
+      try {
+        const response = await window.GlpiClient.fetchProjectorsEnriched();
+        if (response && response.data) {
+          projectors = response.data.map(p => ({
+            ...p,
+            calculatedStatus: p.status_calculado || 'operando',
+          }));
+          indicators = response.indicators || this._calculateIndicators(projectors);
+        }
+      } catch (enrichedErr) {
+        console.warn('[Projectors] API enriquecida falhou, tentando dados basicos:', enrichedErr.message);
+        // Fallback: usar dados basicos do DATA
+        const basicData = window.DATA?.projetores || [];
+        if (basicData.length > 0) {
+          projectors = basicData.map(p => ({
+            ...p,
+            calculatedStatus: p.status || 'operando',
+            horas_lampada: p.horas_lampada || 0,
+            vida_util_estimada: p.vida_util_estimada || 3000,
+            ultima_manutencao: p.ultima_manutencao || '',
+            ultima_limpeza: p.ultima_limpeza || '',
+          }));
+          indicators = this._calculateIndicators(projectors);
+        } else {
+          throw new Error('Nenhum projetor encontrado. Verifique se ha projetores cadastrados no GLPI com nome comecando por "Projetor".');
+        }
       }
 
-      // 2. Usar dados do backend (ja enriquecidos com alertas e status)
-      const projectors = response.data.map(p => ({
-        ...p,
-        calculatedStatus: p.status_calculado || 'operando',
-      }));
-
-      // 3. Usar indicadores do backend
-      this._state.indicators = response.indicators || this._calculateIndicators(projectors);
-
-      // 4. Calcular alertas para o frontend
+      // 2. Calcular alertas para o frontend
       this._state.alerts = this._calculateAlerts(projectors);
 
-      // 5. Armazenar
+      // 3. Armazenar
       this._state.projectors = projectors;
+      this._state.indicators = indicators;
       this._state.loaded = true;
       this._state.loadedAt = new Date().toISOString();
 
-      // 6. Emitir evento
+      // 4. Emitir evento
       this._emit('projectors:loaded', {
         count: projectors.length,
         indicators: this._state.indicators,

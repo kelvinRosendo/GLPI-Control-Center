@@ -222,7 +222,7 @@ window.App = {
           return window.UI.renderSectionLoading('Carregando projetores...');
         }
         if (!window.Projectors.isLoaded() && !window.Projectors.isLoading()) {
-          window.Projectors.load();
+          this._loadProjectors();
         }
         window.ProjectorsUI.render('main-content');
         return '';
@@ -264,6 +264,20 @@ window.App = {
         `;
       default:
         return '<p class="empty-msg">Aba nao encontrada.</p>';
+    }
+  },
+
+  async _loadProjectors() {
+    try {
+      const result = await window.Projectors.load();
+      if (window.State?.getTab() === 'projetores') {
+        window.ProjectorsUI.render('main-content');
+      }
+    } catch (e) {
+      console.error('[App] Erro ao carregar projetores:', e);
+      if (window.State?.getTab() === 'projetores') {
+        window.ProjectorsUI.render('main-content');
+      }
     }
   },
 

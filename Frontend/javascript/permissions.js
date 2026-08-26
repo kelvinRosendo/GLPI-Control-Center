@@ -108,7 +108,7 @@ window.Permissions = (function () {
     },
 
     COORDENADORA: {
-      modules: ['home', 'chamados', 'relatorios', 'computadores', 'geekiees', 'apoio'],
+      modules: ['home', 'chamados', 'relatorios', 'computadores', 'geekiees', 'apoio', 'projetores'],
       actions: ['create', 'read', 'update'],
     },
 
@@ -123,7 +123,7 @@ window.Permissions = (function () {
     },
 
     SUPORTE: {
-      modules: ['home', 'computadores', 'geekiees', 'apoio', 'chamados'],
+      modules: ['home', 'computadores', 'geekiees', 'apoio', 'chamados', 'projetores'],
       actions: ['create', 'read', 'update'],
     },
 
@@ -149,7 +149,7 @@ window.Permissions = (function () {
       openTicket: ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
     },
     projetores: {
-      view: ['ADMIN', 'TI', 'SUPORTE'],
+      view: ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
       edit: ['ADMIN', 'TI'],
       maintenance: ['ADMIN', 'TI'],
     },

@@ -228,7 +228,14 @@ final class ProjectorsEndpoint
     $savedProjectors = $data['projectors'] ?? [];
 
     // Buscar projetores do GLPI
-    $glpiProjectors = self::getProjectorsFromGlpi($config);
+    $glpiProjectors = [];
+    $glpiError = null;
+    try {
+      $glpiProjectors = self::getProjectorsFromGlpi($config);
+    } catch (\Throwable $e) {
+      $glpiError = $e->getMessage();
+      error_log('[Projectors] Erro ao buscar projetores do GLPI: ' . $glpiError);
+    }
 
     // Enriquecer com dados salvos
     $items = [];
@@ -241,12 +248,18 @@ final class ProjectorsEndpoint
     // Calcular indicadores
     $indicators = self::calculateIndicators($items);
 
-    Responde::ok([
+    $response = [
       'data' => $items,
       'count' => count($items),
       'indicators' => $indicators,
       'config' => $configData,
-    ]);
+    ];
+
+    if ($glpiError !== null) {
+      $response['warning'] = 'Alguns dados podem estar incompletos: ' . $glpiError;
+    }
+
+    Responde::ok($response);
   }
 
   /**
@@ -617,5 +630,69 @@ final class ProjectorsEndpoint
     }
 
     return $json;
+  }
+
+  /**
+   * GET /api/projetors/diagnostic
+   * Endpoint de diagnóstico para verificar configuração e dados.
+   */
+  public static function diagnostic(array $config): void
+  {
+    $result = [
+      'timestamp' => date('c'),
+      'config' => [
+        'glpi_url' => $config['glpi']['url'] ?? 'NAO_CONFIGURADO',
+        'has_app_token' => !empty($config['glpi']['app_token']),
+        'has_user_token' => !empty($config['glpi']['user_token']),
+      ],
+      'data_file' => [
+        'exists' => is_file(self::DATA_FILE),
+        'path' => self::DATA_FILE,
+      ],
+      'glpi_test' => null,
+      'projectors_found' => 0,
+      'projectors_names' => [],
+    ];
+
+    // Testar conexao com GLPI
+    try {
+      $glpi = new GlpiClient($config['glpi'] ?? []);
+      $session = $glpi->initSession();
+      $raw = $glpi->getWithParams('/Computer', $session, [
+        'range' => '0-999',
+        'expand_dropdowns' => 'true',
+      ]);
+      $glpi->killSession($session);
+
+      $result['glpi_test'] = 'OK';
+      $result['total_computers'] = count($raw);
+
+      // Filtrar projetores
+      $projectors = [];
+      foreach ($raw as $c) {
+        if (!is_array($c)) continue;
+        $nome = trim($c['name'] ?? '');
+        if (preg_match('/^Projetor/i', $nome) === 1) {
+          $projectors[] = [
+            'id' => $c['id'] ?? null,
+            'name' => $nome,
+            'serial' => $c['serial'] ?? '',
+          ];
+        }
+      }
+
+      $result['projectors_found'] = count($projectors);
+      $result['projectors_names'] = array_column($projectors, 'name');
+      $result['projectors_ids'] = array_column($projectors, 'id');
+
+    } catch (\Throwable $e) {
+      $result['glpi_test'] = 'ERRO: ' . $e->getMessage();
+    }
+
+    // Verificar dados salvos
+    $savedData = self::loadData();
+    $result['saved_projectors_count'] = count($savedData['projectors'] ?? []);
+
+    Responde::ok(['data' => $result]);
   }
 }
