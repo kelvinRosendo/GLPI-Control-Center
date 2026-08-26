@@ -21,18 +21,22 @@ window.DashboardUI = {
     const state = window.Dashboard.getState();
 
     if (state.loading && !state.loaded) {
+      console.log('[DashboardUI] Renderizando skeleton de loading');
       container.innerHTML = this._renderLoading();
       return;
     }
     if (state.error && !state.loaded) {
+      console.log('[DashboardUI] Renderizando estado de erro:', state.error);
       container.innerHTML = this._renderError(state.error);
       return;
     }
     if (!state.loaded) {
+      console.log('[DashboardUI] Dashboard não carregado, renderizando loading');
       container.innerHTML = this._renderLoading();
       return;
     }
 
+    console.log('[DashboardUI] Renderizando dashboard completo');
     container.innerHTML = this._renderDashboard();
     this._bindEvents();
   },
@@ -121,7 +125,7 @@ window.DashboardUI = {
         <div class="dash-header-right">
           <span class="dash-updated">Atualizado agora</span>
           <button class="dash-refresh-btn" id="dash-refresh" title="Atualizar dados">
-            <span class="gcc-icon gcc-icon--sm"><img src="css/Icons/refresh.svg" alt="" /></span>
+            <span class="gcc-icon gcc-icon--sm"><img src="css/icons/refresh.svg" alt="" /></span>
             Atualizar
           </button>
         </div>
@@ -351,7 +355,7 @@ window.DashboardUI = {
         </div>
         <div class="dash-error-card">
           <div class="dash-error-icon">
-            <span class="gcc-icon gcc-icon--2xl" style="color: var(--color-red)"><img src="css/Icons/error.svg" alt="" /></span>
+            <span class="gcc-icon gcc-icon--2xl" style="color: var(--color-red)"><img src="css/icons/error.svg" alt="" /></span>
           </div>
           <p class="dash-error-message">${this._esc(message)}</p>
           <button class="ds-btn ds-btn--secondary" id="dash-retry">Tentar novamente</button>
@@ -368,8 +372,10 @@ window.DashboardUI = {
     // Refresh
     const refreshBtn = document.getElementById('dash-refresh');
     if (refreshBtn) {
-      refreshBtn.addEventListener('click', async () => {
-        refreshBtn.disabled = true;
+      refreshBtn.replaceWith(refreshBtn.cloneNode(true));
+      document.getElementById('dash-refresh').addEventListener('click', async () => {
+        const btn = document.getElementById('dash-refresh');
+        btn.disabled = true;
         await window.Dashboard.forceRefresh();
         this.render();
       });
@@ -378,7 +384,8 @@ window.DashboardUI = {
     // Retry
     const retryBtn = document.getElementById('dash-retry');
     if (retryBtn) {
-      retryBtn.addEventListener('click', async () => {
+      retryBtn.replaceWith(retryBtn.cloneNode(true));
+      document.getElementById('dash-retry').addEventListener('click', async () => {
         window.Dashboard.reset();
         this.render();
         await window.Dashboard.load();
@@ -418,15 +425,28 @@ window.DashboardUI = {
       });
     });
 
-    // Dashboard events
-    document.addEventListener('dashboard:loaded', () => this._renderCharts());
-    document.addEventListener('dashboard:recalculated', () => this._updateCharts());
-    window.addEventListener('beforeunload', () => window.DashboardCharts.destroy());
+    // Dashboard events — only bind once
+    if (!this._eventsBound) {
+      document.addEventListener('dashboard:loaded', () => this._renderCharts());
+      document.addEventListener('dashboard:recalculated', () => this._updateCharts());
+      window.addEventListener('beforeunload', () => window.DashboardCharts.destroy());
+      this._eventsBound = true;
+    }
   },
 
   _renderCharts() {
+    console.log('[DashboardUI] Inicializando gráficos');
     setTimeout(() => {
-      window.DashboardCharts.render('dash-charts-container');
+      const config = window.DASHBOARD_CONFIG;
+      const chartConfigs = config.getCharts();
+      for (const chartConfig of chartConfigs) {
+        if (!chartConfig.visible) continue;
+        const containerId = 'chart-container-' + chartConfig.id;
+        const container = document.getElementById(containerId);
+        if (container) {
+          window.DashboardCharts._renderChart(chartConfig);
+        }
+      }
     }, 100);
   },
 

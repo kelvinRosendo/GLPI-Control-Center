@@ -97,7 +97,8 @@ window.Sidebar = (function () {
 
     let html = `
       <div class="sidebar-header">
-        <img src="assets/branding/logo/logotextoesquerdabranco.png" alt="GCC" class="sidebar-logo" />
+        <img src="assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite" class="sidebar-logo sidebar-logo-full" />
+        <img src="assets/branding/logo/logo.png" alt="Colégio Satélite" class="sidebar-logo sidebar-logo-symbol" />
         <div class="sidebar-brand">
           <span class="sidebar-brand-name">GLPI Control Center</span>
           <span class="sidebar-brand-sub">Central de T.I.</span>

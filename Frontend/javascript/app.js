@@ -94,6 +94,7 @@ window.App = {
   },
 
   async _loadInitialData() {
+    console.log('[App] _loadInitialData iniciado');
     try {
       const result = await window.GlpiClient.loadAll();
       this.assetsLoading = false;
@@ -106,6 +107,7 @@ window.App = {
         console.warn('[App] Alguns endpoints falharam:', result.errors);
       }
 
+      console.log('[App] Dados iniciais carregados, chamando _loadDashboard');
       this._preloadTickets();
       this._loadDashboard();
       this.render();
@@ -253,7 +255,7 @@ window.App = {
         return `
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px;">
             <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(var(--color-accent-rgb),0.1);">
-              <span class="gcc-icon gcc-icon--xl" style="color:var(--color-accent)"><img src="css/Icons/assistance.svg" alt="" /></span>
+              <span class="gcc-icon gcc-icon--xl" style="color:var(--color-accent)"><img src="css/icons/assistance.svg" alt="" /></span>
             </div>
             <h3 style="margin:0;font-size:18px;">Assistente de Horários</h3>
             <p style="margin:0;color:var(--text2,#9299b8);font-size:14px;text-align:center;">Tire dúvidas sobre os horários dos carrinhos de Chromebooks.</p>
@@ -437,9 +439,23 @@ window.App = {
   async _loadDashboard() {
     if (window.Dashboard.isLoading()) return;
 
-    const result = await window.Dashboard.load();
-    if (result.ok && window.STATE.tab === 'home') {
-      window.DashboardUI.render();
+    console.log('[App] _loadDashboard iniciado');
+    try {
+      const result = await window.Dashboard.load();
+      if (result.ok && window.STATE.tab === 'home') {
+        console.log('[App] Dashboard carregado com sucesso, renderizando UI');
+        window.DashboardUI.render();
+      } else if (!result.ok) {
+        console.warn('[App] Dashboard falhou:', result.error);
+        if (window.STATE.tab === 'home') {
+          window.DashboardUI.render();
+        }
+      }
+    } catch (error) {
+      console.error('[App] _loadDashboard erro:', error);
+      if (window.STATE.tab === 'home') {
+        window.DashboardUI.render();
+      }
     }
   },
 

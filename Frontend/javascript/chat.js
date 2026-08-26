@@ -36,7 +36,7 @@ window.Chat = {
     messages.innerHTML += `
       <div id="${loadingId}" style="display:flex;gap:8px;align-items:flex-start;">
         <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:rgba(var(--color-accent-rgb),0.1);flex-shrink:0;">
-          <span class="gcc-icon gcc-icon--sm" style="color:var(--color-accent)"><img src="css/Icons/assistance.svg" alt="" /></span>
+          <span class="gcc-icon gcc-icon--sm" style="color:var(--color-accent)"><img src="css/icons/assistance.svg" alt="" /></span>
         </div>
         <div style="background:var(--surface2,#222535);padding:10px 14px;border-radius:10px;font-size:13px;color:var(--text2,#9299b8);">
           Pensando...
@@ -78,7 +78,7 @@ window.Chat = {
     const bgColor    = isUser  ? 'var(--accent,#4f7ef7)'       : isError ? 'rgba(255,85,85,0.15)' : 'var(--surface2,#222535)';
     const textColor  = isUser  ? '#fff'                         : isError ? 'var(--red,#ff5555)'   : 'var(--text,#e8eaf6)';
     const align      = isUser  ? 'flex-end'                     : 'flex-start';
-    const icon       = isUser  ? '' : `<div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:rgba(var(--color-accent-rgb),0.1);flex-shrink:0;"><span class="gcc-icon gcc-icon--sm" style="color:var(--color-accent)"><img src="css/Icons/assistance.svg" alt="" /></span></div>`;
+    const icon       = isUser  ? '' : `<div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:rgba(var(--color-accent-rgb),0.1);flex-shrink:0;"><span class="gcc-icon gcc-icon--sm" style="color:var(--color-accent)"><img src="css/icons/assistance.svg" alt="" /></span></div>`;
     const iconOrder  = isUser  ? '' : icon;
 
     messages.innerHTML += `

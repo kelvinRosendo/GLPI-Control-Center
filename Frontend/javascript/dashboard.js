@@ -50,17 +50,23 @@ window.Dashboard = {
     this._state.loading = true;
     this._state.error = '';
 
+    console.log('[Dashboard] Inicialização iniciada');
+
     try {
       // 1. Garantir que os dados base existem
+      console.log('[Dashboard] Buscando dados base...');
       await this._ensureData();
+      console.log('[Dashboard] Dados base carregados');
 
       // 2. Calcular indicadores dos cards
+      console.log('[Dashboard] Calculando indicadores...');
       this._state.indicators = this._calculateIndicators();
 
       // 3. Calcular widgets de resumo
       this._state.widgets = this._calculateWidgets();
 
       // 4. Calcular analytics
+      console.log('[Dashboard] Calculando analytics...');
       this._state.analytics = window.DashboardAnalytics.calculate(this._state.indicators);
 
       // 5. Marcar como carregado
@@ -68,6 +74,9 @@ window.Dashboard = {
       this._state.loadedAt = new Date().toISOString();
       this._state.lastRefresh = new Date().toISOString();
       this._state.isStale = false;
+      this._state.loading = false;
+
+      console.log('[Dashboard] KPIs prontos, emitindo dashboard:loaded');
 
       this._emit('dashboard:loaded', {
         indicators: this._state.indicators,
@@ -87,10 +96,13 @@ window.Dashboard = {
       // 6. Iniciar auto-refresh
       this._startAutoRefresh();
 
+      console.log('[Dashboard] Finalizando loading — OK');
       return { ok: true };
     } catch (err) {
       this._state.error = err.message || 'Erro ao carregar dashboard.';
       this._state.loading = false;
+
+      console.error('[Dashboard] Erro:', err);
 
       this._emit('dashboard:error', { error: this._state.error });
 

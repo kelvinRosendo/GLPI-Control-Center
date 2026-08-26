@@ -29,19 +29,21 @@ window.DashboardCharts = {
    * Renderiza todos os gráficos configurados dentro do container especificado.
    * @param {string} containerId - ID do elemento container
    */
-  render(containerId = 'dash-charts-container') {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-
-    this._containerEl = container;
+  render(containerId) {
     const config = window.DASHBOARD_CONFIG;
     const chartConfigs = config.getCharts();
 
     // Verificar se Chart.js está disponível
     if (typeof Chart === 'undefined') {
-      container.innerHTML = this._renderChartError('Chart.js não está disponível');
+      console.error('[DashboardCharts] Chart.js não está disponível');
+      for (const chartConfig of chartConfigs) {
+        if (!chartConfig.visible) continue;
+        this._renderChartError(chartConfig.id, 'Chart.js não está disponível');
+      }
       return;
     }
+
+    console.log('[DashboardCharts] Renderizando', chartConfigs.length, 'gráficos');
 
     // Renderizar cada gráfico
     for (const chartConfig of chartConfigs) {
@@ -100,7 +102,7 @@ window.DashboardCharts = {
 
     // Verificar se Chart.js está disponível
     if (typeof Chart === 'undefined') {
-      chartContainer.innerHTML = this._renderChartError('Chart.js não está disponível');
+      this._renderChartError(chartConfig.id, 'Chart.js não está disponível');
       return;
     }
 

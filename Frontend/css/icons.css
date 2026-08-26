@@ -57,46 +57,4 @@
   height: 48px;
 }
 
-/* ── Icon Paths Map (used by JS) ────────────────────────────────────────── */
-
-window.GCC_ICONS = {
-  dashboard: 'css/Icons/dashboard.svg',
-  computer: 'css/Icons/computer.svg',
-  chromebook: 'css/Icons/chromebook.svg',
-  projector: 'css/Icons/projector.svg',
-  printer: 'css/Icons/printer.svg',
-  tickets: 'css/Icons/tickets.svg',
-  assistance: 'css/Icons/assistance.svg',
-  analytics: 'css/Icons/analytics.svg',
-  reports: 'css/Icons/reports.svg',
-  audit: 'css/Icons/audit.svg',
-  notifications: 'css/Icons/notifications.svg',
-  suppliers: 'css/Icons/suppliers.svg',
-  integrations: 'css/Icons/integrations.svg',
-  settings: 'css/Icons/settings.svg',
-  refresh: 'css/Icons/refresh.svg',
-  logout: 'css/Icons/logout.svg',
-  user: 'css/Icons/user.svg',
-  success: 'css/Icons/success.svg',
-  warning: 'css/Icons/warning.svg',
-  error: 'css/Icons/error.svg',
-  info: 'css/Icons/info.svg',
-  cart: 'css/Icons/cart.svg',
-  search: 'css/Icons/search.svg',
-  'arrow-right': 'css/Icons/arrow-right.svg',
-  plus: 'css/Icons/plus.svg',
-  calendar: 'css/Icons/calendar.svg',
-};
-
-/**
- * Returns an <img> element for the given icon key.
- * @param {string} key - Icon key from GCC_ICONS
- * @param {string} [size='md'] - Size class (xs, sm, md, lg, xl, 2xl)
- * @param {string} [alt=''] - Alt text
- * @returns {string} HTML string
- */
-window.gccIcon = function (key, size = 'md', alt = '') {
-  const path = window.GCC_ICONS[key];
-  if (!path) return '';
-  return `<span class="gcc-icon gcc-icon--${size}" aria-hidden="true"><img src="${path}" alt="${alt}" loading="lazy" /></span>`;
-};
+/* ── Icon Paths Map — movido para javascript/icons.js (Sprint 29) ──────── */
