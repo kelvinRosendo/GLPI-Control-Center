@@ -1,16 +1,16 @@
 /**
  * GLPI Control Center - sidebar.js
  * -----------------------------------------------------------------------------
- * Componente Sidebar — navegação lateral agrupada.
+ * Componente Sidebar — navegação lateral agrupada com ícones SVG locais.
  *
- * Grupos de navegação:
- *   Dashboard
+ * Grupos de navegação (Sprint 28):
+ *   PRINCIPAL: Dashboard
  *   OPERAÇÃO: Inventário, Chamados, Projetores, Assistências
  *   GESTÃO: Analytics, Relatórios, Auditoria, Notificações
  *   INTEGRAÇÕES: Fornecedores, Integrações
  *   ADMINISTRAÇÃO: Configurações
  *
- * Sprint 14: Navegação e Sidebar
+ * Sprint 28: Dashboard Corporativo
  */
 
 window.Sidebar = (function () {
@@ -24,31 +24,46 @@ window.Sidebar = (function () {
 
   const NAV_GROUPS = [
     {
-      id: 'dashboard',
-      label: '',
+      id: 'principal',
+      label: 'PRINCIPAL',
       items: [
-        { id: 'home', label: 'Dashboard', icon: '&#128200;', module: 'home' },
+        { id: 'home', label: 'Dashboard', icon: 'dashboard', module: 'home' },
       ],
     },
     {
       id: 'operacao',
       label: 'OPERAÇÃO',
       items: [
-        { id: 'computadores', label: 'Inventário', icon: '&#128421;', module: 'computadores' },
-        { id: 'chamados', label: 'Chamados', icon: '&#128196;', module: 'chamados' },
-        { id: 'projetores', label: 'Projetores', icon: '&#128249;', module: 'projetores' },
-        { id: 'assistente', label: 'Assistências', icon: '&#129302;', module: 'assistente' },
+        { id: 'computadores', label: 'Inventário', icon: 'computer', module: 'computadores' },
+        { id: 'chamados', label: 'Chamados', icon: 'tickets', module: 'chamados' },
+        { id: 'projetores', label: 'Projetores', icon: 'projector', module: 'projetores' },
+        { id: 'assistente', label: 'Assistências', icon: 'assistance', module: 'assistente' },
       ],
     },
     {
       id: 'gestao',
       label: 'GESTÃO',
       items: [
-        { id: 'geekiees', label: 'Geekiees', icon: '&#128214;', module: 'geekiees' },
-        { id: 'apoio', label: 'Carrinhos', icon: '&#128666;', module: 'apoio' },
-        { id: 'impressoras', label: 'Impressoras', icon: '&#128424;', module: 'impressoras' },
-        { id: 'relatorios', label: 'Relatórios', icon: '&#128203;', module: 'relatorios' },
-        { id: 'auditoria', label: 'Auditoria', icon: '&#128737;', module: 'auditoria' },
+        { id: 'geekiees', label: 'Geekiees', icon: 'chromebook', module: 'geekiees' },
+        { id: 'apoio', label: 'Carrinhos', icon: 'cart', module: 'apoio' },
+        { id: 'impressoras', label: 'Impressoras', icon: 'printer', module: 'impressoras' },
+        { id: 'relatorios', label: 'Relatórios', icon: 'reports', module: 'relatorios' },
+        { id: 'auditoria', label: 'Auditoria', icon: 'audit', module: 'auditoria' },
+      ],
+    },
+    {
+      id: 'integracoes',
+      label: 'INTEGRAÇÕES',
+      items: [
+        { id: 'fornecedores', label: 'Fornecedores', icon: 'suppliers', module: 'fornecedores' },
+        { id: 'integracoes', label: 'Integrações', icon: 'integrations', module: 'integracoes' },
+      ],
+    },
+    {
+      id: 'admin',
+      label: 'ADMINISTRAÇÃO',
+      items: [
+        { id: 'configuracoes', label: 'Configurações', icon: 'settings', module: 'configuracoes' },
       ],
     },
   ];
@@ -106,12 +121,13 @@ window.Sidebar = (function () {
 
       visibleItems.forEach(item => {
         const isActive = currentTab === item.id;
+        const iconHtml = window.gccIcon ? window.gccIcon(item.icon, 'sm') : '';
         html += `
           <button class="sidebar-item ${isActive ? 'sidebar-item--active' : ''}"
                   data-sidebar-tab="${item.id}"
                   title="${item.label}"
                   aria-current="${isActive ? 'page' : 'false'}">
-            <span class="sidebar-item-icon">${item.icon}</span>
+            <span class="sidebar-item-icon">${iconHtml}</span>
             <span class="sidebar-item-label">${item.label}</span>
           </button>
         `;

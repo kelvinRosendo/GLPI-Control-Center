@@ -160,11 +160,13 @@ window.NotificationsUI = (function () {
   function _renderNotificationItem(notif) {
     const catConfig = window.NOTIFICATIONS_CONFIG.getCategory(notif.categoria);
     const timeAgo = _formatTimeAgo(notif.dataHora);
+    const iconKey = notif.icone || catConfig.icon || 'info';
+    const iconHtml = window.gccIcon ? window.gccIcon(iconKey, 'sm') : '';
 
     return `
       <div class="notif-item ${notif.lida ? 'read' : 'unread'}" data-notif-id="${notif.id}">
         <div class="notif-item-icon" style="background:${catConfig.color}20;color:${catConfig.color}">
-          ${notif.icone || catConfig.icon}
+          ${iconHtml}
         </div>
         <div class="notif-item-content">
           <div class="notif-item-header">

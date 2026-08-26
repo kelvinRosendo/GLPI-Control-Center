@@ -252,9 +252,11 @@ window.App = {
       case 'assistente':
         return `
           <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;gap:16px;">
-            <span style="font-size:48px;">🤖</span>
-            <h3 style="margin:0;font-size:18px;">Assistente de Horarios</h3>
-            <p style="margin:0;color:var(--text2,#9299b8);font-size:14px;text-align:center;">Tire duvidas sobre os horarios dos carrinhos de Chromebooks.</p>
+            <div style="width:48px;height:48px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(var(--color-accent-rgb),0.1);">
+              <span class="gcc-icon gcc-icon--xl" style="color:var(--color-accent)"><img src="css/Icons/assistance.svg" alt="" /></span>
+            </div>
+            <h3 style="margin:0;font-size:18px;">Assistente de Horários</h3>
+            <p style="margin:0;color:var(--text2,#9299b8);font-size:14px;text-align:center;">Tire dúvidas sobre os horários dos carrinhos de Chromebooks.</p>
             <button onclick="window.Chat.openPanel()" style="padding:12px 28px;background:var(--accent,#4f7ef7);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">Abrir chat</button>
           </div>
         `;
@@ -542,15 +544,18 @@ window.App = {
     const el = document.getElementById('glpi-status');
     if (!el) return;
     const map = {
-      carregando: { icon: '⟳', texto: 'Conectando ao GLPI...', cor: '#888' },
-      conectado: { icon: '●', texto: 'Conectado ao GLPI', cor: '#4ade80' },
-      parcial: { icon: '◐', texto: 'Parcialmente conectado', cor: '#facc15' },
-      offline: { icon: '●', texto: 'Backend indisponivel', cor: '#f87171' },
+      carregando: { texto: 'Conectando...', cor: 'var(--color-text-muted)', bg: 'rgba(var(--color-text-muted-rgb), 0.08)' },
+      conectado: { texto: 'Conectado ao GLPI', cor: 'var(--color-green)', bg: 'rgba(var(--color-green-rgb), 0.08)' },
+      parcial: { texto: 'Parcialmente conectado', cor: 'var(--color-yellow)', bg: 'rgba(var(--color-yellow-rgb), 0.08)' },
+      offline: { texto: 'Backend indisponível', cor: 'var(--color-red)', bg: 'rgba(var(--color-red-rgb), 0.08)' },
     };
     const s = map[estado] || map.offline;
-    const envLabel = window.CONFIG?.mode === 'local' ? 'Local' : 'Servidor';
     el.style.color = s.cor;
-    el.textContent = `${s.icon} ${s.texto} · ${envLabel}`;
+    el.style.background = s.bg;
+    const dot = el.querySelector('.glpi-status-dot');
+    if (dot) dot.style.background = s.cor;
+    const text = el.querySelector('.glpi-status-text');
+    if (text) text.textContent = s.texto;
   },
 };
 

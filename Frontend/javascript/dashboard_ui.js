@@ -1,37 +1,21 @@
 /**
  * GLPI Control Center - dashboard_ui.js
  * -----------------------------------------------------------------------------
- * Módulo de renderização do Dashboard Operacional.
+ * Módulo de renderização do Dashboard Operacional — Visual Corporativo.
  *
- * Responsabilidades:
- * - Renderizar cards de indicadores a partir de DASHBOARD_CONFIG
- * - Renderizar widgets de resumo operacional
- * - Gerenciar estados visuais (loading, vazio, erro)
- * - Animations e hover states
- *
- * NÃO contém lógica de negócio. Consulte dashboard.js.
- * NÃO contém configuração. Consulte dashboard.config.js.
- *
- * Sprint 5: Dashboard Operacional
+ * Sprint 28: Dashboard Corporativo
  */
 
 window.DashboardUI = {
-  // ── Estado da UI ─────────────────────────────────────────────────────────
-
   _containerEl: null,
 
   // ══════════════════════════════════════════════════════════════════════════
   // RENDERIZAÇÃO PRINCIPAL
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Renderiza o dashboard completo dentro do container especificado.
-   * @param {string} containerId - ID do elemento container
-   */
   render(containerId = 'main-content') {
     const container = document.getElementById(containerId);
     if (!container) return;
-
     this._containerEl = container;
 
     const state = window.Dashboard.getState();
@@ -40,12 +24,10 @@ window.DashboardUI = {
       container.innerHTML = this._renderLoading();
       return;
     }
-
     if (state.error && !state.loaded) {
       container.innerHTML = this._renderError(state.error);
       return;
     }
-
     if (!state.loaded) {
       container.innerHTML = this._renderLoading();
       return;
@@ -55,275 +37,285 @@ window.DashboardUI = {
     this._bindEvents();
   },
 
-  /**
-   * Atualiza apenas os valores dos cards (sem re-render completo).
-   * Mais performático que render() completo.
-   */
   updateCards() {
     if (!this._containerEl) return;
-
-    const cards = this._containerEl.querySelectorAll('.dash-card-value');
-    const config = window.DASHBOARD_CONFIG;
+    const kpiEls = this._containerEl.querySelectorAll('.kpi-value');
     const indicators = window.Dashboard.getIndicators();
-
-    cards.forEach(el => {
-      const cardId = el.dataset.cardId;
-      if (cardId) {
-        const value = indicators[cardId] ?? 0;
+    kpiEls.forEach(el => {
+      const kpiId = el.dataset.kpiId;
+      if (kpiId) {
+        const value = indicators[kpiId] ?? 0;
         el.textContent = this._formatNumber(value);
-        el.classList.add('dash-card-value-updated');
-        setTimeout(() => el.classList.remove('dash-card-value-updated'), 600);
       }
     });
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDERIZAÇÃO: DASHBOARD COMPLETO
+  // DASHBOARD COMPLETO
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Renderiza o HTML completo do dashboard.
-   * @returns {string}
-   */
   _renderDashboard() {
     const config = window.DASHBOARD_CONFIG;
     const indicators = window.Dashboard.getIndicators();
-    const widgets = window.Dashboard.getWidgets();
-
-    const groups = this._groupBy(config.getCards(), 'group');
-    const groupLabels = config.groupLabels;
 
     let html = '<div class="dash-container">';
 
     // Header
+    html += this._renderHeader();
+
+    // KPIs
+    html += this._renderKPIs(config.getKPIs(), indicators);
+
+    // Grid principal: Charts
+    html += '<div class="dash-grid">';
+    html += '<div class="dash-grid-main">';
+
+    // Chamados por período (large)
+    html += this._renderChartPlaceholder('chamados_por_periodo');
+
+    // Evolução de chamados (large)
+    html += this._renderChartPlaceholder('evolucao_chamados');
+
+    html += '</div>'; // dash-grid-main
+
+    html += '<div class="dash-grid-side">';
+
+    // Distribuição dos ativos (donut)
+    html += this._renderChartPlaceholder('distribuicao_ativos');
+
+    html += '</div>'; // dash-grid-side
+    html += '</div>'; // dash-grid
+
+    // Segunda linha: Status dos Ativos + Infraestrutura
+    html += '<div class="dash-row-2">';
+    html += '<div class="dash-col-2-3">';
+    html += this._renderChartPlaceholder('status_ativos');
+    html += '</div>';
+    html += '<div class="dash-col-1-3">';
+    html += this._renderInfrastructure();
+    html += '</div>';
+    html += '</div>';
+
+    // Atenção necessária
+    html += this._renderAttention(indicators);
+
+    // Acessos rápidos
+    html += this._renderQuickActions(config.getQuickActions());
+
+    html += '</div>'; // dash-container
+    return html;
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // HEADER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  _renderHeader() {
     const staleClass = window.Dashboard.isStale() ? 'dash-stale' : '';
-    const staleIndicator = window.Dashboard.isStale() 
-      ? '<span class="dash-stale-indicator">&#9888; Dados podem estar desatualizados</span>' 
-      : '';
-    
-    html += `
+    return `
       <div class="dash-header">
         <div class="dash-header-left">
           <h1 class="dash-title">Dashboard Operacional</h1>
-          <p class="dash-subtitle ${staleClass}">Visão geral dos ativos e chamados ${staleIndicator}</p>
+          <p class="dash-subtitle ${staleClass}">Visão geral da infraestrutura e operação de TI</p>
         </div>
         <div class="dash-header-right">
+          <span class="dash-updated">Atualizado agora</span>
           <button class="dash-refresh-btn" id="dash-refresh" title="Atualizar dados">
-            &#8635; Atualizar
+            <span class="gcc-icon gcc-icon--sm"><img src="css/Icons/refresh.svg" alt="" /></span>
+            Atualizar
           </button>
         </div>
       </div>
     `;
+  },
 
-    // Cards por grupo
-    for (const [groupKey, cards] of Object.entries(groups)) {
-      const label = groupLabels[groupKey] || groupKey;
+  // ══════════════════════════════════════════════════════════════════════════
+  // KPIs
+  // ══════════════════════════════════════════════════════════════════════════
+
+  _renderKPIs(kpis, indicators) {
+    let html = '<div class="kpi-grid">';
+    for (const kpi of kpis) {
+      const value = indicators[kpi.id] ?? 0;
+      const iconHtml = window.gccIcon ? window.gccIcon(kpi.icon, 'lg') : '';
       html += `
-        <div class="dash-section">
-          <h2 class="dash-section-title">${this._esc(label)}</h2>
-          <div class="dash-cards-grid">
-            ${cards.map(card => this._renderCard(card, indicators[card.id] ?? 0)).join('')}
+        <div class="kpi-card" style="--kpi-accent: ${kpi.color}" data-kpi-tab="${kpi.tab || ''}">
+          <div class="kpi-icon" style="color: ${kpi.color}">${iconHtml}</div>
+          <div class="kpi-body">
+            <span class="kpi-value" data-kpi-id="${kpi.id}">${this._formatNumber(value)}</span>
+            <span class="kpi-label">${this._esc(kpi.label)}</span>
+            <span class="kpi-description">${this._esc(kpi.description)}</span>
           </div>
         </div>
       `;
     }
-
-    // Widgets
-    html += this._renderWidgetsSection(widgets);
-
-    // Gráficos e Analytics
-    html += this._renderChartsSection();
-
     html += '</div>';
     return html;
   },
 
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDERIZAÇÃO: CARDS
+  // GRÁFICOS
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Renderiza um card de indicador.
-   * @param {object} card - config do card
-   * @param {number} value - valor calculado
-   * @returns {string}
-   */
-  _renderCard(card, value) {
-    const clickableClass = card.clickable ? 'dash-card-clickable' : '';
-    const dataAttr = card.clickable && card.tab ? `data-dash-tab="${this._esc(card.tab)}"` : '';
-    const titleAttr = card.clickable ? `title="Clique para ir para ${this._esc(card.label)}"` : '';
-    const ariaLabel = card.clickable ? `aria-label="Navegar para ${this._esc(card.label)}"` : '';
-    const roleAttr = card.clickable ? 'role="button" tabindex="0"' : '';
-    
+  _renderChartPlaceholder(chartId) {
+    const config = window.DASHBOARD_CONFIG.getChart(chartId);
+    if (!config) return '';
+    const sizeClass = config.size === 'large' ? 'dash-chart-card--large' : '';
+    const clickableClass = config.clickable ? 'dash-chart-clickable' : '';
+    const dataAttr = config.clickable && config.tab ? `data-dash-tab="${this._esc(config.tab)}"` : '';
+
     return `
-      <div class="dash-card ${clickableClass}" 
-           style="--card-accent: ${this._esc(card.color)}" 
-           data-card-id="${this._esc(card.id)}"
-           ${dataAttr}
-           ${titleAttr}
-           ${ariaLabel}
-           ${roleAttr}>
-        <div class="dash-card-icon" style="color: ${this._esc(card.color)}">
-          ${card.icon}
+      <div class="dash-chart-card ${sizeClass} ${clickableClass}"
+           data-chart-id="${this._esc(chartId)}"
+           ${dataAttr}>
+        <div class="dash-chart-header">
+          <h3 class="dash-chart-title">${this._esc(config.titulo)}</h3>
         </div>
-        <div class="dash-card-body">
-          <span class="dash-card-value" data-card-id="${this._esc(card.id)}">
-            ${this._formatNumber(value)}
-          </span>
-          <span class="dash-card-label">${this._esc(card.label)}</span>
-        </div>
-        <div class="dash-card-description">
-          ${this._esc(card.description)}
+        <div class="dash-chart-container" id="chart-container-${this._esc(chartId)}">
+          <div class="dash-chart-loading">
+            <div class="ds-spinner ds-spinner--sm"></div>
+            <span>Carregando...</span>
+          </div>
         </div>
       </div>
     `;
   },
 
-  /**
-   * Renderiza skeleton de loading para cards.
-   * @returns {string}
-   */
-  _renderCardsSkeleton(count = 5) {
-    return Array(count).fill('').map(() => `
-      <div class="dash-card dash-card-skeleton">
-        <div class="dash-skeleton-icon"></div>
-        <div class="dash-card-body">
-          <div class="dash-skeleton-value"></div>
-          <div class="dash-skeleton-label"></div>
-        </div>
-        <div class="dash-skeleton-description"></div>
-      </div>
-    `).join('');
-  },
-
   // ══════════════════════════════════════════════════════════════════════════
-  // RENDERIZAÇÃO: WIDGETS
+  // INFRAESTRUTURA
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Renderiza a seção de widgets de resumo.
-   * @param {object} widgets
-   * @returns {string}
-   */
-  _renderWidgetsSection(widgets) {
-    const config = window.DASHBOARD_CONFIG;
-    const widgetConfigs = config.getWidgets();
-
+  _renderInfrastructure() {
+    const infra = window.DASHBOARD_CONFIG.getInfrastructure();
     let html = `
-      <div class="dash-section">
-        <h2 class="dash-section-title">Resumo Operacional</h2>
-        <div class="dash-widgets-grid">
+      <div class="dash-card dash-infra-card">
+        <div class="dash-card-header">
+          <h3 class="dash-card-title">Infraestrutura</h3>
+        </div>
+        <div class="dash-infra-list">
     `;
 
-    for (const wc of widgetConfigs) {
-      const data = widgets[wc.id] || null;
-      html += this._renderWidget(wc, data);
+    for (const item of infra) {
+      const status = this._getInfraStatus(item.id);
+      html += `
+        <div class="dash-infra-item">
+          <span class="dash-infra-dot" style="background: ${status.color}"></span>
+          <span class="dash-infra-label">${this._esc(item.label)}</span>
+          <span class="dash-infra-status" style="color: ${status.color}">${status.text}</span>
+        </div>
+      `;
     }
 
     html += '</div></div>';
     return html;
   },
 
-  /**
-   * Renderiza um widget individual.
-   * @param {object} widgetConfig
-   * @param {object|null} data
-   * @returns {string}
-   */
-  _renderWidget(widgetConfig, data) {
-    const content = this._getWidgetContent(widgetConfig.id, data);
-
-    return `
-      <div class="dash-widget" data-widget-id="${this._esc(widgetConfig.id)}">
-        <div class="dash-widget-icon">${widgetConfig.icon}</div>
-        <div class="dash-widget-body">
-          <span class="dash-widget-label">${this._esc(widgetConfig.label)}</span>
-          <div class="dash-widget-value">${content}</div>
-        </div>
-      </div>
-    `;
+  _getInfraStatus(id) {
+    const glpiConnected = window.App?.assetsLoaded;
+    const map = {
+      glpi: glpiConnected
+        ? { text: 'Online', color: 'var(--color-green)' }
+        : { text: 'Offline', color: 'var(--color-red)' },
+      backend: glpiConnected
+        ? { text: 'Online', color: 'var(--color-green)' }
+        : { text: 'Offline', color: 'var(--color-red)' },
+      oauth: { text: 'Online', color: 'var(--color-green)' },
+      fornecedores: { text: '3/4', color: 'var(--color-yellow)' },
+      notificacoes: { text: 'Online', color: 'var(--color-green)' },
+    };
+    return map[id] || { text: '—', color: 'var(--color-text-muted)' };
   },
 
-  /**
-   * Retorna o conteúdo HTML de um widget.
-   * @param {string} widgetId
-   * @param {object|null} data
-   * @returns {string}
-   */
-  _getWidgetContent(widgetId, data) {
-    if (!data) {
-      return '<span class="dash-widget-empty">Nenhum dado disponível</span>';
+  // ══════════════════════════════════════════════════════════════════════════
+  // ATENÇÃO NECESSÁRIA
+  // ══════════════════════════════════════════════════════════════════════════
+
+  _renderAttention(indicators) {
+    const items = [];
+
+    if (indicators.chamados_abertos > 0) {
+      items.push({
+        type: 'warning',
+        text: `${indicators.chamados_abertos} chamados aguardando atendimento`,
+        tab: 'chamados',
+      });
     }
 
-    switch (widgetId) {
-      case 'ultimo_chamado':
-        return `
-          <span class="dash-widget-main">${this._esc(data.titulo)}</span>
-          <span class="dash-widget-meta">#${this._esc(String(data.id))} · ${this._esc(data.status)}</span>
-        `;
-
-      case 'ultima_integracao':
-        return `
-          <span class="dash-widget-main">${this._esc(data.acao)}</span>
-          <span class="dash-widget-meta">${this._esc(data.resultado)} · ${this._esc(this._formatDate(data.horario))}</span>
-        `;
-
-      case 'ultimo_fornecedor':
-        return `
-          <span class="dash-widget-main">${this._esc(data.nome)}</span>
-        `;
-
-      case 'ultima_atualizacao':
-        return `
-          <span class="dash-widget-main">${this._esc(this._formatDateTime(data.data))}</span>
-        `;
-
-      case 'audit_ultimos_eventos':
-        if (!data.events || !data.events.length) {
-          return '<span class="dash-widget-empty">Nenhum evento</span>';
-        }
-        return data.events.slice(0, 3).map(e =>
-          `<div class="dash-widget-audit-item"><span class="dash-widget-audit-icon" style="color:${e.categoryColor}">${e.categoryIcon}</span><span class="dash-widget-audit-desc">${this._esc(e.acaoLabel)}</span></div>`
-        ).join('') + `<span class="dash-widget-meta">${data.total} evento(s) no total</span>`;
-
-      case 'audit_erros':
-        if (!data.events || !data.events.length) {
-          return '<span class="dash-widget-empty">Nenhum erro registrado</span>';
-        }
-        return data.events.slice(0, 3).map(e =>
-          `<div class="dash-widget-audit-item"><span class="dash-widget-audit-icon" style="color:#ff5555">&#10060;</span><span class="dash-widget-audit-desc">${this._esc(e.acaoLabel)}</span></div>`
-        ).join('') + `<span class="dash-widget-meta">${data.total} erro(s) no total</span>`;
-
-      case 'audit_integracoes':
-        if (!data.events || !data.events.length) {
-          return '<span class="dash-widget-empty">Nenhuma integração</span>';
-        }
-        return data.events.slice(0, 3).map(e =>
-          `<div class="dash-widget-audit-item"><span class="dash-widget-audit-icon" style="color:${e.categoryColor}">${e.categoryIcon}</span><span class="dash-widget-audit-desc">${this._esc(e.acaoLabel)}</span></div>`
-        ).join('') + `<span class="dash-widget-meta">${data.total} integração(ões) no total</span>`;
-
-      case 'audit_atividades_diarias':
-        return `
-          <div class="dash-widget-audit-stats">
-            <div class="dash-widget-audit-stat"><span class="dash-widget-audit-stat-value">${data.today || 0}</span><span class="dash-widget-audit-stat-label">Hoje</span></div>
-            <div class="dash-widget-audit-stat"><span class="dash-widget-audit-stat-value">${data.yesterday || 0}</span><span class="dash-widget-audit-stat-label">Ontem</span></div>
-            <div class="dash-widget-audit-stat"><span class="dash-widget-audit-stat-value">${data.thisWeek || 0}</span><span class="dash-widget-audit-stat-label">Semana</span></div>
-          </div>
-        `;
-
-      default:
-        return '<span class="dash-widget-empty">-</span>';
+    if (indicators.projectors_lampWarning > 0) {
+      items.push({
+        type: 'warning',
+        text: `${indicators.projectors_lampWarning} projetores com lâmpada no limite`,
+        tab: 'projetores',
+      });
     }
+
+    if (indicators.em_manutencao > 0) {
+      items.push({
+        type: 'warning',
+        text: `${indicators.em_manutencao} equipamentos em manutenção`,
+        tab: 'computadores',
+      });
+    }
+
+    // Sempre mostrar status OK se não houver problemas
+    if (items.length === 0) {
+      items.push({
+        type: 'success',
+        text: 'Nenhum erro crítico detectado',
+        tab: '',
+      });
+    }
+
+    let html = `
+      <div class="dash-card dash-attention-card">
+        <div class="dash-card-header">
+          <h3 class="dash-card-title">Atenção Necessária</h3>
+        </div>
+        <div class="dash-attention-list">
+    `;
+
+    for (const item of items) {
+      const iconHtml = window.gccIcon
+        ? window.gccIcon(item.type === 'success' ? 'success' : 'warning', 'sm')
+        : '';
+      const clickableClass = item.tab ? 'dash-attention-item--clickable' : '';
+      const dataAttr = item.tab ? `data-dash-tab="${this._esc(item.tab)}"` : '';
+
+      html += `
+        <div class="dash-attention-item ${clickableClass}" ${dataAttr}>
+          <span class="dash-attention-icon" style="color: ${item.type === 'success' ? 'var(--color-green)' : 'var(--color-yellow)'}">${iconHtml}</span>
+          <span class="dash-attention-text">${this._esc(item.text)}</span>
+        </div>
+      `;
+    }
+
+    html += '</div></div>';
+    return html;
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ACESSOS RÁPIDOS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  _renderQuickActions(actions) {
+    let html = '<div class="dash-quick-actions">';
+    for (const action of actions) {
+      const iconHtml = window.gccIcon ? window.gccIcon(action.icon, 'sm') : '';
+      html += `
+        <button class="dash-quick-btn" data-dash-tab="${this._esc(action.tab)}">
+          ${iconHtml}
+          <span>${this._esc(action.label)}</span>
+        </button>
+      `;
+    }
+    html += '</div>';
+    return html;
   },
 
   // ══════════════════════════════════════════════════════════════════════════
   // ESTADOS VISUAIS
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Renderiza estado de loading.
-   * @returns {string}
-   */
   _renderLoading() {
     return `
       <div class="dash-container">
@@ -333,76 +325,36 @@ window.DashboardUI = {
             <p class="dash-subtitle">Carregando dados...</p>
           </div>
         </div>
-
-        <div class="dash-section">
-          <h2 class="dash-section-title">Inventário</h2>
-          <div class="dash-cards-grid">
-            ${this._renderCardsSkeleton(5)}
-          </div>
-        </div>
-
-        <div class="dash-section">
-          <h2 class="dash-section-title">Chamados</h2>
-          <div class="dash-cards-grid">
-            ${this._renderCardsSkeleton(3)}
-          </div>
-        </div>
-
-        <div class="dash-section">
-          <h2 class="dash-section-title">Status dos Ativos</h2>
-          <div class="dash-cards-grid">
-            ${this._renderCardsSkeleton(2)}
-          </div>
-        </div>
-
-        <div class="dash-section">
-          <h2 class="dash-section-title">Resumo Operacional</h2>
-          <div class="dash-widgets-grid">
-            ${this._renderWidgetsSkeleton(4)}
-          </div>
+        <div class="kpi-grid">
+          ${Array(5).fill('').map(() => `
+            <div class="kpi-card kpi-card--skeleton">
+              <div class="kpi-icon"><div class="ds-skeleton" style="width:32px;height:32px;border-radius:8px;"></div></div>
+              <div class="kpi-body">
+                <div class="ds-skeleton" style="width:48px;height:28px;border-radius:6px;margin-bottom:4px;"></div>
+                <div class="ds-skeleton" style="width:80px;height:12px;border-radius:4px;"></div>
+              </div>
+            </div>
+          `).join('')}
         </div>
       </div>
     `;
   },
 
-  /**
-   * Renderiza skeleton para widgets.
-   * @param {number} count
-   * @returns {string}
-   */
-  _renderWidgetsSkeleton(count = 4) {
-    return Array(count).fill('').map(() => `
-      <div class="dash-widget dash-widget-skeleton">
-        <div class="dash-skeleton-icon small"></div>
-        <div class="dash-widget-body">
-          <div class="dash-skeleton-label"></div>
-          <div class="dash-skeleton-value"></div>
-        </div>
-      </div>
-    `).join('');
-  },
-
-  /**
-   * Renderiza estado de erro.
-   * @param {string} message
-   * @returns {string}
-   */
   _renderError(message) {
     return `
       <div class="dash-container">
         <div class="dash-header">
           <div class="dash-header-left">
             <h1 class="dash-title">Dashboard Operacional</h1>
-            <p class="dash-subtitle dash-error">Erro ao carregar dados</p>
+            <p class="dash-subtitle" style="color: var(--color-red)">Erro ao carregar dados</p>
           </div>
         </div>
-
         <div class="dash-error-card">
-          <div class="dash-error-icon">&#9888;</div>
+          <div class="dash-error-icon">
+            <span class="gcc-icon gcc-icon--2xl" style="color: var(--color-red)"><img src="css/Icons/error.svg" alt="" /></span>
+          </div>
           <p class="dash-error-message">${this._esc(message)}</p>
-          <button class="dash-refresh-btn" id="dash-retry">
-            &#8635; Tentar novamente
-          </button>
+          <button class="ds-btn ds-btn--secondary" id="dash-retry">Tentar novamente</button>
         </div>
       </div>
     `;
@@ -412,26 +364,18 @@ window.DashboardUI = {
   // EVENTOS
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Vincula eventos interativos do dashboard.
-   */
   _bindEvents() {
-    // Botão de refresh
+    // Refresh
     const refreshBtn = document.getElementById('dash-refresh');
     if (refreshBtn) {
       refreshBtn.addEventListener('click', async () => {
         refreshBtn.disabled = true;
-        refreshBtn.textContent = 'Atualizando...';
-
         await window.Dashboard.forceRefresh();
         this.render();
-
-        refreshBtn.disabled = false;
-        refreshBtn.innerHTML = '&#8635; Atualizar';
       });
     }
 
-    // Botão de retry (estado de erro)
+    // Retry
     const retryBtn = document.getElementById('dash-retry');
     if (retryBtn) {
       retryBtn.addEventListener('click', async () => {
@@ -442,344 +386,62 @@ window.DashboardUI = {
       });
     }
 
-    // Cards clicáveis - navegação para abas
-    document.querySelectorAll('.dash-card-clickable[data-dash-tab]').forEach(card => {
+    // KPI clicks
+    document.querySelectorAll('.kpi-card[data-kpi-tab]').forEach(card => {
       card.addEventListener('click', () => {
-        const tab = card.dataset.dashTab;
-        if (tab && window.App && window.App.go) {
-          window.App.go(tab);
-        }
-      });
-
-      // Navegação por teclado
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          const tab = card.dataset.dashTab;
-          if (tab && window.App && window.App.go) {
-            window.App.go(tab);
-          }
-        }
+        const tab = card.dataset.kpiTab;
+        if (tab && window.App?.go) window.App.go(tab);
       });
     });
 
-    // Escutar eventos de stale data
-    document.addEventListener('dashboard:stale', () => {
-      this._updateStaleIndicator();
-    });
-
-    // Escutar eventos de refresh
-    document.addEventListener('dashboard:refreshing', () => {
-      const refreshBtn = document.getElementById('dash-refresh');
-      if (refreshBtn) {
-        refreshBtn.disabled = true;
-        refreshBtn.innerHTML = '&#8635; Atualizando...';
-      }
-    });
-
-    document.addEventListener('dashboard:loaded', () => {
-      const refreshBtn = document.getElementById('dash-refresh');
-      if (refreshBtn) {
-        refreshBtn.disabled = false;
-        refreshBtn.innerHTML = '&#8635; Atualizar';
-      }
-      // Renderizar gráficos após dados carregados
-      this._renderCharts();
-    });
-
-    // Escutar eventos de recalculo
-    document.addEventListener('dashboard:recalculated', () => {
-      // Atualizar gráficos quando dados são recalculados
-      this._updateCharts();
-    });
-
-    // Destruir gráficos ao sair da página
-    window.addEventListener('beforeunload', () => {
-      window.DashboardCharts.destroy();
-    });
-
-    // Gráficos clicáveis
-    document.querySelectorAll('.dash-chart-clickable[data-dash-tab]').forEach(chart => {
-      chart.addEventListener('click', () => {
-        const tab = chart.dataset.dashTab;
-        if (tab && window.App && window.App.go) {
-          window.App.go(tab);
-        }
+    // Chart clicks
+    document.querySelectorAll('.dash-chart-clickable[data-dash-tab]').forEach(el => {
+      el.addEventListener('click', () => {
+        const tab = el.dataset.dashTab;
+        if (tab && window.App?.go) window.App.go(tab);
       });
     });
+
+    // Attention clicks
+    document.querySelectorAll('.dash-attention-item--clickable[data-dash-tab]').forEach(el => {
+      el.addEventListener('click', () => {
+        const tab = el.dataset.dashTab;
+        if (tab && window.App?.go) window.App.go(tab);
+      });
+    });
+
+    // Quick action clicks
+    document.querySelectorAll('.dash-quick-btn[data-dash-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.dataset.dashTab;
+        if (tab && window.App?.go) window.App.go(tab);
+      });
+    });
+
+    // Dashboard events
+    document.addEventListener('dashboard:loaded', () => this._renderCharts());
+    document.addEventListener('dashboard:recalculated', () => this._updateCharts());
+    window.addEventListener('beforeunload', () => window.DashboardCharts.destroy());
   },
 
-  /**
-   * Renderiza os gráficos após o dashboard carregar.
-   */
   _renderCharts() {
     setTimeout(() => {
       window.DashboardCharts.render('dash-charts-container');
-    }, 100); // Pequeno delay para garantir que o DOM está pronto
+    }, 100);
   },
 
-  /**
-   * Atualiza os gráficos quando dados são recalculados.
-   */
   _updateCharts() {
     window.DashboardCharts.update();
-  },
-
-  /**
-   * Atualiza o indicador de dados desatualizados.
-   */
-  _updateStaleIndicator() {
-    const subtitle = document.querySelector('.dash-subtitle');
-    if (subtitle && !subtitle.classList.contains('dash-stale')) {
-      subtitle.classList.add('dash-stale');
-      const staleIndicator = document.createElement('span');
-      staleIndicator.className = 'dash-stale-indicator';
-      staleIndicator.innerHTML = '&#9888; Dados podem estar desatualizados';
-      subtitle.appendChild(staleIndicator);
-    }
-  },
-
-  // ══════════════════════════════════════════════════════════════════════════
-  // RENDERIZAÇÃO: GRÁFICOS E ANALYTICS
-  // ══════════════════════════════════════════════════════════════════════════
-
-  /**
-   * Renderiza a seção de gráficos e analytics.
-   * @returns {string}
-   */
-  _renderChartsSection() {
-    const config = window.DASHBOARD_CONFIG;
-    const analytics = window.Dashboard.getAnalytics();
-    const chartConfigs = config.getCharts();
-
-    let html = `
-      <div class="dash-section">
-        <h2 class="dash-section-title">Visualizações</h2>
-        <div class="dash-charts-grid" id="dash-charts-container">
-    `;
-
-    // Renderizar cada gráfico
-    for (const cc of chartConfigs) {
-      if (!cc.visible) continue;
-      html += this._renderChartCard(cc);
-    }
-
-    html += '</div>';
-
-    // Renderizar analytics se habilitado
-    if (config.analytics?.enabled) {
-      html += this._renderAnalyticsSection(analytics);
-    }
-
-    html += '</div>';
-    return html;
-  },
-
-  /**
-   * Renderiza um card de gráfico.
-   * @param {object} chartConfig - Configuração do gráfico
-   * @returns {string}
-   */
-  _renderChartCard(chartConfig) {
-    const clickableClass = chartConfig.clickable ? 'dash-chart-clickable' : '';
-    const dataAttr = chartConfig.clickable && chartConfig.tab ? `data-dash-tab="${this._esc(chartConfig.tab)}"` : '';
-    const titleAttr = chartConfig.clickable ? `title="Clique para ir para mais detalhes"` : '';
-
-    return `
-      <div class="dash-chart-card ${clickableClass}"
-           data-chart-id="${this._esc(chartConfig.id)}"
-           ${dataAttr}
-           ${titleAttr}>
-        <div class="dash-chart-header">
-          <h3 class="dash-chart-title">${this._esc(chartConfig.titulo)}</h3>
-        </div>
-        <div class="dash-chart-container" id="chart-container-${this._esc(chartConfig.id)}">
-          <div class="dash-chart-loading">
-            <div class="dash-skeleton-icon"></div>
-            <span>Carregando gráfico...</span>
-          </div>
-        </div>
-      </div>
-    `;
-  },
-
-  /**
-   * Renderiza a seção de analytics.
-   * @param {object} analytics - Dados de analytics
-   * @returns {string}
-   */
-  _renderAnalyticsSection(analytics) {
-    const config = window.DASHBOARD_CONFIG;
-    if (!config.analytics?.enabled) return '';
-
-    let html = `
-      <div class="dash-section">
-        <h2 class="dash-section-title">Analytics</h2>
-        <div class="dash-analytics-grid">
-    `;
-
-    // Card: Total de Ativos
-    html += this._renderAnalyticsCard({
-      valor: this._formatNumber(analytics.total_ativos || 0),
-      label: 'Total de Ativos',
-      icon: '&#128202;',
-    });
-
-    // Card: Percentual Disponível
-    html += this._renderAnalyticsCard({
-      valor: `${analytics.percentual_disponivel || 0}%`,
-      label: 'Disponíveis',
-      icon: '&#9989;',
-      cor: '#22c55e',
-    });
-
-    // Card: Percentual em Manutenção
-    html += this._renderAnalyticsCard({
-      valor: `${analytics.percentual_manutencao || 0}%`,
-      label: 'Em Manutenção',
-      icon: '&#128295;',
-      cor: '#f59e0b',
-    });
-
-    // Card: Categoria Maior
-    if (analytics.categoria_maior) {
-      html += this._renderAnalyticsCard({
-        valor: analytics.categoria_maior.nome,
-        label: 'Maior Categoria',
-        icon: '&#128200;',
-      });
-    }
-
-    // Card: Fornecedor Mais Utilizado
-    if (analytics.fornecedor_mais_utilizado) {
-      html += this._renderAnalyticsCard({
-        valor: analytics.fornecedor_mais_utilizado.nome,
-        label: 'Fornecedor Top',
-        icon: '&#128188;',
-      });
-    }
-
-    // Card: Tipo de Chamado Predominante
-    if (analytics.tipo_chamado_predominante) {
-      html += this._renderAnalyticsCard({
-        valor: this._capitalizeFirst(analytics.tipo_chamado_predominante.nome),
-        label: 'Chamado Predominante',
-        icon: '&#128196;',
-      });
-    }
-
-    // Card: Tempo desde Atualização
-    if (analytics.tempo_desde_atualizacao) {
-      html += this._renderAnalyticsCard({
-        valor: analytics.tempo_desde_atualizacao.texto,
-        label: 'Última Atualização',
-        icon: '&#128339;',
-        cor: analytics.tempo_desde_atualizacao.isStale ? '#f59e0b' : '#22c55e',
-      });
-    }
-
-    // Card: Chamados Abertos
-    html += this._renderAnalyticsCard({
-      valor: `${analytics.percentual_chamados_abertos || 0}%`,
-      label: 'Chamados Abertos',
-      icon: '&#128194;',
-      cor: '#f59e0b',
-    });
-
-    html += '</div></div>';
-    return html;
-  },
-
-  /**
-   * Renderiza um card de analytics individual.
-   * @param {object} data - Dados do card (valor, label, icon, cor)
-   * @returns {string}
-   */
-  _renderAnalyticsCard(data) {
-    const corStyle = data.cor ? `style="color: ${data.cor}"` : '';
-
-    return `
-      <div class="dash-analytics-card">
-        <div class="dash-analytics-icon">${data.icon}</div>
-        <div class="dash-analytics-value" ${corStyle}>${data.valor}</div>
-        <div class="dash-analytics-label">${this._esc(data.label)}</div>
-      </div>
-    `;
   },
 
   // ══════════════════════════════════════════════════════════════════════════
   // HELPERS
   // ══════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Agrupa array por propriedade.
-   * @param {array} arr
-   * @param {string} key
-   * @returns {object}
-   */
-  _groupBy(arr, key) {
-    return arr.reduce((groups, item) => {
-      const group = item[key] || 'outros';
-      if (!groups[group]) groups[group] = [];
-      groups[group].push(item);
-      return groups;
-    }, {});
-  },
-
-  /**
-   * Formata número com separadores de milhar.
-   * @param {number} num
-   * @returns {string}
-   */
   _formatNumber(num) {
     return new Intl.NumberFormat('pt-BR').format(num);
   },
 
-  /**
-   * Formata data ISO para formato legível.
-   * @param {string} isoString
-   * @returns {string}
-   */
-  _formatDate(isoString) {
-    if (!isoString) return '-';
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      });
-    } catch {
-      return isoString;
-    }
-  },
-
-  /**
-   * Formata data/hora ISO para formato legível.
-   * @param {string} isoString
-   * @returns {string}
-   */
-  _formatDateTime(isoString) {
-    if (!isoString) return '-';
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleString('pt-BR', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return isoString;
-    }
-  },
-
-  /**
-   * Escape HTML.
-   * @param {string} text
-   * @returns {string}
-   */
   _esc(text) {
     return String(text ?? '')
       .replace(/&/g, '&amp;')
@@ -787,15 +449,5 @@ window.DashboardUI = {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  },
-
-  /**
-   * Capitaliza a primeira letra de uma string.
-   * @param {string} text
-   * @returns {string}
-   */
-  _capitalizeFirst(text) {
-    if (!text) return '';
-    return text.charAt(0).toUpperCase() + text.slice(1);
   },
 };

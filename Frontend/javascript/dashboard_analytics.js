@@ -262,21 +262,22 @@ window.DashboardAnalytics = {
    * @param {object} indicators - Indicadores calculados
    */
   _calculateChartData(analytics, indicators) {
-    // ── Dados para gráfico de Donut (Chamados por Status) ────────────────
+    // ── Dados para gráfico de Barras (Chamados por Status) ────────────────
     analytics.chart_chamados_status = {
       labels: ['Abertos', 'Fechados'],
       datasets: [{
+        label: 'Quantidade',
         data: [indicators.chamados_abertos, indicators.chamados_fechados],
         backgroundColor: ['#f59e0b', '#22c55e'],
         borderWidth: 0,
+        borderRadius: 4,
       }],
     };
 
-    // ── Dados para gráfico de Barras (Equipamentos por Categoria) ────────
+    // ── Dados para gráfico de Donut (Distribuição dos Ativos) ────────────
     analytics.chart_equipamentos_categoria = {
       labels: ['Computadores', 'Geekie', 'Apoio', 'Projetores', 'Impressoras'],
       datasets: [{
-        label: 'Quantidade',
         data: [
           indicators.computadores,
           indicators.geekiees,
@@ -289,41 +290,24 @@ window.DashboardAnalytics = {
       }],
     };
 
-    // ── Dados para gráfico de Donut (Status dos Ativos) ──────────────────
+    // ── Dados para gráfico de Barras Horizontais (Status dos Ativos) ─────
     analytics.chart_status_ativos = {
-      labels: ['Disponível', 'Em Manutenção'],
+      labels: ['Operacional', 'Manutenção', 'Indisponível', 'Reserva'],
       datasets: [{
-        data: [indicators.disponiveis, indicators.em_manutencao],
-        backgroundColor: ['#22c55e', '#f59e0b'],
+        label: 'Quantidade',
+        data: [
+          indicators.disponiveis,
+          indicators.em_manutencao,
+          Math.max(0, (indicators.computadores + indicators.geekiees + indicators.apoio + indicators.projetores + indicators.impressoras) - indicators.disponiveis - indicators.em_manutencao),
+          0,
+        ],
+        backgroundColor: ['#22c55e', '#f59e0b', '#ff5555', '#4f7ef7'],
         borderWidth: 0,
-      }],
-    };
-
-    // ── Dados para gráfico de Barras Horizontais (Ações por Fornecedor) ──
-    const auditRecords = this._getAuditRecords();
-    const fornecedorCounts = {};
-    auditRecords.forEach(r => {
-      if (r.fornecedor) {
-        fornecedorCounts[r.fornecedor] = (fornecedorCounts[r.fornecedor] || 0) + 1;
-      }
-    });
-
-    const fornecedoresOrdenados = Object.entries(fornecedorCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5); // Top 5 fornecedores
-
-    analytics.chart_fornecedores = {
-      labels: fornecedoresOrdenados.map(([nome]) => nome || 'Desconhecido'),
-      datasets: [{
-        label: 'Ações',
-        data: fornecedoresOrdenados.map(([, count]) => count),
-        backgroundColor: ['#4f7ef7', '#00c896', '#6c5ce7', '#ffc107', '#ff5555'],
-        borderWidth: 0,
+        borderRadius: 4,
       }],
     };
 
     // ── Dados para gráfico de Linha (Evolução de Chamados) ───────────────
-    // Preparado para futuro - dados fictícios para demonstração
     analytics.chart_evolucao_chamados = {
       labels: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'],
       datasets: [

@@ -16,17 +16,17 @@ window.NOTIFICATIONS_CONFIG = {
   // ══════════════════════════════════════════════════════════════════════════
 
   categories: {
-    INFO:         { label: 'Informação',   color: '#3b82f6', icon: 'ℹ️' },
-    SUCCESS:      { label: 'Sucesso',      color: '#10b981', icon: '✅' },
-    WARNING:      { label: 'Aviso',        color: '#f59e0b', icon: '⚠️' },
-    ERROR:        { label: 'Erro',         color: '#ef4444', icon: '❌' },
-    SYSTEM:       { label: 'Sistema',      color: '#6b7280', icon: '⚙️' },
-    AUDIT:        { label: 'Auditoria',    color: '#8b5cf6', icon: '📋' },
-    WORKFLOW:     { label: 'Workflow',     color: '#06b6d4', icon: '🎫' },
-    PROJECTORS:   { label: 'Projetores',   color: '#f97316', icon: '📽️' },
-    REPORTS:      { label: 'Relatórios',   color: '#14b8a6', icon: '📊' },
-    AUTH:         { label: 'Autenticação', color: '#ec4899', icon: '🔐' },
-    INTEGRATIONS: { label: 'Integrações',  color: '#a855f7', icon: '🔗' },
+    INFO:         { label: 'Informação',   color: '#3b82f6', icon: 'info' },
+    SUCCESS:      { label: 'Sucesso',      color: '#10b981', icon: 'success' },
+    WARNING:      { label: 'Aviso',        color: '#f59e0b', icon: 'warning' },
+    ERROR:        { label: 'Erro',         color: '#ef4444', icon: 'error' },
+    SYSTEM:       { label: 'Sistema',      color: '#6b7280', icon: 'settings' },
+    AUDIT:        { label: 'Auditoria',    color: '#8b5cf6', icon: 'audit' },
+    WORKFLOW:     { label: 'Workflow',     color: '#06b6d4', icon: 'tickets' },
+    PROJECTORS:   { label: 'Projetores',   color: '#f97316', icon: 'projector' },
+    REPORTS:      { label: 'Relatórios',   color: '#14b8a6', icon: 'reports' },
+    AUTH:         { label: 'Autenticação', color: '#ec4899', icon: 'user' },
+    INTEGRATIONS: { label: 'Integrações',  color: '#a855f7', icon: 'integrations' },
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -48,17 +48,17 @@ window.NOTIFICATIONS_CONFIG = {
   // ══════════════════════════════════════════════════════════════════════════
 
   icons: {
-    workflow:     '🎫',
-    projectors:   '📽️',
-    dashboard:    '📊',
-    reports:      '📈',
-    auth:         '🔐',
-    integrations: '🔗',
-    audit:        '📋',
-    system:       '⚙️',
-    computer:     '💻',
-    impressora:   '🖨️',
-    geekie:       '📱',
+    workflow:     'tickets',
+    projectors:   'projector',
+    dashboard:    'analytics',
+    reports:      'reports',
+    auth:         'user',
+    integrations: 'integrations',
+    audit:        'audit',
+    system:       'settings',
+    computer:     'computer',
+    impressora:   'printer',
+    geekie:       'chromebook',
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -78,42 +78,42 @@ window.NOTIFICATIONS_CONFIG = {
 
   events: {
     // Workflow
-    WORKFLOW_CREATED:       { category: 'WORKFLOW',   type: 'create',  priority: 'NORMAL', icon: '🎫', title: 'Chamado Criado',           template: 'workflow_created' },
-    WORKFLOW_CANCELLED:     { category: 'WORKFLOW',   type: 'delete',  priority: 'NORMAL', icon: '🚫', title: 'Chamado Cancelado',        template: 'workflow_cancelled' },
-    WORKFLOW_COMPLETED:     { category: 'WORKFLOW',   type: 'success', priority: 'NORMAL', icon: '✅', title: 'Chamado Concluído',        template: 'workflow_completed' },
-    WORKFLOW_ERROR:         { category: 'WORKFLOW',   type: 'error',   priority: 'HIGH',   icon: '❌', title: 'Erro no Chamado',          template: 'workflow_error' },
+    WORKFLOW_CREATED:       { category: 'WORKFLOW',   type: 'create',  priority: 'NORMAL', icon: 'tickets', title: 'Chamado Criado',           template: 'workflow_created' },
+    WORKFLOW_CANCELLED:     { category: 'WORKFLOW',   type: 'delete',  priority: 'NORMAL', icon: 'error', title: 'Chamado Cancelado',        template: 'workflow_cancelled' },
+    WORKFLOW_COMPLETED:     { category: 'WORKFLOW',   type: 'success', priority: 'NORMAL', icon: 'success', title: 'Chamado Concluído',        template: 'workflow_completed' },
+    WORKFLOW_ERROR:         { category: 'WORKFLOW',   type: 'error',   priority: 'HIGH',   icon: 'error', title: 'Erro no Chamado',          template: 'workflow_error' },
 
     // Portal Viewer
-    PORTAL_OPENED:          { category: 'INTEGRATIONS', type: 'info',    priority: 'LOW',    icon: '🌐', title: 'Portal Aberto',            template: 'portal_opened' },
-    PORTAL_IFRAME_BLOCKED:  { category: 'INTEGRATIONS', type: 'warning', priority: 'NORMAL', icon: '🚫', title: 'Iframe Bloqueado',         template: 'portal_iframe_blocked' },
-    PORTAL_FALLBACK:        { category: 'INTEGRATIONS', type: 'info',    priority: 'LOW',    icon: '🔄', title: 'Fallback do Portal',        template: 'portal_fallback' },
+    PORTAL_OPENED:          { category: 'INTEGRATIONS', type: 'info',    priority: 'LOW',    icon: 'integrations', title: 'Portal Aberto',            template: 'portal_opened' },
+    PORTAL_IFRAME_BLOCKED:  { category: 'INTEGRATIONS', type: 'warning', priority: 'NORMAL', icon: 'error', title: 'Iframe Bloqueado',         template: 'portal_iframe_blocked' },
+    PORTAL_FALLBACK:        { category: 'INTEGRATIONS', type: 'info',    priority: 'LOW',    icon: 'refresh', title: 'Fallback do Portal',        template: 'portal_fallback' },
 
     // Projetores
-    PROJECTOR_LAMP_HIGH:    { category: 'PROJECTORS', type: 'warning', priority: 'HIGH',   icon: '📽️', title: 'Lâmpada Acima de 80%',     template: 'projector_lamp_high' },
-    PROJECTOR_LAMP_CRITICAL:{ category: 'PROJECTORS', type: 'error',   priority: 'CRITICAL',icon: '📽️', title: 'Lâmpada Crítica',          template: 'projector_lamp_critical' },
-    PROJECTOR_MAINT_OVERDUE:{ category: 'PROJECTORS', type: 'warning', priority: 'HIGH',   icon: '🔧', title: 'Manutenção Vencida',        template: 'projector_maint_overdue' },
-    PROJECTOR_MAINT_DONE:   { category: 'PROJECTORS', type: 'success', priority: 'NORMAL', icon: '🔧', title: 'Manutenção Registrada',     template: 'projector_maint_done' },
+    PROJECTOR_LAMP_HIGH:    { category: 'PROJECTORS', type: 'warning', priority: 'HIGH',   icon: 'warning', title: 'Lâmpada Acima de 80%',     template: 'projector_lamp_high' },
+    PROJECTOR_LAMP_CRITICAL:{ category: 'PROJECTORS', type: 'error',   priority: 'CRITICAL',icon: 'error', title: 'Lâmpada Crítica',          template: 'projector_lamp_critical' },
+    PROJECTOR_MAINT_OVERDUE:{ category: 'PROJECTORS', type: 'warning', priority: 'HIGH',   icon: 'warning', title: 'Manutenção Vencida',        template: 'projector_maint_overdue' },
+    PROJECTOR_MAINT_DONE:   { category: 'PROJECTORS', type: 'success', priority: 'NORMAL', icon: 'success', title: 'Manutenção Registrada',     template: 'projector_maint_done' },
 
     // Dashboard
-    DASHBOARD_UPDATED:      { category: 'DASHBOARD',  type: 'info',    priority: 'LOW',    icon: '📊', title: 'Dashboard Atualizado',      template: 'dashboard_updated' },
-    DASHBOARD_ERROR:        { category: 'DASHBOARD',  type: 'error',   priority: 'NORMAL', icon: '❌', title: 'Erro ao Carregar Dashboard',template: 'dashboard_error' },
+    DASHBOARD_UPDATED:      { category: 'DASHBOARD',  type: 'info',    priority: 'LOW',    icon: 'analytics', title: 'Dashboard Atualizado',      template: 'dashboard_updated' },
+    DASHBOARD_ERROR:        { category: 'DASHBOARD',  type: 'error',   priority: 'NORMAL', icon: 'error', title: 'Erro ao Carregar Dashboard',template: 'dashboard_error' },
 
     // Relatórios
-    REPORT_EXPORTED:        { category: 'REPORTS',    type: 'success', priority: 'NORMAL', icon: '📊', title: 'Relatório Exportado',       template: 'report_exported' },
-    REPORT_VIEWED:          { category: 'REPORTS',    type: 'info',    priority: 'LOW',    icon: '👁️', title: 'Relatório Visualizado',     template: 'report_viewed' },
-    REPORT_ERROR:           { category: 'REPORTS',    type: 'error',   priority: 'NORMAL', icon: '❌', title: 'Erro no Relatório',         template: 'report_error' },
+    REPORT_EXPORTED:        { category: 'REPORTS',    type: 'success', priority: 'NORMAL', icon: 'reports', title: 'Relatório Exportado',       template: 'report_exported' },
+    REPORT_VIEWED:          { category: 'REPORTS',    type: 'info',    priority: 'LOW',    icon: 'reports', title: 'Relatório Visualizado',     template: 'report_viewed' },
+    REPORT_ERROR:           { category: 'REPORTS',    type: 'error',   priority: 'NORMAL', icon: 'error', title: 'Erro no Relatório',         template: 'report_error' },
 
     // Auth
-    AUTH_LOGIN:             { category: 'AUTH',        type: 'success', priority: 'LOW',    icon: '🔐', title: 'Login Realizado',           template: 'auth_login' },
-    AUTH_LOGOUT:            { category: 'AUTH',        type: 'info',    priority: 'LOW',    icon: '🔐', title: 'Logout Realizado',          template: 'auth_logout' },
-    AUTH_SESSION_EXPIRED:   { category: 'AUTH',        type: 'warning', priority: 'HIGH',   icon: '⏰', title: 'Sessão Expirada',           template: 'auth_session_expired' },
-    AUTH_DOMAIN_DENIED:     { category: 'AUTH',        type: 'error',   priority: 'HIGH',   icon: '🚫', title: 'Domínio Negado',            template: 'auth_domain_denied' },
+    AUTH_LOGIN:             { category: 'AUTH',        type: 'success', priority: 'LOW',    icon: 'user', title: 'Login Realizado',           template: 'auth_login' },
+    AUTH_LOGOUT:            { category: 'AUTH',        type: 'info',    priority: 'LOW',    icon: 'user', title: 'Logout Realizado',          template: 'auth_logout' },
+    AUTH_SESSION_EXPIRED:   { category: 'AUTH',        type: 'warning', priority: 'HIGH',   icon: 'warning', title: 'Sessão Expirada',           template: 'auth_session_expired' },
+    AUTH_DOMAIN_DENIED:     { category: 'AUTH',        type: 'error',   priority: 'HIGH',   icon: 'error', title: 'Domínio Negado',            template: 'auth_domain_denied' },
 
     // Integrações
-    INTEGRATION_STARTED:    { category: 'INTEGRATIONS', type: 'info',    priority: 'LOW',    icon: '🔗', title: 'Integração Iniciada',       template: 'integration_started' },
-    INTEGRATION_SUCCESS:    { category: 'INTEGRATIONS', type: 'success', priority: 'NORMAL', icon: '✅', title: 'Integração Concluída',      template: 'integration_success' },
-    INTEGRATION_ERROR:      { category: 'INTEGRATIONS', type: 'error',   priority: 'HIGH',   icon: '❌', title: 'Erro na Integração',        template: 'integration_error' },
-    INTEGRATION_CANCELLED:  { category: 'INTEGRATIONS', type: 'warning', priority: 'NORMAL', icon: '🚫', title: 'Integração Cancelada',      template: 'integration_cancelled' },
+    INTEGRATION_STARTED:    { category: 'INTEGRATIONS', type: 'info',    priority: 'LOW',    icon: 'integrations', title: 'Integração Iniciada',       template: 'integration_started' },
+    INTEGRATION_SUCCESS:    { category: 'INTEGRATIONS', type: 'success', priority: 'NORMAL', icon: 'success', title: 'Integração Concluída',      template: 'integration_success' },
+    INTEGRATION_ERROR:      { category: 'INTEGRATIONS', type: 'error',   priority: 'HIGH',   icon: 'error', title: 'Erro na Integração',        template: 'integration_error' },
+    INTEGRATION_CANCELLED:  { category: 'INTEGRATIONS', type: 'warning', priority: 'NORMAL', icon: 'warning', title: 'Integração Cancelada',      template: 'integration_cancelled' },
   },
 
   // ══════════════════════════════════════════════════════════════════════════

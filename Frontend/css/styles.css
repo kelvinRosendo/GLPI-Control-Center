@@ -256,14 +256,17 @@ textarea,
    - Barra superior com logo, status, avatar e logout
    - Sticky para ficar sempre no topo quando rolar
    ========================================================================== */
+/* ==========================================================================
+   6) Topbar — cabeçalho corporativo
+   ========================================================================== */
 .topbar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 0 28px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  padding: 0 20px;
   display: flex;
   align-items: center;
   gap: 16px;
-  height: 60px;
+  height: 52px;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -274,13 +277,12 @@ textarea,
   display: none;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   background: transparent;
   border: none;
-  border-radius: var(--radius-md);
-  color: var(--color-text);
-  font-size: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
@@ -296,71 +298,147 @@ textarea,
   }
 }
 
-/* Logo / nome do app no canto esquerdo */
-.topbar-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--text);
-  text-decoration: none;
-}
-
-.topbar-logo-img {
-  height: 32px;
-  width: auto;
-}
-
-/* Ícone pequeno do logo na topbar */
-.topbar-logo span {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-}
-
-/* Área direita (status, avatar e logout) */
-.topbar-right {
-  margin-left: auto;
+/* Left area */
+.topbar-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-/* Avatar (inicial do usuário) */
-.avatar {
+/* GLPI Status indicator */
+.glpi-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  padding: 4px 10px;
+  background: rgba(var(--color-green-rgb), 0.08);
+  border-radius: var(--radius-pill);
+}
+
+.glpi-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-green);
+  flex-shrink: 0;
+}
+
+.glpi-status-text {
+  white-space: nowrap;
+}
+
+/* Right area */
+.topbar-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Notification bell */
+.notif-bell-wrapper {
+  position: relative;
+}
+
+.notif-bell-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 36px;
   height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.notif-bell-btn:hover {
+  background: rgba(var(--color-accent-rgb), 0.08);
+  color: var(--color-text);
+}
+
+.notif-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  background: var(--color-red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+/* User info */
+.user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  margin-right: 4px;
+}
+
+.user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+/* Avatar */
+.avatar {
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  background: linear-gradient(135deg, var(--color-accent), var(--color-accent2));
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 13px;
+  color: #fff;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
-/* Botão de logout */
+/* Logout button */
 .logout-btn {
-  background: none;
-  border: 1px solid var(--border);
-  color: var(--text2);
-  font-family: inherit;
-  font-size: 13px;
-  padding: 6px 14px;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
+
 .logout-btn:hover {
-  border-color: var(--red);
-  color: var(--red);
+  background: rgba(var(--color-red-rgb), 0.1);
+  color: var(--color-red);
 }
 
 

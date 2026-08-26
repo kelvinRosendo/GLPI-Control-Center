@@ -237,10 +237,9 @@ window.DashboardCharts = {
    */
   _getChartData(chartId, analytics) {
     const dataMap = {
-      'chamados_por_status': analytics.chart_chamados_status,
-      'equipamentos_por_categoria': analytics.chart_equipamentos_categoria,
-      'equipamentos_manutencao': analytics.chart_status_ativos,
-      'equipamentos_por_fornecedor': analytics.chart_fornecedores,
+      'chamados_por_periodo': analytics.chart_chamados_status,
+      'distribuicao_ativos': analytics.chart_equipamentos_categoria,
+      'status_ativos': analytics.chart_status_ativos,
       'evolucao_chamados': analytics.chart_evolucao_chamados,
     };
     return dataMap[chartId] || null;

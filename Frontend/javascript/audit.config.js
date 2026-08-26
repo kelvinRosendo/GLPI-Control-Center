@@ -29,56 +29,56 @@ window.AUDIT_CONFIG = {
     auth: {
       key: 'auth',
       label: 'Autenticação',
-      icon: '&#128274;',
+      icon: 'user',
       color: '#4f7ef7',
       order: 1,
     },
     workflow: {
       key: 'workflow',
       label: 'Workflow',
-      icon: '&#128736;',
+      icon: 'tickets',
       color: '#6c5ce7',
       order: 2,
     },
     integracoes: {
       key: 'integracoes',
       label: 'Integrações',
-      icon: '&#128279;',
+      icon: 'integrations',
       color: '#00c896',
       order: 3,
     },
     portal: {
       key: 'portal',
       label: 'Portal',
-      icon: '&#127760;',
+      icon: 'info',
       color: '#4f7ef7',
       order: 4,
     },
     projetores: {
       key: 'projetores',
       label: 'Projetores',
-      icon: '&#128249;',
+      icon: 'projector',
       color: '#ffc107',
       order: 5,
     },
     relatorios: {
       key: 'relatorios',
       label: 'Relatórios',
-      icon: '&#128203;',
+      icon: 'reports',
       color: '#ff5555',
       order: 6,
     },
     dashboard: {
       key: 'dashboard',
       label: 'Dashboard',
-      icon: '&#128200;',
+      icon: 'analytics',
       color: '#00c896',
       order: 7,
     },
     sistema: {
       key: 'sistema',
       label: 'Sistema',
-      icon: '&#9881;',
+      icon: 'settings',
       color: '#9299b8',
       order: 8,
     },
@@ -90,46 +90,46 @@ window.AUDIT_CONFIG = {
 
   actions: {
     // Auth
-    login: { key: 'login', label: 'Login', category: 'auth', icon: '&#128274;', defaultSeverity: 'info' },
-    login_falha: { key: 'login_falha', label: 'Falha de Login', category: 'auth', icon: '&#10060;', defaultSeverity: 'warning' },
-    logout: { key: 'logout', label: 'Logout', category: 'auth', icon: '&#128682;', defaultSeverity: 'info' },
+    login: { key: 'login', label: 'Login', category: 'auth', icon: 'user', defaultSeverity: 'info' },
+    login_falha: { key: 'login_falha', label: 'Falha de Login', category: 'auth', icon: 'error', defaultSeverity: 'warning' },
+    logout: { key: 'logout', label: 'Logout', category: 'auth', icon: 'logout', defaultSeverity: 'info' },
 
     // Workflow
-    chamado_aberto: { key: 'chamado_aberto', label: 'Chamado Aberto', category: 'workflow', icon: '&#128196;', defaultSeverity: 'success' },
-    chamado_falha: { key: 'chamado_falha', label: 'Falha ao Abrir Chamado', category: 'workflow', icon: '&#10060;', defaultSeverity: 'error' },
-    workflow_iniciado: { key: 'workflow_iniciado', label: 'Workflow Iniciado', category: 'workflow', icon: '&#128736;', defaultSeverity: 'info' },
+    chamado_aberto: { key: 'chamado_aberto', label: 'Chamado Aberto', category: 'workflow', icon: 'tickets', defaultSeverity: 'success' },
+    chamado_falha: { key: 'chamado_falha', label: 'Falha ao Abrir Chamado', category: 'workflow', icon: 'error', defaultSeverity: 'error' },
+    workflow_iniciado: { key: 'workflow_iniciado', label: 'Workflow Iniciado', category: 'workflow', icon: 'tickets', defaultSeverity: 'info' },
 
     // Integrações
-    integracao_iniciada: { key: 'integracao_iniciada', label: 'Integração Iniciada', category: 'integracoes', icon: '&#128279;', defaultSeverity: 'info' },
-    integracao_sucesso: { key: 'integracao_sucesso', label: 'Integração Concluída', category: 'integracoes', icon: '&#9989;', defaultSeverity: 'success' },
-    integracao_falha: { key: 'integracao_falha', label: 'Falha na Integração', category: 'integracoes', icon: '&#10060;', defaultSeverity: 'error' },
-    integracao_cancelada: { key: 'integracao_cancelada', label: 'Integração Cancelada', category: 'integracoes', icon: '&#9888;', defaultSeverity: 'warning' },
+    integracao_iniciada: { key: 'integracao_iniciada', label: 'Integração Iniciada', category: 'integracoes', icon: 'integrations', defaultSeverity: 'info' },
+    integracao_sucesso: { key: 'integracao_sucesso', label: 'Integração Concluída', category: 'integracoes', icon: 'success', defaultSeverity: 'success' },
+    integracao_falha: { key: 'integracao_falha', label: 'Falha na Integração', category: 'integracoes', icon: 'error', defaultSeverity: 'error' },
+    integracao_cancelada: { key: 'integracao_cancelada', label: 'Integração Cancelada', category: 'integracoes', icon: 'warning', defaultSeverity: 'warning' },
 
     // Portal
-    portal_aberto: { key: 'portal_aberto', label: 'Portal Aberto', category: 'portal', icon: '&#127760;', defaultSeverity: 'info' },
-    portal_bloqueado: { key: 'portal_bloqueado', label: 'Portal Bloqueado', category: 'portal', icon: '&#128274;', defaultSeverity: 'warning' },
-    portal_fallback: { key: 'portal_fallback', label: 'Fallback do Portal', category: 'portal', icon: '&#128194;', defaultSeverity: 'info' },
+    portal_aberto: { key: 'portal_aberto', label: 'Portal Aberto', category: 'portal', icon: 'info', defaultSeverity: 'info' },
+    portal_bloqueado: { key: 'portal_bloqueado', label: 'Portal Bloqueado', category: 'portal', icon: 'error', defaultSeverity: 'warning' },
+    portal_fallback: { key: 'portal_fallback', label: 'Fallback do Portal', category: 'portal', icon: 'refresh', defaultSeverity: 'info' },
 
     // Projetores
-    manutencao_registrada: { key: 'manutencao_registrada', label: 'Manutenção Registrada', category: 'projetores', icon: '&#128295;', defaultSeverity: 'success' },
-    manutencao_excluida: { key: 'manutencao_excluida', label: 'Manutenção Excluída', category: 'projetores', icon: '&#128465;', defaultSeverity: 'warning' },
-    projetor_atualizado: { key: 'projetor_atualizado', label: 'Projetor Atualizado', category: 'projetores', icon: '&#128249;', defaultSeverity: 'info' },
+    manutencao_registrada: { key: 'manutencao_registrada', label: 'Manutenção Registrada', category: 'projetores', icon: 'success', defaultSeverity: 'success' },
+    manutencao_excluida: { key: 'manutencao_excluida', label: 'Manutenção Excluída', category: 'projetores', icon: 'error', defaultSeverity: 'warning' },
+    projetor_atualizado: { key: 'projetor_atualizado', label: 'Projetor Atualizado', category: 'projetores', icon: 'projector', defaultSeverity: 'info' },
 
     // Relatórios
-    relatorio_visualizado: { key: 'relatorio_visualizado', label: 'Relatório Visualizado', category: 'relatorios', icon: '&#128203;', defaultSeverity: 'info' },
-    relatorio_exportado: { key: 'relatorio_exportado', label: 'Relatório Exportado', category: 'relatorios', icon: '&#128190;', defaultSeverity: 'success' },
-    relatorio_filtro: { key: 'relatorio_filtro', label: 'Filtros Aplicados', category: 'relatorios', icon: '&#128269;', defaultSeverity: 'info' },
+    relatorio_visualizado: { key: 'relatorio_visualizado', label: 'Relatório Visualizado', category: 'relatorios', icon: 'reports', defaultSeverity: 'info' },
+    relatorio_exportado: { key: 'relatorio_exportado', label: 'Relatório Exportado', category: 'relatorios', icon: 'success', defaultSeverity: 'success' },
+    relatorio_filtro: { key: 'relatorio_filtro', label: 'Filtros Aplicados', category: 'relatorios', icon: 'search', defaultSeverity: 'info' },
 
     // Dashboard
-    dashboard_carregado: { key: 'dashboard_carregado', label: 'Dashboard Carregado', category: 'dashboard', icon: '&#128200;', defaultSeverity: 'info' },
-    dashboard_erro: { key: 'dashboard_erro', label: 'Erro no Dashboard', category: 'dashboard', icon: '&#10060;', defaultSeverity: 'error' },
-    dashboard_atualizado: { key: 'dashboard_atualizado', label: 'Dashboard Atualizado', category: 'dashboard', icon: '&#8635;', defaultSeverity: 'info' },
+    dashboard_carregado: { key: 'dashboard_carregado', label: 'Dashboard Carregado', category: 'dashboard', icon: 'analytics', defaultSeverity: 'info' },
+    dashboard_erro: { key: 'dashboard_erro', label: 'Erro no Dashboard', category: 'dashboard', icon: 'error', defaultSeverity: 'error' },
+    dashboard_atualizado: { key: 'dashboard_atualizado', label: 'Dashboard Atualizado', category: 'dashboard', icon: 'refresh', defaultSeverity: 'info' },
 
     // Sistema
-    sessao_iniciada: { key: 'sessao_iniciada', label: 'Sessão Iniciada', category: 'sistema', icon: '&#128640;', defaultSeverity: 'info' },
-    navegacao: { key: 'navegacao', label: 'Navegação', category: 'sistema', icon: '&#128194;', defaultSeverity: 'info' },
-    dados_carregados: { key: 'dados_carregados', label: 'Dados Carregados', category: 'sistema', icon: '&#128229;', defaultSeverity: 'info' },
-    erro: { key: 'erro', label: 'Erro', category: 'sistema', icon: '&#10060;', defaultSeverity: 'error' },
+    sessao_iniciada: { key: 'sessao_iniciada', label: 'Sessão Iniciada', category: 'sistema', icon: 'info', defaultSeverity: 'info' },
+    navegacao: { key: 'navegacao', label: 'Navegação', category: 'sistema', icon: 'dashboard', defaultSeverity: 'info' },
+    dados_carregados: { key: 'dados_carregados', label: 'Dados Carregados', category: 'sistema', icon: 'info', defaultSeverity: 'info' },
+    erro: { key: 'erro', label: 'Erro', category: 'sistema', icon: 'error', defaultSeverity: 'error' },
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -137,10 +137,10 @@ window.AUDIT_CONFIG = {
   // ══════════════════════════════════════════════════════════════════════════
 
   severities: {
-    info: { key: 'info', label: 'Info', color: '#4f7ef7', icon: '&#8505;', order: 1 },
-    success: { key: 'success', label: 'Sucesso', color: '#00c896', icon: '&#9989;', order: 2 },
-    warning: { key: 'warning', label: 'Aviso', color: '#ffc107', icon: '&#9888;', order: 3 },
-    error: { key: 'error', label: 'Erro', color: '#ff5555', icon: '&#10060;', order: 4 },
+    info: { key: 'info', label: 'Info', color: '#4f7ef7', icon: 'info', order: 1 },
+    success: { key: 'success', label: 'Sucesso', color: '#00c896', icon: 'success', order: 2 },
+    warning: { key: 'warning', label: 'Aviso', color: '#ffc107', icon: 'warning', order: 3 },
+    error: { key: 'error', label: 'Erro', color: '#ff5555', icon: 'error', order: 4 },
   },
 
   // ══════════════════════════════════════════════════════════════════════════

@@ -1,9 +1,9 @@
 /**
  * GLPI Control Center - sidebar.css
  * -----------------------------------------------------------------------------
- * Estilos da Sidebar — navegação lateral agrupada.
+ * Estilos da Sidebar — navegação lateral agrupada, visual corporativo.
  *
- * Sprint 14: Navegação e Sidebar
+ * Sprint 28: Dashboard Corporativo
  */
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -20,7 +20,7 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  transition: margin-left var(--transition-normal);
+  transition: margin-left var(--transition-width);
 }
 
 .app--sidebar-expanded .app-main {
@@ -28,7 +28,7 @@
 }
 
 .app--sidebar-collapsed .app-main {
-  margin-left: 72px;
+  margin-left: 64px;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -46,12 +46,12 @@
   display: flex;
   flex-direction: column;
   z-index: var(--z-sticky);
-  transition: width var(--transition-normal);
+  transition: width var(--transition-width);
   overflow: hidden;
 }
 
 .sidebar--collapsed {
-  width: 72px;
+  width: 64px;
 }
 
 /* ── Header ──────────────────────────────────────────────────────────────── */
@@ -60,19 +60,20 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--color-border);
-  min-height: 64px;
+  min-height: 56px;
 }
 
 .sidebar-logo {
-  height: 32px;
+  height: 30px;
   width: auto;
   flex-shrink: 0;
 }
 
 .sidebar--collapsed .sidebar-logo {
-  height: 28px;
+  height: 26px;
+  margin: 0 auto;
 }
 
 .sidebar-brand {
@@ -87,14 +88,14 @@
 }
 
 .sidebar-brand-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--color-text);
   line-height: 1.2;
 }
 
 .sidebar-brand-sub {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--color-text-muted);
   letter-spacing: var(--letter-spacing-wider);
   text-transform: uppercase;
@@ -107,7 +108,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 32px;
+  height: 28px;
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--color-border);
@@ -132,11 +133,11 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 8px 0;
+  padding: 6px 0;
 }
 
 .sidebar-nav::-webkit-scrollbar {
-  width: 4px;
+  width: 3px;
 }
 
 .sidebar-nav::-webkit-scrollbar-track {
@@ -145,13 +146,13 @@
 
 .sidebar-nav::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 /* ── Groups ──────────────────────────────────────────────────────────────── */
 
 .sidebar-group {
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .sidebar-group-label {
@@ -172,8 +173,8 @@
 .sidebar-group-items {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 0 8px;
+  gap: 1px;
+  padding: 0 6px;
 }
 
 /* ── Items ───────────────────────────────────────────────────────────────── */
@@ -181,15 +182,15 @@
 .sidebar-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 10px;
   background: transparent;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   font-family: var(--font-family);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -220,9 +221,15 @@
 .sidebar-item-icon {
   flex-shrink: 0;
   width: 20px;
-  text-align: center;
-  font-size: 16px;
-  line-height: 1;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-item-icon .gcc-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .sidebar-item-label {
@@ -237,7 +244,7 @@
 
 .sidebar--collapsed .sidebar-item {
   justify-content: center;
-  padding: 10px;
+  padding: 8px;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -255,7 +262,7 @@
   top: 50%;
   transform: translateY(-50%);
   margin-left: 8px;
-  padding: 6px 10px;
+  padding: 5px 10px;
   background: var(--color-surface3);
   color: var(--color-text);
   font-size: 12px;
@@ -278,7 +285,7 @@
    ══════════════════════════════════════════════════════════════════════════════ */
 
 .breadcrumb {
-  padding: 12px 24px;
+  padding: 10px 24px;
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
 }
@@ -330,7 +337,7 @@
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 72px;
+    width: 64px;
   }
 
   .sidebar .sidebar-brand {
@@ -343,7 +350,7 @@
 
   .sidebar .sidebar-item {
     justify-content: center;
-    padding: 10px;
+    padding: 8px;
   }
 
   .sidebar .sidebar-item-label {
@@ -352,7 +359,7 @@
 
   .app--sidebar-expanded .app-main,
   .app--sidebar-collapsed .app-main {
-    margin-left: 72px;
+    margin-left: 64px;
   }
 
   /* Overlay para mobile */

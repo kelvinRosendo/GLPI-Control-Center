@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/design-system.css" />
+  <link rel="stylesheet" href="css/icons.css" />
   <link rel="stylesheet" href="css/search.css" />
   <link rel="stylesheet" href="css/workflow.css" />
   <link rel="stylesheet" href="css/portal-viewer.css" />
@@ -45,7 +46,6 @@
       <p class="login-hint">@colegiosatelite.com.br</p>
 
       <div class="login-mano-isa">
-        <span class="mano-isa-emoji">👋</span>
         <span class="mano-isa-text">Mano Isa</span>
       </div>
 
@@ -63,15 +63,18 @@
     <div class="app-main">
       <div class="topbar">
         <button class="topbar-menu-btn" id="sidebar-mobile-toggle" aria-label="Abrir menu">
-          &#9776;
+          <span class="gcc-icon gcc-icon--lg"><img src="css/Icons/dashboard.svg" alt="" /></span>
         </button>
-        <div class="topbar-right">
-          <span id="glpi-status" class="glpi-status" style="font-size:13px;color:var(--green)">
-            ● Conectado ao GLPI
+        <div class="topbar-left">
+          <span id="glpi-status" class="glpi-status">
+            <span class="glpi-status-dot"></span>
+            <span class="glpi-status-text">Conectado ao GLPI</span>
           </span>
+        </div>
+        <div class="topbar-right">
           <div class="notif-bell-wrapper">
             <button class="notif-bell-btn" id="notification-bell-btn" data-notif-action="toggle" title="Central de Notificações">
-              🔔
+              <span class="gcc-icon gcc-icon--md"><img src="css/Icons/notifications.svg" alt="" /></span>
             </button>
             <span class="notif-badge" id="notification-badge" style="display:none;"></span>
           </div>
@@ -80,7 +83,9 @@
             <span id="user-role" class="user-role"></span>
           </div>
           <div class="avatar" id="user-avatar">U</div>
-          <button class="logout-btn" id="logout-btn" onclick="window.App.logout()">Sair</button>
+          <button class="logout-btn" id="logout-btn" onclick="window.App.logout()">
+            <span class="gcc-icon gcc-icon--sm"><img src="css/Icons/logout.svg" alt="" /></span>
+          </button>
         </div>
       </div>
 
@@ -183,7 +188,7 @@
 <!-- MODAL DE CHAMADO -->
 <div id="ticket-modal" class="ticket-modal-overlay">
   <div class="ticket-modal-content">
-    <h3 class="ticket-modal-title">🎫 Abrir chamado</h3>
+    <h3 class="ticket-modal-title">Abrir chamado</h3>
     <p id="modal-asset-name" class="ticket-modal-asset"></p>
 
     <input id="ticket-title" class="ticket-input" placeholder="Título do chamado" />
@@ -219,7 +224,7 @@
     <!-- Header -->
     <div class="chat-header">
       <div>
-        <p class="chat-header-title">🤖 Assistente de Horários</p>
+        <p class="chat-header-title">Assistente de Horários</p>
         <p class="chat-header-subtitle">Carrinhos de Chromebooks — Colégio Satélite</p>
       </div>
       <button onclick="window.Chat.closePanel()" class="chat-close-btn">✕</button>
@@ -228,7 +233,7 @@
     <!-- Mensagens -->
     <div id="chat-messages" class="chat-messages">
       <div class="chat-welcome">
-        Olá! Pergunte sobre os horários dos carrinhos de Chromebooks. 👋
+        Olá! Pergunte sobre os horários dos carrinhos de Chromebooks.
       </div>
     </div>
 

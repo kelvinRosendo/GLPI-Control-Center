@@ -509,7 +509,7 @@ window.AuditUI = (function () {
             <div class="audit-timeline__event-dot" style="background:${record.categoryColor}"></div>
             <div class="audit-timeline__event-content">
               <div class="audit-timeline__event-header">
-                <span class="audit-timeline__event-icon" style="color:${record.categoryColor}">${record.categoryIcon}</span>
+                <span class="audit-timeline__event-icon" style="color:${record.categoryColor}">${window.gccIcon ? window.gccIcon(record.categoryIconKey || 'info', 'sm') : record.categoryIcon}</span>
                 <span class="audit-timeline__event-action">${record.acaoLabel}</span>
                 <span class="audit-timeline__event-severity audit-timeline__event-severity--${record.severity}">
                   ${sevConfig ? sevConfig.icon : ''} ${sevConfig ? sevConfig.label : record.severity}
@@ -639,7 +639,7 @@ window.AuditUI = (function () {
     modalBody.innerHTML = `
       <div class="audit-detail">
         <div class="audit-detail__header" style="border-left-color: ${record.categoryColor}">
-          <span class="audit-detail__icon" style="color:${record.categoryColor}">${record.categoryIcon}</span>
+          <span class="audit-detail__icon" style="color:${record.categoryColor}">${window.gccIcon ? window.gccIcon(record.categoryIconKey || 'info', 'sm') : record.categoryIcon}</span>
           <div>
             <h4>${record.acaoLabel}</h4>
             <span class="audit-detail__severity audit-detail__severity--${record.severity}">
