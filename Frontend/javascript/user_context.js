@@ -178,6 +178,12 @@ window.UserContext = (function () {
       return false;
     }
 
+    // Validar se o perfil ainda existe nas permissões atuais
+    if (_user?.perfil && window.Permissions && !window.Permissions.getProfile(_user.perfil)) {
+      _user.perfil = 'SUPORTE';
+      _saveToStorage();
+    }
+
     _emit('user:restored', { user: _user, session: _session });
     return true;
   }
