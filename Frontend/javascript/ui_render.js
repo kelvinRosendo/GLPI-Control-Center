@@ -191,6 +191,17 @@ window.UI = {
       if (a.grupo) infoLines.push(`<div class="asset-info-line asset-info-secondary"><span class="asset-info-label">Grupo</span><span class="asset-info-value">${this._escapeHtml(a.grupo)}</span></div>`);
     }
 
+    // Impressoras: IP e Fabricante
+    let printerExtra = '';
+    if (tipo === 'impressora') {
+      const printerLines = [];
+      if (a.ip) printerLines.push(`<div class="asset-info-line asset-info-ip"><span class="asset-info-label">&#127760; IP</span><span class="asset-info-value">${this._escapeHtml(a.ip)}</span></div>`);
+      if (a.fabricante) printerLines.push(`<div class="asset-info-line"><span class="asset-info-label">Fabricante</span><span class="asset-info-value">${this._escapeHtml(a.fabricante)}</span></div>`);
+      if (printerLines.length) {
+        printerExtra = `<div class="asset-info-group">${printerLines.join('')}</div>`;
+      }
+    }
+
     return `
       <div class="asset-card">
         <div class="asset-card-header">
@@ -203,6 +214,7 @@ window.UI = {
             <span class="asset-serial-value">${this._escapeHtml(a.serial || '-')}</span>
           </div>
           ${infoLines.length ? `<div class="asset-info-group">${infoLines.join('')}</div>` : ''}
+          ${printerExtra}
         </div>
         <div class="asset-card-footer">
           ${canExpand ? `<button class="btn-expand" data-computer-toggle="${a.glpiId}">Ver dados completos</button>` : ''}

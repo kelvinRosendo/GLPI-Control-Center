@@ -56,6 +56,9 @@ window.DashboardUI = {
     // KPI Strip: Total + 4 categorias
     html += this._renderKPIs(config.getKPIs(), indicators);
 
+    // Acessos Rápidos (destaque)
+    html += this._renderQuickActions(config.getQuickActions());
+
     // Grid principal: [Gráfico Ativos por Tipo] [Chamados]
     html += '<div class="dash-main-grid">';
 
@@ -71,19 +74,15 @@ window.DashboardUI = {
 
     html += '</div>'; // dash-main-grid
 
-    // Grid inferior: [Atenção] [Status] [Acessos Rápidos]
+    // Grid inferior: [Atenção] [Status]
     html += '<div class="dash-bottom-grid">';
 
     html += '<div class="dash-bottom-cell">';
     html += this._renderAttention(indicators);
     html += '</div>';
 
-    html += '<div class="dash-bottom-cell">';
+    html += '<div class="dash-bottom-cell" style="grid-column: 2 / -1;">';
     html += this._renderStatusCompact();
-    html += '</div>';
-
-    html += '<div class="dash-bottom-cell">';
-    html += this._renderQuickActions(config.getQuickActions());
     html += '</div>';
 
     html += '</div>'; // dash-bottom-grid
@@ -354,26 +353,23 @@ window.DashboardUI = {
   // ACESSOS RÁPIDOS
   // ══════════════════════════════════════════════════════════════════════════
 
-  _renderQuickActions(actions) {
+_renderQuickActions(actions) {
     let html = `
-      <div class="dash-card dash-quickactions-card">
-        <div class="dash-card-header">
-          <h3 class="dash-card-title">Acessos Rápidos</h3>
-        </div>
-        <div class="dash-quick-actions">
+      <div class="dash-quickactions-section">
+        <div class="dash-quickactions-grid">
     `;
     for (const action of actions) {
-      const iconHtml = window.gccIcon ? window.gccIcon(action.icon, 'sm') : '';
+      const iconHtml = window.gccIcon ? window.gccIcon(action.icon, 'lg') : '';
       html += `
         <button class="dash-quick-btn" data-dash-tab="${this._esc(action.tab)}">
-          ${iconHtml}
-          <span>${this._esc(action.label)}</span>
+          <span class="dash-quick-icon">${iconHtml}</span>
+          <span class="dash-quick-label">${this._esc(action.label)}</span>
         </button>
       `;
     }
     html += '</div></div>';
     return html;
-  },
+},
 
   // ══════════════════════════════════════════════════════════════════════════
   // ESTADOS VISUAIS

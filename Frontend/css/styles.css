@@ -1039,6 +1039,13 @@ textarea,
   font-size: 11px;
 }
 
+.asset-info-line.asset-info-ip .asset-info-value {
+  color: #4f7ef7;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
 .asset-card-footer {
   display: flex;
   gap: 10px;
