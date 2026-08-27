@@ -296,6 +296,34 @@ window.REPORTS_CONFIG = {
       order: 12,
     },
 
+    {
+      id: 'projectors_avisos',
+      titulo: 'Avisos de Projetores',
+      descricao: 'Todos os avisos extraídos dos comentários dos projetores (horas, manutenção, defeitos, movimentações).',
+      icone: '&#128276;',
+      categoria: 'projetores',
+      endpoint: 'projector_notices',
+      tipo: 'notices',
+      campos: [
+        { key: 'projectorName', label: 'Projetor', tipo: 'texto' },
+        { key: 'projectorModel', label: 'Modelo', tipo: 'texto' },
+        { key: 'projectorSerial', label: 'Serial', tipo: 'texto' },
+        { key: 'projectorLocation', label: 'Localização', tipo: 'texto' },
+        { key: 'typeLabel', label: 'Tipo', tipo: 'texto' },
+        { key: 'severityLabel', label: 'Criticidade', tipo: 'texto' },
+        { key: 'date', label: 'Data', tipo: 'data' },
+        { key: 'message', label: 'Mensagem', tipo: 'texto' },
+        { key: 'rawText', label: 'Texto Original', tipo: 'texto' },
+        { key: 'lampHours', label: 'Horas Lâmpada', tipo: 'numero' },
+        { key: 'lampLifeHours', label: 'Vida Útil', tipo: 'numero' },
+        { key: 'lampPercentage', label: '% Uso', tipo: 'percentual' },
+      ],
+      filtros: ['periodo', 'tipo_aviso', 'criticidade', 'projetor', 'texto_livre'],
+      exportadores: ['csv'],
+      visible: true,
+      order: 13,
+    },
+
     // ── Auditoria ─────────────────────────────────────────────────────────
 
     {
@@ -468,6 +496,52 @@ window.REPORTS_CONFIG = {
       label: 'Busca',
       tipo: 'text',
       placeholder: 'Buscar...',
+    },
+
+    tipo_aviso: {
+      label: 'Tipo de Aviso',
+      tipo: 'select',
+      placeholder: 'Todos os tipos',
+      options: [
+        { value: 'todos', label: 'Todos' },
+        { value: 'horas', label: 'Horas' },
+        { value: 'manutencao', label: 'Manutenção' },
+        { value: 'defeito', label: 'Defeito' },
+        { value: 'movimentacao', label: 'Movimentação' },
+        { value: 'lampada', label: 'Lâmpada' },
+        { value: 'instalacao', label: 'Instalação' },
+        { value: 'informativo', label: 'Informativo' },
+        { value: 'outro', label: 'Outro' },
+      ],
+    },
+
+    criticidade: {
+      label: 'Criticidade',
+      tipo: 'select',
+      placeholder: 'Todas',
+      options: [
+        { value: 'todos', label: 'Todas' },
+        { value: 'critico', label: 'Crítico' },
+        { value: 'atencao', label: 'Atenção' },
+        { value: 'informativo', label: 'Informativo' },
+      ],
+    },
+
+    projetor: {
+      label: 'Projetor',
+      tipo: 'select',
+      placeholder: 'Todos os projetores',
+      _getOptions() {
+        const projectors = window.DATA?.projetores || [];
+        const opts = [{ value: 'todos', label: 'Todos' }];
+        projectors.forEach(p => {
+          opts.push({ value: String(p.glpiId), label: p.nome || `#${p.glpiId}` });
+        });
+        return opts;
+      },
+      get options() {
+        return this._getOptions();
+      },
     },
 
     audit_category: {

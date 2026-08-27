@@ -22,6 +22,10 @@ window.STATE = {
 };
 
 window.State = {
+  getTab() {
+    return window.STATE.tab;
+  },
+
   setTab(tabId) {
     window.STATE.tab = tabId;
   },

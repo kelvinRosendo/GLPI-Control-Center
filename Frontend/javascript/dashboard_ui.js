@@ -243,6 +243,20 @@ window.DashboardUI = {
         tab: 'projetores',
       });
     }
+    if (indicators.projectors_notices_criticos > 0) {
+      items.push({
+        type: 'danger',
+        text: `${indicators.projectors_notices_criticos} projetores com alerta crítico`,
+        tab: 'projetores',
+      });
+    }
+    if (indicators.projectors_notices_defeito > 0) {
+      items.push({
+        type: 'warning',
+        text: `${indicators.projectors_notices_defeito} projetores com defeito registrado`,
+        tab: 'projetores',
+      });
+    }
     if (indicators.em_manutencao > 0) {
       items.push({
         type: 'warning',

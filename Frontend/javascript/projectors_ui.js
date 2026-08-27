@@ -23,10 +23,18 @@ window.ProjectorsUI = {
   // ── Estado da UI ─────────────────────────────────────────────────────────
 
   _uiState: {
-    view: 'grid',           // 'grid' | 'detail' | 'maintenance_form'
+    view: 'grid',           // 'grid' | 'detail' | 'maintenance_form' | 'notices'
     selectedProjector: null,
     searchQuery: '',
     statusFilter: 'todos',
+    noticeFilters: {
+      type: '',
+      severity: '',
+      projectorId: null,
+      dateFrom: '',
+      dateTo: '',
+      search: '',
+    },
   },
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -50,6 +58,9 @@ window.ProjectorsUI = {
         break;
       case 'maintenance_form':
         container.innerHTML = this._renderMaintenanceFormView();
+        break;
+      case 'notices':
+        container.innerHTML = this._renderNoticesView();
         break;
       default:
         container.innerHTML = this._renderGridView();
@@ -88,6 +99,7 @@ window.ProjectorsUI = {
    * Renderiza cabeçalho do módulo.
    */
   _renderHeader() {
+    const summary = window.Projectors.getNoticesSummary();
     return `
       <div class="pj-header">
         <div class="pj-header-left">
@@ -95,6 +107,9 @@ window.ProjectorsUI = {
           <p class="pj-subtitle">Controle de vida útil, manutenções e alertas</p>
         </div>
         <div class="pj-header-right">
+          <button class="pj-btn pj-btn-secondary" id="pj-view-notices" title="Ver avisos dos projetores" aria-label="Avisos">
+            &#128276; Avisos ${summary.total > 0 ? `<span style="background:#ff5555;color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;margin-left:4px;">${summary.total}</span>` : ''}
+          </button>
           <button class="pj-btn pj-btn-secondary" id="pj-diagnostic" title="Diagnosticar problemas" aria-label="Diagnosticar">
             &#128269; Diagnóstico
           </button>
@@ -335,11 +350,18 @@ window.ProjectorsUI = {
     if (!projector) return this._renderGridView();
 
     const config = window.PROJECTORS_CONFIG;
+    const parser = window.ProjectorsParser;
+    const detail = window.Projectors.getProjectorDetail(projector.glpiId);
     const statusConfig = config.getStatus(projector.calculatedStatus) || config.status.operando;
-    const lampPct = window.Projectors.getLampPercentage(projector);
-    const lampColor = window.Projectors.getLampColor(lampPct);
     const history = await window.ProjectorsMaintenance.getHistory(projector.glpiId);
     const stats = await window.ProjectorsMaintenance.getStats(projector.glpiId);
+
+    const notices = (projector.notices || []).slice(0, 5);
+    const confidenceLabel = {
+      confirmado: '<span style="color:var(--green,#00c896)">&#10003; Confirmado</span>',
+      parcial: '<span style="color:var(--yellow,#ffc107)">&#9888; Parcial</span>',
+      nao_encontrado: '<span style="color:var(--text2,#9299b8)">N/A</span>',
+    };
 
     return `
       <div class="pj-container">
@@ -364,53 +386,155 @@ window.ProjectorsUI = {
           </div>
         </div>
 
-        <!-- Lamp Bar -->
-        <div class="pj-detail-lamp-section">
-          <div class="pj-detail-lamp-header">
-            <span class="pj-detail-lamp-title">&#128161; Vida Útil da Lâmpada</span>
-            <span class="pj-detail-lamp-pct" style="color: ${lampColor}; font-size: 24px; font-weight: 700">${lampPct}%</span>
-          </div>
-          <div class="pj-detail-lamp-bar">
-            <div class="pj-detail-lamp-fill" style="width: ${lampPct}%; background: ${lampColor}"></div>
-          </div>
-          <div class="pj-detail-lamp-stats">
-            <span>${projector.horas_lampada || 0}h utilizadas</span>
-            <span>${projector.vida_util_estimada || config.lamp.lifeHours}h vida útil estimada</span>
-            <span>${window.Projectors.getLampRemaining(projector)}h restantes</span>
+        <!-- INFORMAÇÕES GERAIS -->
+        <div class="pj-detail-section" style="margin-bottom:16px;">
+          <h3 class="pj-detail-section-title">&#128196; Informações Gerais</h3>
+          <div class="pj-detail-fields">
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Nome</span>
+              <span class="pj-detail-field-value">${this._escapeHtml(projector.nome)}</span>
+            </div>
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Modelo</span>
+              <span class="pj-detail-field-value">${this._escapeHtml(projector.modelo || '-')}</span>
+            </div>
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Número de Série</span>
+              <span class="pj-detail-field-value">${this._escapeHtml(projector.serial || '-')}</span>
+            </div>
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Localização</span>
+              <span class="pj-detail-field-value">${this._escapeHtml(projector.reparticao || '-')}</span>
+            </div>
+            ${projector.patrimonio ? `
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Patrimônio</span>
+              <span class="pj-detail-field-value">${this._escapeHtml(projector.patrimonio)}</span>
+            </div>` : ''}
+            ${projector.fabricante ? `
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Fabricante</span>
+              <span class="pj-detail-field-value">${this._escapeHtml(projector.fabricante)}</span>
+            </div>` : ''}
           </div>
         </div>
 
-        <div class="pj-detail-grid">
-          <!-- Informações -->
-          <div class="pj-detail-section">
-            <h3 class="pj-detail-section-title">&#128196; Informações</h3>
-            <div class="pj-detail-fields">
-              ${config.fields.map(f => `
-                <div class="pj-detail-field">
-                  <span class="pj-detail-field-label">${f.label}</span>
-                  <span class="pj-detail-field-value">${this._escapeHtml(this._formatFieldValue(projector[f.key], f))}</span>
+        <!-- LÂMPADA -->
+        <div class="pj-detail-section" style="margin-bottom:16px;">
+          <h3 class="pj-detail-section-title">&#128161; Lâmpada</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Horas Atuais</span>
+              <span class="pj-detail-field-value" style="font-size:20px;font-weight:700;color:${detail.lampSeverity === 'critico' ? '#ff5555' : detail.lampSeverity === 'atencao' ? '#ffc107' : '#00c896'}">
+                ${projector.horas_lampada || 0} h
+              </span>
+            </div>
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Vida Útil Estimada</span>
+              <span class="pj-detail-field-value" style="font-size:20px;font-weight:700">${projector.vida_util_estimada || config.lamp.lifeHours} h</span>
+            </div>
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Uso Estimado</span>
+              <span class="pj-detail-field-value" style="font-size:20px;font-weight:700;color:${detail.lampSeverity === 'critico' ? '#ff5555' : detail.lampSeverity === 'atencao' ? '#ffc107' : '#00c896'}">
+                ${detail.lampPercentage}%
+                ${detail.lampPercentage > 100 ? ' <span style="font-size:12px;font-weight:400;color:var(--text2,#9299b8)">(Verificar informação)</span>' : ''}
+              </span>
+            </div>
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Última Leitura</span>
+              <span class="pj-detail-field-value">${detail.lastHoursDate ? this._formatDateBR(detail.lastHoursDate) : '-'}</span>
+            </div>
+          </div>
+          <div class="pj-detail-lamp-bar" style="margin-bottom:8px;">
+            <div class="pj-detail-lamp-fill" style="width: ${Math.min(100, detail.lampPercentage)}%; background: ${detail.lampSeverity === 'critico' ? '#ff5555' : detail.lampSeverity === 'atencao' ? '#ffc107' : '#00c896'}"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2,#9299b8);">
+            <span>Origem: ${projector.horas_lampada_source === 'comentario' ? 'Comentário do GLPI' : projector.horas_lampada_source === 'estruturado' ? 'Campo estruturado' : 'Não informado'}</span>
+            <span>${confidenceLabel[detail.confidence] || ''}</span>
+          </div>
+          ${detail.needsReview ? `
+          <div style="margin-top:8px;padding:8px 12px;background:rgba(255,193,7,0.1);border:1px solid rgba(255,193,7,0.3);border-radius:6px;font-size:13px;color:#ffc107;">
+            &#9888; Verificar informação — pode haver troca de lâmpada não registrada no campo de horas.
+          </div>` : ''}
+          ${detail.lastLampReplacement ? `
+          <div style="margin-top:8px;padding:8px 12px;background:rgba(79,126,247,0.1);border:1px solid rgba(79,126,247,0.3);border-radius:6px;font-size:13px;color:#4f7ef7;">
+            &#128161; Última troca de lâmpada: ${this._formatDateBR(detail.lastLampReplacement)}
+          </div>` : ''}
+          ${projector.hourRecords && projector.hourRecords.length > 1 ? `
+          <div style="margin-top:12px;">
+            <span class="pj-detail-field-label">Histórico de Horas</span>
+            <div style="margin-top:6px;">
+              ${projector.hourRecords.map(r => `
+                <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;border-bottom:1px solid var(--border,#2e3347);">
+                  <span>${r.hours} h</span>
+                  <span style="color:var(--text2,#9299b8)">${r.date ? this._formatDateBR(r.date) : 'sem data'}</span>
                 </div>
               `).join('')}
             </div>
-          </div>
+          </div>` : ''}
+        </div>
 
-          <!-- Histórico -->
-          <div class="pj-detail-section">
-            <h3 class="pj-detail-section-title">&#128203; Histórico de Manutenções</h3>
-            ${stats.total > 0 ? `
-              <div class="pj-history-stats">
-                ${config.maintenanceTypes.map(t => `
-                  <span class="pj-history-stat">
-                    <span style="color: ${t.color}">${t.icon}</span>
-                    ${stats.byType[t.key] || 0} ${t.label}
-                  </span>
-                `).join('')}
-              </div>
-            ` : ''}
-            ${history.length
-              ? this._renderTimeline(history)
-              : '<p class="pj-empty-inline">Nenhuma manutenção registrada.</p>'}
+        <!-- MANUTENÇÃO -->
+        <div class="pj-detail-section" style="margin-bottom:16px;">
+          <h3 class="pj-detail-section-title">&#128295; Manutenção</h3>
+          <div class="pj-detail-fields">
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Última Manutenção</span>
+              <span class="pj-detail-field-value">${projector.ultima_manutencao ? this._formatDateBR(projector.ultima_manutencao) : '-'}</span>
+            </div>
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Última Limpeza</span>
+              <span class="pj-detail-field-value">${projector.ultima_limpeza ? this._formatDateBR(projector.ultima_limpeza) : '-'}</span>
+            </div>
+            <div class="pj-detail-field">
+              <span class="pj-detail-field-label">Horas Totais de Uso</span>
+              <span class="pj-detail-field-value">${projector.horas_totais || 0} h</span>
+            </div>
           </div>
+        </div>
+
+        <!-- AVISOS RECENTES -->
+        ${notices.length > 0 ? `
+        <div class="pj-detail-section" style="margin-bottom:16px;">
+          <h3 class="pj-detail-section-title">&#128276; Avisos Recentes</h3>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${notices.map(n => {
+              const typeConfig = this._getNoticeTypeConfig(n.type);
+              const sevColor = n.severity === 'critico' ? '#ff5555' : n.severity === 'atencao' ? '#ffc107' : '#9299b8';
+              return `
+                <div style="padding:8px 12px;background:var(--surface2,#222535);border-radius:6px;border-left:3px solid ${sevColor};">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                    <span style="font-size:12px;font-weight:600;color:${typeConfig.color}">${typeConfig.icon} ${typeConfig.label}</span>
+                    <span style="font-size:11px;color:var(--text2,#9299b8)">${n.date ? this._formatDateBR(n.date) : ''}</span>
+                  </div>
+                  <p style="margin:0;font-size:13px;color:var(--text,#e0e0e0);">${this._escapeHtml(n.message)}</p>
+                </div>
+              `;
+            }).join('')}
+          </div>
+          ${(projector.notices || []).length > 5 ? `
+            <button class="pj-btn pj-btn-secondary" id="pj-view-all-notices" style="margin-top:8px;width:100%;">
+              Ver todos os ${(projector.notices || []).length} avisos
+            </button>
+          ` : ''}
+        </div>` : ''}
+
+        <!-- HISTÓRICO DE MANUTENÇÕES -->
+        <div class="pj-detail-section" style="margin-bottom:16px;">
+          <h3 class="pj-detail-section-title">&#128203; Histórico de Manutenções</h3>
+          ${stats.total > 0 ? `
+            <div class="pj-history-stats">
+              ${config.maintenanceTypes.map(t => `
+                <span class="pj-history-stat">
+                  <span style="color: ${t.color}">${t.icon}</span>
+                  ${stats.byType[t.key] || 0} ${t.label}
+                </span>
+              `).join('')}
+            </div>
+          ` : ''}
+          ${history.length
+            ? this._renderTimeline(history)
+            : '<p class="pj-empty-inline">Nenhuma manutenção registrada.</p>'}
         </div>
       </div>
     `;
@@ -529,6 +653,144 @@ window.ProjectorsUI = {
 
           <div id="pj-maint-feedback" class="pj-form-feedback" style="display:none;"></div>
         </form>
+      </div>
+    `;
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // VIEW: AVISOS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  _renderNoticesView() {
+    const parser = window.ProjectorsParser;
+    const filters = this._uiState.noticeFilters;
+    const notices = window.Projectors.getAllNotices(filters);
+    const summary = window.Projectors.getNoticesSummary();
+    const projectors = window.Projectors.getProjectors();
+
+    const typeOptions = [
+      { value: '', label: 'Todos' },
+      { value: 'horas', label: '&#9200; Horas' },
+      { value: 'manutencao', label: '&#128295; Manutenção' },
+      { value: 'defeito', label: '&#9888; Defeito' },
+      { value: 'movimentacao', label: '&#128666; Movimentação' },
+      { value: 'lampada', label: '&#128161; Lâmpada' },
+      { value: 'instalacao', label: '&#128230; Instalação' },
+      { value: 'informativo', label: '&#128172; Informativo' },
+      { value: 'outro', label: '&#128196; Outro' },
+    ];
+
+    const severityOptions = [
+      { value: '', label: 'Todas' },
+      { value: 'informativo', label: 'Informativo' },
+      { value: 'atencao', label: 'Atenção' },
+      { value: 'critico', label: 'Crítico' },
+    ];
+
+    return `
+      <div class="pj-container">
+        <div class="pj-detail-header">
+          <button class="pj-back-btn" id="pj-back-grid" aria-label="Voltar para lista">
+            &#8592; Projetores
+          </button>
+          <div class="pj-detail-title-group">
+            <span class="pj-detail-icon">&#128276;</span>
+            <div>
+              <h2 class="pj-detail-title">Avisos dos Projetores</h2>
+              <p class="pj-detail-subtitle">${summary.total} aviso${summary.total !== 1 ? 's' : ''} · ${summary.projectorCount} projetor${summary.projectorCount !== 1 ? 'es' : ''}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resumo -->
+        <div class="pj-indicators-grid" style="margin-bottom:16px;">
+          <div class="pj-indicator-card">
+            <span class="pj-indicator-icon" style="color: var(--accent)">&#128276;</span>
+            <div class="pj-indicator-body">
+              <span class="pj-indicator-value">${summary.total}</span>
+              <span class="pj-indicator-label">Total</span>
+            </div>
+          </div>
+          <div class="pj-indicator-card">
+            <span class="pj-indicator-icon" style="color: #ff5555">&#9888;</span>
+            <div class="pj-indicator-body">
+              <span class="pj-indicator-value">${summary.bySeverity.critico || 0}</span>
+              <span class="pj-indicator-label">Críticos</span>
+            </div>
+          </div>
+          <div class="pj-indicator-card">
+            <span class="pj-indicator-icon" style="color: #ffc107">&#9888;</span>
+            <div class="pj-indicator-body">
+              <span class="pj-indicator-value">${summary.bySeverity.atencao || 0}</span>
+              <span class="pj-indicator-label">Atenção</span>
+            </div>
+          </div>
+          <div class="pj-indicator-card">
+            <span class="pj-indicator-icon" style="color: #9299b8">&#128172;</span>
+            <div class="pj-indicator-body">
+              <span class="pj-indicator-value">${summary.bySeverity.informativo || 0}</span>
+              <span class="pj-indicator-label">Informativos</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="pj-search-bar" style="margin-bottom:16px;">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+            <input class="pj-search-input" id="pj-notice-search" type="text"
+                   placeholder="Buscar nos avisos..." value="${this._escapeAttr(filters.search)}" style="flex:1;min-width:200px;" />
+            <select class="pj-form-select" id="pj-notice-type" style="width:auto;">
+              ${typeOptions.map(o => `<option value="${o.value}" ${filters.type === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+            </select>
+            <select class="pj-form-select" id="pj-notice-severity" style="width:auto;">
+              ${severityOptions.map(o => `<option value="${o.value}" ${filters.severity === o.value ? 'selected' : ''}>${o.label}</option>`).join('')}
+            </select>
+            <select class="pj-form-select" id="pj-notice-projector" style="width:auto;">
+              <option value="">Todos projetores</option>
+              ${projectors.map(p => `<option value="${p.glpiId}" ${filters.projectorId == p.glpiId ? 'selected' : ''}>${this._escapeHtml(p.nome)}</option>`).join('')}
+            </select>
+            <input class="pj-form-input" type="date" id="pj-notice-date-from" value="${filters.dateFrom || ''}" style="width:auto;" title="Data inicial" />
+            <input class="pj-form-input" type="date" id="pj-notice-date-to" value="${filters.dateTo || ''}" style="width:auto;" title="Data final" />
+          </div>
+        </div>
+
+        <!-- Lista -->
+        ${notices.length === 0 ? `
+          <div class="pj-empty-state">
+            <span class="pj-empty-icon">&#128276;</span>
+            <h3 class="pj-empty-title">Nenhum aviso encontrado</h3>
+            <p class="pj-empty-message">Ajuste os filtros ou verifique os comentários dos projetores no GLPI.</p>
+          </div>
+        ` : `
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            ${notices.map(n => {
+              const typeConfig = this._getNoticeTypeConfig(n.type);
+              const sevColor = n.severity === 'critico' ? '#ff5555' : n.severity === 'atencao' ? '#ffc107' : '#9299b8';
+              return `
+                <div style="padding:12px;background:var(--surface2,#222535);border-radius:8px;border-left:3px solid ${sevColor};">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                    <div>
+                      <span style="font-size:12px;font-weight:600;color:${typeConfig.color}">${typeConfig.icon} ${typeConfig.label}</span>
+                      <span style="font-size:12px;color:var(--text2,#9299b8);margin-left:8px;">${this._escapeHtml(n.projectorName)}</span>
+                    </div>
+                    <span style="font-size:11px;color:var(--text2,#9299b8);white-space:nowrap;">${n.date ? this._formatDateBR(n.date) : ''}</span>
+                  </div>
+                  <p style="margin:0 0 4px 0;font-size:13px;color:var(--text,#e0e0e0);">${this._escapeHtml(n.message)}</p>
+                  <div style="display:flex;gap:12px;font-size:11px;color:var(--text2,#9299b8);">
+                    <span>${this._escapeHtml(n.projectorModel || '')}</span>
+                    <span>${this._escapeHtml(n.projectorLocation || '')}</span>
+                    ${n.lampHours > 0 ? `<span>${n.lampHours}h / ${n.lampLifeHours}h</span>` : ''}
+                  </div>
+                  ${n.rawText !== n.message ? `
+                    <div style="margin-top:6px;padding:4px 8px;background:rgba(255,255,255,0.03);border-radius:4px;font-size:11px;color:var(--text2,#9299b8);font-style:italic;">
+                      "${this._escapeHtml(n.rawText)}"
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
       </div>
     `;
   },
@@ -707,6 +969,69 @@ window.ProjectorsUI = {
       });
     }
 
+    // View Notices
+    const noticesBtn = document.getElementById('pj-view-notices');
+    if (noticesBtn) {
+      noticesBtn.addEventListener('click', () => {
+        this._uiState.view = 'notices';
+        this.render();
+      });
+    }
+
+    // View all notices from detail
+    const viewAllNotices = document.getElementById('pj-view-all-notices');
+    if (viewAllNotices) {
+      viewAllNotices.addEventListener('click', () => {
+        this._uiState.noticeFilters.projectorId = this._uiState.selectedProjector?.glpiId || null;
+        this._uiState.view = 'notices';
+        this.render();
+      });
+    }
+
+    // Notices filters
+    const noticeSearch = document.getElementById('pj-notice-search');
+    if (noticeSearch) {
+      noticeSearch.addEventListener('input', () => {
+        this._uiState.noticeFilters.search = noticeSearch.value;
+        this.render();
+      });
+    }
+    const noticeType = document.getElementById('pj-notice-type');
+    if (noticeType) {
+      noticeType.addEventListener('change', () => {
+        this._uiState.noticeFilters.type = noticeType.value;
+        this.render();
+      });
+    }
+    const noticeSeverity = document.getElementById('pj-notice-severity');
+    if (noticeSeverity) {
+      noticeSeverity.addEventListener('change', () => {
+        this._uiState.noticeFilters.severity = noticeSeverity.value;
+        this.render();
+      });
+    }
+    const noticeProjector = document.getElementById('pj-notice-projector');
+    if (noticeProjector) {
+      noticeProjector.addEventListener('change', () => {
+        this._uiState.noticeFilters.projectorId = noticeProjector.value || null;
+        this.render();
+      });
+    }
+    const noticeDateFrom = document.getElementById('pj-notice-date-from');
+    if (noticeDateFrom) {
+      noticeDateFrom.addEventListener('change', () => {
+        this._uiState.noticeFilters.dateFrom = noticeDateFrom.value;
+        this.render();
+      });
+    }
+    const noticeDateTo = document.getElementById('pj-notice-date-to');
+    if (noticeDateTo) {
+      noticeDateTo.addEventListener('change', () => {
+        this._uiState.noticeFilters.dateTo = noticeDateTo.value;
+        this.render();
+      });
+    }
+
     // Diagnostic
     const diagBtn = document.getElementById('pj-diagnostic');
     if (diagBtn) {
@@ -769,6 +1094,20 @@ window.ProjectorsUI = {
 
   _escapeAttr(value) {
     return this._escapeHtml(value);
+  },
+
+  _getNoticeTypeConfig(type) {
+    var types = {
+      horas:        { label: 'Horas',        icon: '&#9200;',  color: '#4f7ef7' },
+      manutencao:   { label: 'Manutenção',   icon: '&#128295;', color: '#f59e0b' },
+      defeito:      { label: 'Defeito',      icon: '&#9888;',  color: '#ff5555' },
+      movimentacao: { label: 'Movimentação', icon: '&#128666;', color: '#9299b8' },
+      lampada:      { label: 'Lâmpada',      icon: '&#128161;', color: '#ffc107' },
+      instalacao:   { label: 'Instalação',   icon: '&#128230;', color: '#00c896' },
+      informativo:  { label: 'Informativo',  icon: '&#128172;', color: '#9299b8' },
+      outro:        { label: 'Outro',        icon: '&#128196;', color: '#9299b8' },
+    };
+    return types[type] || types.outro;
   },
 
   _formatDateBR(dateStr) {
@@ -948,6 +1287,7 @@ window.ProjectorsUI = {
     this._uiState.selectedProjector = null;
     this._uiState.searchQuery = '';
     this._uiState.statusFilter = 'todos';
+    this._uiState.noticeFilters = { type: '', severity: '', projectorId: null, dateFrom: '', dateTo: '', search: '' };
     await window.ProjectorsUI.render();
   },
 };

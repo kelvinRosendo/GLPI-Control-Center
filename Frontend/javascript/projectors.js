@@ -62,10 +62,26 @@ window.Projectors = {
       try {
         const response = await window.GlpiClient.fetchProjectorsEnriched();
         if (response && response.data) {
-          projectors = response.data.map(p => ({
-            ...p,
-            calculatedStatus: p.status_calculado || 'operando',
-          }));
+          projectors = response.data.map(p => {
+            const savedData = {
+              horas_lampada: p.horas_lampada,
+              vida_util_estimada: p.vida_util_estimada,
+            };
+            const parsed = window.ProjectorsParser.parse(p.comentario || '', savedData);
+            return {
+              ...p,
+              calculatedStatus: p.status_calculado || 'operando',
+              parsedData: parsed,
+              horas_lampada: parsed.currentLampHours > 0 ? parsed.currentLampHours : (p.horas_lampada || 0),
+              horas_lampada_source: parsed.hoursSource,
+              horas_lampada_confidence: parsed.confidence,
+              horas_lampada_date: parsed.lastHoursDate,
+              lamp_replacement_date: parsed.lastLampReplacement,
+              notices: parsed.notices,
+              hourRecords: parsed.hourRecords,
+              rawComment: parsed.rawComment,
+            };
+          });
           indicators = response.indicators || this._calculateIndicators(projectors);
         }
       } catch (enrichedErr) {
@@ -503,6 +519,134 @@ window.Projectors = {
 
   getError() {
     return this._state.error;
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // AVISOS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Retorna todos os avisos de todos os projetores, ordenados por data (recente primeiro).
+   * @param {object} filters - { type, severity, projectorId, dateFrom, dateTo, search }
+   * @returns {array}
+   */
+  getAllNotices(filters) {
+    filters = filters || {};
+    var all = [];
+
+    this._state.projectors.forEach(function (p) {
+      var notices = p.notices || [];
+      notices.forEach(function (n) {
+        all.push({
+          projectorId: p.glpiId,
+          projectorName: p.nome,
+          projectorSerial: p.serial,
+          projectorModel: p.modelo,
+          projectorLocation: p.reparticao,
+          type: n.type,
+          severity: n.severity,
+          date: n.date,
+          message: n.message,
+          rawText: n.rawText,
+          lampHours: p.horas_lampada || 0,
+          lampLifeHours: p.vida_util_estimada || 0,
+          lampPercentage: window.ProjectorsParser.calculateLampPercentage(
+            p.horas_lampada || 0, p.vida_util_estimada || 0
+          ),
+        });
+      });
+    });
+
+    // Filtros
+    if (filters.type) {
+      all = all.filter(function (n) { return n.type === filters.type; });
+    }
+    if (filters.severity) {
+      all = all.filter(function (n) { return n.severity === filters.severity; });
+    }
+    if (filters.projectorId) {
+      all = all.filter(function (n) { return n.projectorId === filters.projectorId; });
+    }
+    if (filters.dateFrom) {
+      all = all.filter(function (n) { return n.date && n.date >= filters.dateFrom; });
+    }
+    if (filters.dateTo) {
+      all = all.filter(function (n) { return n.date && n.date <= filters.dateTo; });
+    }
+    if (filters.search) {
+      var q = filters.search.toLowerCase();
+      all = all.filter(function (n) {
+        return (n.message || '').toLowerCase().indexOf(q) !== -1 ||
+               (n.rawText || '').toLowerCase().indexOf(q) !== -1 ||
+               (n.projectorName || '').toLowerCase().indexOf(q) !== -1;
+      });
+    }
+
+    // Ordenar por data (recente primeiro), sem data no final
+    all.sort(function (a, b) {
+      if (a.date && b.date) return b.date.localeCompare(a.date);
+      if (a.date) return -1;
+      if (b.date) return 1;
+      return 0;
+    });
+
+    return all;
+  },
+
+  /**
+   * Retorna resumo dos avisos.
+   * @returns {object}
+   */
+  getNoticesSummary() {
+    var all = this.getAllNotices();
+    var types = {};
+    var severities = {};
+
+    all.forEach(function (n) {
+      types[n.type] = (types[n.type] || 0) + 1;
+      severities[n.severity] = (severities[n.severity] || 0) + 1;
+    });
+
+    return {
+      total: all.length,
+      byType: types,
+      bySeverity: severities,
+      projectorCount: new Set(all.map(function (n) { return n.projectorId; })).size,
+    };
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // DADOS DO PROJETOR COM PARSER
+  // ══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Retorna dados do projetor com informações do parser.
+   * @param {number} glpiId
+   * @returns {object|null}
+   */
+  getProjectorDetail(glpiId) {
+    var p = this.getProjector(glpiId);
+    if (!p) return null;
+
+    var config = window.PROJECTORS_CONFIG;
+    var parser = window.ProjectorsParser;
+
+    var lampPct = parser.calculateLampPercentage(
+      p.horas_lampada || 0,
+      p.vida_util_estimada || config.lamp.lifeHours
+    );
+
+    return {
+      ...p,
+      lampPercentage: lampPct,
+      lampSeverity: parser.getLampSeverity(lampPct),
+      lampRemaining: Math.max(0, (p.vida_util_estimada || config.lamp.lifeHours) - (p.horas_lampada || 0)),
+      confidence: p.horas_lampada_confidence || parser.CONFIDENCE.NOT_FOUND,
+      hoursSource: p.horas_lampada_source || 'nenhum',
+      lastHoursDate: p.horas_lampada_date || null,
+      lastLampReplacement: p.lamp_replacement_date || null,
+      needsReview: p.parsedData ? p.parsedData.needsReview : false,
+    };
   },
 
   // ── Eventos ──────────────────────────────────────────────────────────────

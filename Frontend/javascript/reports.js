@@ -111,6 +111,9 @@ window.Reports = {
       case 'projector_maintenance':
         return this._getProjectorMaintenanceData();
 
+      case 'projector_notices':
+        return this._getProjectorNoticesData();
+
       case 'audit':
         return this._getAuditGlobalData(reportConfig);
 
@@ -197,6 +200,21 @@ window.Reports = {
     return records.map(r => ({
       ...r,
       nome_projetor: pjMap[r.glpiId] || `ID: ${r.glpiId}`,
+    }));
+  },
+
+  /**
+   * Retorna todos os avisos extraídos dos comentários dos projetores.
+   * @returns {array}
+   */
+  _getProjectorNoticesData() {
+    const parser = window.ProjectorsParser;
+    const notices = window.Projectors?.getAllNotices() || [];
+
+    return notices.map(n => ({
+      ...n,
+      typeLabel: parser?.NOTICE_TYPE ? (Object.keys(parser.NOTICE_TYPE).find(k => parser.NOTICE_TYPE[k] === n.type) || n.type) : n.type,
+      severityLabel: n.severity === 'critico' ? 'Crítico' : n.severity === 'atencao' ? 'Atenção' : 'Informativo',
     }));
   },
 
@@ -411,6 +429,17 @@ window.Reports = {
     }
     if (filters.audit_module && filters.audit_module !== 'todos') {
       result = result.filter(item => item.modulo === filters.audit_module);
+    }
+
+    // Filtros de avisos de projetores
+    if (filters.tipo_aviso && filters.tipo_aviso !== 'todos') {
+      result = result.filter(item => item.type === filters.tipo_aviso);
+    }
+    if (filters.criticidade && filters.criticidade !== 'todos') {
+      result = result.filter(item => item.severity === filters.criticidade);
+    }
+    if (filters.projetor && filters.projetor !== 'todos') {
+      result = result.filter(item => String(item.projectorId) === filters.projetor);
     }
 
     return result;

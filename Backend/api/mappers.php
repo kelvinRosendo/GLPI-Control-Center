@@ -101,6 +101,7 @@ final class Mappers
       'reparticao' => self::extractName($c['locations_id'] ?? null),
       'usuario'    => self::extractName($c['users_id'] ?? null),
       'modelo'     => self::extractName($c['computermodels_id'] ?? null),
+      'comentario' => $c['comment'] ?? '',
     ];
   }
 

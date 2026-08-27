@@ -92,6 +92,31 @@ window.PROJECTORS_CONFIG = {
   ],
 
   // ══════════════════════════════════════════════════════════════════════════
+  // TIPOS DE AVISO (extraídos do parser)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  noticeTypes: {
+    horas:        { key: 'horas',        label: 'Horas',        icon: '&#9200;',  color: '#4f7ef7' },
+    manutencao:   { key: 'manutencao',   label: 'Manutenção',   icon: '&#128295;', color: '#f59e0b' },
+    defeito:      { key: 'defeito',      label: 'Defeito',      icon: '&#9888;',  color: '#ff5555' },
+    movimentacao: { key: 'movimentacao', label: 'Movimentação', icon: '&#128666;', color: '#9299b8' },
+    lampada:      { key: 'lampada',      label: 'Lâmpada',      icon: '&#128161;', color: '#ffc107' },
+    instalacao:   { key: 'instalacao',   label: 'Instalação',   icon: '&#128230;', color: '#00c896' },
+    informativo:  { key: 'informativo',  label: 'Informativo',  icon: '&#128172;', color: '#9299b8' },
+    outro:        { key: 'outro',        label: 'Outro',        icon: '&#128196;', color: '#9299b8' },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // NÍVEIS DE CONFIANÇA
+  // ══════════════════════════════════════════════════════════════════════════
+
+  confidence: {
+    confirmado:    { key: 'confirmado',    label: 'Confirmado',    color: '#00c896' },
+    parcial:       { key: 'parcial',       label: 'Parcial',       color: '#ffc107' },
+    nao_encontrado:{ key: 'nao_encontrado', label: 'Não Encontrado', color: '#9299b8' },
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════
   // CAMPOS DO FORMULÁRIO DE DETALHES
   // ══════════════════════════════════════════════════════════════════════════
 

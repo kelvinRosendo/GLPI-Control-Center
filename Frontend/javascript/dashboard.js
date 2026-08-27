@@ -261,10 +261,21 @@ window.Dashboard = {
       indicators.projectors_operando = pjInd.operando || 0;
       indicators.projectors_atencao = pjInd.atencao || 0;
       indicators.projectors_lampWarning = pjInd.lampWarning || 0;
+
+      // Avisos extraídos dos comentários
+      const noticesSummary = window.Projectors.getNoticesSummary();
+      indicators.projectors_notices_total = noticesSummary.total || 0;
+      indicators.projectors_notices_criticos = noticesSummary.bySeverity?.critico || 0;
+      indicators.projectors_notices_atencao = noticesSummary.bySeverity?.atencao || 0;
+      indicators.projectors_notices_defeito = noticesSummary.byType?.defeito || 0;
     } else {
       indicators.projectors_operando = 0;
       indicators.projectors_atencao = 0;
       indicators.projectors_lampWarning = 0;
+      indicators.projectors_notices_total = 0;
+      indicators.projectors_notices_criticos = 0;
+      indicators.projectors_notices_atencao = 0;
+      indicators.projectors_notices_defeito = 0;
     }
 
     return indicators;

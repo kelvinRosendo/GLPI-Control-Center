@@ -176,6 +176,7 @@ final class ProjectorsEndpoint
       'reparticao' => $glpiData['reparticao'] ?? '',
       'usuario' => $glpiData['usuario'] ?? '',
       'glpi_status' => $glpiData['status'] ?? 'ativo',
+      'comentario' => $glpiData['comentario'] ?? '',
       // Dados salvos
       'data_aquisicao' => $savedData['data_aquisicao'] ?? '',
       'fabricante' => $savedData['fabricante'] ?? '',
