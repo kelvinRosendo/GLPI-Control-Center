@@ -125,7 +125,7 @@ window.SearchStorage = (function () {
   function _searchProjetores(q, results) {
     const items = window.DATA?.projetores || [];
     items.forEach(item => {
-      if (_matchItem(item, q, ['nome', 'patrimonio', 'modelo', 'sala'])) {
+      if (_matchItem(item, q, ['nome', 'patrimonio', 'modelo', 'reparticao'])) {
         results.push(_normalizeResult(item, 'projetores', 'Projetor'));
       }
     });
@@ -134,7 +134,7 @@ window.SearchStorage = (function () {
   function _searchImpressoras(q, results) {
     const items = window.DATA?.impressoras || [];
     items.forEach(item => {
-      if (_matchItem(item, q, ['nome', 'serial', 'patrimonio', 'modelo'])) {
+      if (_matchItem(item, q, ['nome', 'serial', 'patrimonio', 'modelo', 'reparticao'])) {
         results.push(_normalizeResult(item, 'impressoras', 'Impressora'));
       }
     });
@@ -157,7 +157,7 @@ window.SearchStorage = (function () {
       serial: item.serial || '',
       patrimonio: item.patrimonio || '',
       status: item.status || item.situacao || '',
-      local: item.local || item.sala || item.setor || '',
+      local: item.local || item.reparticao || item.sala || item.setor || '',
       user: item.usuario || item.aluno || '',
       ip: item.ip || '',
       link: item.link || '',

@@ -114,7 +114,7 @@ final class Mappers
       'status'     => self::status($p),
       'reparticao' => self::extractName($p['locations_id'] ?? null),
       'usuario'    => self::extractName($p['users_id'] ?? null),
-      'modelo'     => self::extractName($p['printermodels_id'] ?? null),
+      'modelo'     => self::extractName($p['computermodels_id'] ?? $p['printermodels_id'] ?? null),
     ];
   }
 

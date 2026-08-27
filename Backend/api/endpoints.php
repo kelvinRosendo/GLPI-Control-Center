@@ -78,6 +78,33 @@ function isProjetor(string $nome): bool
   return preg_match('/^Projetor/i', $nome) === 1;
 }
 
+function getComputerType(array $c): string
+{
+  $type = $c['computertypes_id'] ?? null;
+  if (is_string($type) && $type !== '') {
+    return strtolower(trim($type));
+  }
+  if (is_array($type)) {
+    $name = $type['name'] ?? '';
+    if (is_string($name) && $name !== '') {
+      return strtolower(trim($name));
+    }
+  }
+  return '';
+}
+
+function isProjetorType(array $c): bool
+{
+  $type = getComputerType($c);
+  return $type === 'projetor' || $type === 'projetores';
+}
+
+function isImpressoraType(array $c): bool
+{
+  $type = getComputerType($c);
+  return $type === 'impressora' || $type === 'impressoras';
+}
+
 final class Endpoints
 {
   public static function health(): void
@@ -225,7 +252,7 @@ final class Endpoints
 
     foreach ($all as $c) {
       $nome = trim($c['name'] ?? '');
-      if (isProjetor($nome)) {
+      if (isProjetor($nome) || isProjetorType($c)) {
         $items[] = Mappers::projetor($c);
       }
     }
@@ -235,18 +262,14 @@ final class Endpoints
 
   public static function impressoras(array $config): void
   {
-    $glpi = new GlpiClient($config['glpi'] ?? []);
-    $session = $glpi->initSession();
-    $raw = $glpi->getWithParams('/Printer', $session, [
-      'range' => '0-200',
-      'expand_dropdowns' => 'true',
-    ]);
-    $glpi->killSession($session);
-
+    $all = self::getAllComputers($config);
     $items = [];
-    foreach ($raw as $p) {
-      if (is_array($p)) {
-        $items[] = Mappers::impressora($p);
+
+    foreach ($all as $c) {
+      $nome = trim($c['name'] ?? '');
+      // Match by name containing "impressora" or by GLPI type
+      if (stripos($nome, 'impressora') !== false || isImpressoraType($c)) {
+        $items[] = Mappers::impressora($c);
       }
     }
 
