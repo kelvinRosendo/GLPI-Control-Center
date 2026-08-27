@@ -21,48 +21,52 @@ class PermissionMiddleware
      */
     private static array $moduleActions = [
         'home' => [
-            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA', 'SUPORTE', 'VISUALIZADOR'],
+            'view' => ['ADMIN', 'SUPORTE'],
         ],
         'computadores' => [
-            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
-            'search' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
-            'edit' => ['ADMIN', 'TI'],
-            'openTicket' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
+            'view' => ['ADMIN', 'SUPORTE'],
+            'search' => ['ADMIN', 'SUPORTE'],
+            'edit' => ['ADMIN', 'SUPORTE'],
+            'openTicket' => ['ADMIN', 'SUPORTE'],
         ],
         'projetores' => [
-            'view' => ['ADMIN', 'TI', 'SUPORTE'],
-            'edit' => ['ADMIN', 'TI'],
-            'maintenance' => ['ADMIN', 'TI'],
+            'view' => ['ADMIN', 'SUPORTE'],
+            'edit' => ['ADMIN', 'SUPORTE'],
+            'maintenance' => ['ADMIN', 'SUPORTE'],
+        ],
+        'impressoras' => [
+            'view' => ['ADMIN', 'SUPORTE'],
+            'edit' => ['ADMIN', 'SUPORTE'],
         ],
         'chamados' => [
-            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA', 'SUPORTE'],
-            'create' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
-            'edit' => ['ADMIN', 'TI'],
+            'view' => ['ADMIN', 'SUPORTE'],
+            'create' => ['ADMIN', 'SUPORTE'],
+            'edit' => ['ADMIN', 'SUPORTE'],
         ],
         'relatorios' => [
-            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA'],
-            'export' => ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA'],
-            'configure' => ['ADMIN'],
+            'view' => ['ADMIN', 'SUPORTE'],
+            'export' => ['ADMIN', 'SUPORTE'],
+            'configure' => ['ADMIN', 'SUPORTE'],
         ],
         'auditoria' => [
-            'view' => ['ADMIN', 'TI'],
-            'export' => ['ADMIN', 'TI'],
-            'clear' => ['ADMIN'],
+            'view' => ['ADMIN', 'SUPORTE'],
+            'export' => ['ADMIN', 'SUPORTE'],
+            'clear' => ['ADMIN', 'SUPORTE'],
         ],
         'assistente' => [
-            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
-            'chat' => ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
+            'view' => ['ADMIN', 'SUPORTE'],
+            'chat' => ['ADMIN', 'SUPORTE'],
         ],
         'settings' => [
-            'view' => ['ADMIN'],
-            'manage' => ['ADMIN'],
+            'view' => ['ADMIN', 'SUPORTE'],
+            'manage' => ['ADMIN', 'SUPORTE'],
         ],
         'notifications' => [
-            'view' => ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA', 'SUPORTE', 'VISUALIZADOR'],
+            'view' => ['ADMIN', 'SUPORTE'],
         ],
         'integrations' => [
-            'view' => ['ADMIN', 'TI'],
-            'manage' => ['ADMIN'],
+            'view' => ['ADMIN', 'SUPORTE'],
+            'manage' => ['ADMIN', 'SUPORTE'],
         ],
     ];
 
@@ -142,12 +146,7 @@ class PermissionMiddleware
 
         $levels = [
             'ADMIN' => 100,
-            'TI' => 80,
-            'COORDENADORA' => 60,
-            'DIRETORA' => 55,
-            'VICE_DIRETORA' => 50,
             'SUPORTE' => 40,
-            'VISUALIZADOR' => 10,
         ];
 
         $currentLevel = $levels[$profile] ?? 0;

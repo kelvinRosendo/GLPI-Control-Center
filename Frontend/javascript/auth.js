@@ -239,8 +239,7 @@ window.Auth = (function () {
       return;
     }
 
-    // Determinar perfil (por enquanto, todos são COORDENADORA para demo)
-    // Em produção, isso viria de um backend
+    // Determinar perfil do usuário
     const profileKey = _determineProfile(googleUser.email);
 
     // Criar sessão
@@ -266,15 +265,10 @@ window.Auth = (function () {
 
     // Administradores específicos
     if (lowerEmail === 'kelvinrosendo@colegiosatelite.com.br') return 'ADMIN';
-
-    // Regras de exemplo - em produção viria do backend
     if (lowerEmail.includes('admin')) return 'ADMIN';
-    if (lowerEmail.includes('ti') || lowerEmail.includes('suporte')) return 'TI';
-    if (lowerEmail.includes('coordenador')) return 'COORDENADORA';
-    if (lowerEmail.includes('diretor')) return 'DIRETORA';
-    if (lowerEmail.includes('vice')) return 'VICE_DIRETORA';
 
-    return 'COORDENADORA';
+    // Todos os demais são Suporte
+    return 'SUPORTE';
   }
 
   // ══════════════════════════════════════════════════════════════════════════

@@ -44,7 +44,7 @@ window.UserContext = (function () {
       nome: googleUser.name || googleUser.nome || 'Usuário',
       email: googleUser.email || '',
       foto: googleUser.picture || googleUser.foto || '',
-      perfil: profileKey || 'VISUALIZADOR',
+      perfil: profileKey || 'SUPORTE',
       dominio: (googleUser.email || '').split('@')[1] || '',
       provedor: 'google',
     };
@@ -236,7 +236,7 @@ window.UserContext = (function () {
    * @returns {string}
    */
   function getUserProfile() {
-    return _user?.perfil || 'VISUALIZADOR';
+    return _user?.perfil || 'SUPORTE';
   }
 
   /**

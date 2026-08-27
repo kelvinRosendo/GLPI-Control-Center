@@ -31,47 +31,12 @@ window.Permissions = (function () {
       level: 100,
       color: '#ff5555',
     },
-    TI: {
-      key: 'TI',
-      label: 'Técnico de TI',
-      description: 'Acesso técnico completo',
-      level: 80,
-      color: '#4f7ef7',
-    },
-    COORDENADORA: {
-      key: 'COORDENADORA',
-      label: 'Coordenadora',
-      description: 'Acesso pedagógico e administrativo',
-      level: 60,
-      color: '#00c896',
-    },
-    VICE_DIRETORA: {
-      key: 'VICE_DIRETORA',
-      label: 'Vice-Diretora',
-      description: 'Acesso gerencial e indicadores',
-      level: 50,
-      color: '#6c5ce7',
-    },
-    DIRETORA: {
-      key: 'DIRETORA',
-      label: 'Diretora',
-      description: 'Acesso estratégico e indicadores',
-      level: 55,
-      color: '#ffc107',
-    },
     SUPORTE: {
       key: 'SUPORTE',
       label: 'Suporte',
-      description: 'Acesso operacional limitado',
+      description: 'Acesso total ao sistema',
       level: 40,
       color: '#9299b8',
-    },
-    VISUALIZADOR: {
-      key: 'VISUALIZADOR',
-      label: 'Visualizador',
-      description: 'Somente leitura',
-      level: 10,
-      color: '#5a6080',
     },
   };
 
@@ -96,40 +61,18 @@ window.Permissions = (function () {
   // PERMISSÕES POR PERFIL
   // ══════════════════════════════════════════════════════════════════════════
 
+  const ALL_MODULES = Object.keys(MODULES);
+  const ALL_ACTIONS = ['create', 'read', 'update', 'delete', 'export', 'configure', 'audit'];
+
   const ROLE_PERMISSIONS = {
     ADMIN: {
-      modules: Object.keys(MODULES),
-      actions: ['create', 'read', 'update', 'delete', 'export', 'configure', 'audit'],
-    },
-
-    TI: {
-      modules: ['home', 'computadores', 'geekiees', 'apoio', 'projetores', 'impressoras', 'chamados', 'relatorios', 'auditoria', 'assistente'],
-      actions: ['create', 'read', 'update', 'delete', 'export', 'audit'],
-    },
-
-    COORDENADORA: {
-      modules: ['home', 'chamados', 'relatorios', 'computadores', 'geekiees', 'apoio', 'projetores'],
-      actions: ['create', 'read', 'update'],
-    },
-
-    DIRETORA: {
-      modules: ['home', 'relatorios', 'chamados'],
-      actions: ['read', 'export'],
-    },
-
-    VICE_DIRETORA: {
-      modules: ['home', 'relatorios', 'chamados'],
-      actions: ['read', 'export'],
+      modules: ALL_MODULES,
+      actions: ALL_ACTIONS,
     },
 
     SUPORTE: {
-      modules: ['home', 'computadores', 'geekiees', 'apoio', 'chamados', 'projetores'],
-      actions: ['create', 'read', 'update'],
-    },
-
-    VISUALIZADOR: {
-      modules: ['home'],
-      actions: ['read'],
+      modules: ALL_MODULES,
+      actions: ALL_ACTIONS,
     },
   };
 
@@ -137,40 +80,46 @@ window.Permissions = (function () {
   // PERMISSÕES POR MÓDULO (ações específicas)
   // ══════════════════════════════════════════════════════════════════════════
 
+  const BOTH = ['ADMIN', 'SUPORTE'];
+
   const MODULE_ACTIONS = {
     home: {
-      view: ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA', 'SUPORTE', 'VISUALIZADOR'],
-      refresh: ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA', 'SUPORTE'],
+      view: BOTH,
+      refresh: BOTH,
     },
     computadores: {
-      view: ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
-      search: ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
-      edit: ['ADMIN', 'TI'],
-      openTicket: ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
+      view: BOTH,
+      search: BOTH,
+      edit: BOTH,
+      openTicket: BOTH,
     },
     projetores: {
-      view: ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
-      edit: ['ADMIN', 'TI'],
-      maintenance: ['ADMIN', 'TI'],
+      view: BOTH,
+      edit: BOTH,
+      maintenance: BOTH,
+    },
+    impressoras: {
+      view: BOTH,
+      edit: BOTH,
     },
     chamados: {
-      view: ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA', 'SUPORTE'],
-      create: ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
-      edit: ['ADMIN', 'TI'],
+      view: BOTH,
+      create: BOTH,
+      edit: BOTH,
     },
     relatorios: {
-      view: ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA'],
-      export: ['ADMIN', 'TI', 'COORDENADORA', 'DIRETORA', 'VICE_DIRETORA'],
-      configure: ['ADMIN'],
+      view: BOTH,
+      export: BOTH,
+      configure: BOTH,
     },
     auditoria: {
-      view: ['ADMIN', 'TI'],
-      export: ['ADMIN', 'TI'],
-      clear: ['ADMIN'],
+      view: BOTH,
+      export: BOTH,
+      clear: BOTH,
     },
     assistente: {
-      view: ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
-      chat: ['ADMIN', 'TI', 'COORDENADORA', 'SUPORTE'],
+      view: BOTH,
+      chat: BOTH,
     },
   };
 

@@ -115,13 +115,6 @@ window.PC = (function () {
   }
 
   /**
-   * Verifica se o usuário é do setor de TI.
-   */
-  function isTI() {
-    return _getProfile() === 'TI';
-  }
-
-  /**
    * Verifica se o usuário tem nível mínimo.
    * @param {string} minProfile - Perfil mínimo exigido
    */
@@ -203,7 +196,6 @@ window.PC = (function () {
 
     // Verificações de perfil
     isAdmin,
-    isTI,
     hasMinLevel,
 
     // Módulos
