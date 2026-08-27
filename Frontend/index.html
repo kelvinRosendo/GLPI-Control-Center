@@ -71,6 +71,16 @@
             <span class="glpi-status-text">Conectado ao GLPI</span>
           </span>
         </div>
+
+        <!-- Pesquisa Global -->
+        <div class="topbar-search" id="topbar-search">
+          <span class="topbar-search-icon"><img src="css/icons/search.svg" alt="" /></span>
+          <input type="text" id="topbar-search-input" class="topbar-search-input"
+                 placeholder="Pesquisar ativo, patrimonio, sala..." autocomplete="off" />
+          <kbd class="topbar-search-kbd">Ctrl+K</kbd>
+          <div class="topbar-search-dropdown" id="topbar-search-dropdown"></div>
+        </div>
+
         <div class="topbar-right">
           <div class="notif-bell-wrapper">
             <button class="notif-bell-btn" id="notification-bell-btn" data-notif-action="toggle" title="Central de Notificações">
@@ -166,6 +176,7 @@
 <script src="javascript/search_storage.js"></script>
 <script src="javascript/search.js"></script>
 <script src="javascript/search_ui.js"></script>
+<script src="javascript/asset_resolver.js"></script>
 <script src="javascript/keyboard_shortcuts.js"></script>
 <script src="javascript/settings.js"></script>
 <script src="javascript/settings_ui.js"></script>

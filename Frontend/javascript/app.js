@@ -138,14 +138,24 @@ window.App = {
     }
   },
 
-  go(tabId) {
+  go(tabId, options = {}) {
     // Verificar acesso ao módulo
     if (tabId !== 'home' && window.AuthGuard && !window.AuthGuard.checkModule(tabId)) {
       return;
     }
 
     window.State.setTab(tabId);
-    window.State.resetFilters();
+
+    // Aplicar filtros opcionais (navegação via cards/dashboard)
+    if (options.search !== undefined) {
+      window.State.setSearch(options.search);
+    } else {
+      window.State.resetFilters();
+    }
+    if (options.status !== undefined) {
+      window.State.setStatus(options.status);
+    }
+
     if (tabId !== 'computadores') {
       window.State.setExpandedComputer(null);
     }
@@ -201,6 +211,7 @@ window.App = {
           window.DashboardUI.render();
           return '';
         }
+        window.DashboardUI.render();
         return '';
       case 'computadores':
         if (this.assetsLoading && !window.DATA.computadores.length) {

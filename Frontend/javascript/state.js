@@ -15,6 +15,9 @@ window.STATE = {
   ticketsError: '',
   ticketSearch: '',
   ticketStatus: 'todos',
+  ticketPeriod: 'all',
+  ticketCustomStart: null,
+  ticketCustomEnd: null,
 
 };
 
@@ -82,12 +85,24 @@ window.State = {
     window.STATE.ticketStatus = value || 'todos';
   },
 
+  setTicketPeriod(value) {
+    window.STATE.ticketPeriod = value || 'all';
+  },
+
+  setTicketCustomDates(start, end) {
+    window.STATE.ticketCustomStart = start || null;
+    window.STATE.ticketCustomEnd = end || null;
+  },
+
 
   resetFilters() {
     window.STATE.search = '';
     window.STATE.status = 'todos';
     window.STATE.ticketSearch = '';
     window.STATE.ticketStatus = 'todos';
+    window.STATE.ticketPeriod = 'all';
+    window.STATE.ticketCustomStart = null;
+    window.STATE.ticketCustomEnd = null;
     window.STATE.reparticao = 'todas';
   },
 };
