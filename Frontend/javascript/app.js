@@ -182,7 +182,10 @@ window.App = {
       mainEl.innerHTML = '';
       window.DashboardUI.render('main-content');
     } else {
-      mainEl.innerHTML = this._renderCurrentTabContent();
+      const html = this._renderCurrentTabContent();
+      if (html !== '') {
+        mainEl.innerHTML = html;
+      }
     }
 
     this._animateTabContent(mainEl);
