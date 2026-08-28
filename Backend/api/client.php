@@ -122,11 +122,17 @@ final class GlpiClient
       $batch = $this->getWithParams($path, $sessionToken, array_merge($params, [
         'range' => $offset . '-' . ($offset + $batchSize - 1),
       ]));
-      if (!array_is_list($batch)) break;
+      if (!self::isList($batch)) break;
       $all = array_merge($all, $batch);
       if (count($batch) < $batchSize) break;
     }
     return $all;
+  }
+
+  private static function isList(array $value): bool
+  {
+    if ($value === []) return true;
+    return array_keys($value) === range(0, count($value) - 1);
   }
 
   private function request(string $method, string $url, array $headers): array
