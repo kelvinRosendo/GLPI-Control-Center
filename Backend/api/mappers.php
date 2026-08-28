@@ -94,6 +94,7 @@ final class Mappers
   {
     $alternateUser = self::rawString($c['contact'] ?? '');
     $alternateUserNumber = self::rawString($c['contact_num'] ?? '');
+    $comment = self::rawString($c['comment'] ?? '');
 
     return [
       'glpiId'     => $c['id'] ?? null,
@@ -101,23 +102,25 @@ final class Mappers
       'serial'     => $c['serial'] ?? '',
       'patrimonio' => $c['otherserial'] ?? '',
       'status'     => self::status($c),
-      // Neste inventario, o local fisico e mantido no campo
-      // "Nome alternativo de usuario" (contact) do GLPI.
-      'reparticao' => $alternateUser !== ''
-        ? $alternateUser
-        : self::extractName($c['locations_id'] ?? null),
+      'reparticao' => self::projectorLocation(
+        self::rawString($c['name'] ?? ''),
+        $alternateUserNumber,
+        $comment,
+        $alternateUser,
+        self::extractName($c['locations_id'] ?? null)
+      ),
       'usuario'    => self::extractName($c['users_id'] ?? null),
       'modelo'     => self::extractName($c['computermodels_id'] ?? null),
-      'comentario' => $c['comment'] ?? '',
+      'comentario' => $comment,
       'nome_alternativo_usuario' => $alternateUser,
       'numero_nome_alternativo_usuario' => $alternateUserNumber,
-      'horas_lampada_glpi' => self::extractHours($alternateUserNumber),
     ];
   }
 
   public static function impressora(array $p): array
   {
     $alternateUser = self::rawString($p['contact'] ?? '');
+    $alternateUserNumber = self::rawString($p['contact_num'] ?? '');
 
     return [
       'glpiId'     => $p['id'] ?? null,
@@ -125,34 +128,79 @@ final class Mappers
       'serial'     => $p['serial'] ?? '',
       'patrimonio' => $p['otherserial'] ?? '',
       'status'     => self::status($p),
-      'reparticao' => $alternateUser !== ''
-        ? $alternateUser
-        : self::extractName($p['locations_id'] ?? null),
+      'reparticao' => $alternateUserNumber !== ''
+        ? $alternateUserNumber
+        : ($alternateUser !== ''
+          ? $alternateUser
+          : self::extractName($p['locations_id'] ?? null)),
       'usuario'    => self::extractName($p['users_id'] ?? null),
       'modelo'     => self::extractName($p['computermodels_id'] ?? $p['printermodels_id'] ?? null),
       'fabricante' => self::extractName($p['manufacturers_id'] ?? null),
       'ip'         => self::extractName($p['networks_id'] ?? null),
       'comentario' => $p['comment'] ?? '',
       'nome_alternativo_usuario' => $alternateUser,
+      'numero_nome_alternativo_usuario' => $alternateUserNumber,
     ];
   }
 
-  private static function extractHours(mixed $value): int
+  private static function projectorLocation(
+    string $projectorName,
+    string $alternateUserNumber,
+    string $comment,
+    string $alternateUser,
+    ?string $glpiLocation
+  ): ?string
   {
-    $text = self::rawString($value);
-    if ($text === '') {
-      return 0;
+    if ($alternateUserNumber !== '') {
+      return $alternateUserNumber;
     }
 
-    // Aceita tanto um numero puro quanto formatos como "1.250 h".
-    if (preg_match('/(?:horas?\s*[:=]?\s*)?([0-9][0-9.,]*)\s*(?:h|hrs?|horas?)?/iu', $text, $match) !== 1) {
-      return 0;
+    // Os cadastros antigos guardam sala e horas juntas no comentario,
+    // por exemplo: "Sala 02 - 3038h" ou "Maker - 0h".
+    $hourLocations = [];
+    $plainLocation = null;
+    foreach (preg_split('/\R/u', $comment) ?: [] as $line) {
+      $line = trim($line);
+      if ($line === '') continue;
+
+      if (preg_match('/^(.+?)\s*[-–—|]\s*(?:horas?\s*[:=]?\s*)?\d[\d.,]*\s*(?:h|hrs?|horas?)\b/iu', $line, $match) === 1) {
+        $location = trim($match[1]);
+        if ($location !== '') {
+          $dateKey = '';
+          if (preg_match('/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/', $line, $dateMatch) === 1) {
+            $dateKey = sprintf('%04d%02d%02d', $dateMatch[3], $dateMatch[2], $dateMatch[1]);
+          }
+          $hourLocations[] = ['location' => $location, 'date' => $dateKey];
+        }
+      } elseif ($plainLocation === null && preg_match('/^(?:sala\b.*|maker\b.*|ateli[eê]\b.*|bil[ií]ngue\b.*|espa[cç]o\b.*)$/iu', $line) === 1) {
+        $plainLocation = $line;
+      }
     }
 
-    $digits = preg_replace('/\D+/', '', $match[1]);
-    $hours = $digits !== '' ? (int) $digits : 0;
+    if ($hourLocations !== []) {
+      $dated = array_values(array_filter($hourLocations, static fn(array $item): bool => $item['date'] !== ''));
+      if ($dated !== []) {
+        usort($dated, static fn(array $a, array $b): int => strcmp($b['date'], $a['date']));
+        return $dated[0]['location'];
+      }
+      return $hourLocations[0]['location'];
+    }
 
-    return ($hours >= 0 && $hours < 100000) ? $hours : 0;
+    if ($plainLocation !== null) {
+      return $plainLocation;
+    }
+
+    if ($alternateUser !== '') {
+      return $alternateUser;
+    }
+
+    // Alguns ativos sem comentario ja trazem o ambiente no proprio nome.
+    $nameLocation = trim((string) preg_replace('/^Projetor\s*/iu', '', $projectorName));
+    if ($nameLocation !== '' && preg_match('/^\d+$/', $nameLocation) !== 1) {
+      return $nameLocation;
+    }
+
+    return $glpiLocation;
   }
 
   public static function computerDetails(array $c): array

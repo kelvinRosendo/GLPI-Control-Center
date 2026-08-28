@@ -182,7 +182,7 @@ final class ProjectorsEndpoint
       // Dados salvos
       'data_aquisicao' => $savedData['data_aquisicao'] ?? '',
       'fabricante' => $savedData['fabricante'] ?? '',
-      'horas_lampada' => (int) ($savedData['horas_lampada'] ?? $glpiData['horas_lampada_glpi'] ?? 0),
+      'horas_lampada' => (int) ($savedData['horas_lampada'] ?? 0),
       'vida_util_estimada' => (int) ($savedData['vida_util_estimada'] ?? $config['lamp_life_hours']),
       'data_troca_lampada' => $savedData['data_troca_lampada'] ?? '',
       'ultima_manutencao' => $savedData['ultima_manutencao'] ?? '',
