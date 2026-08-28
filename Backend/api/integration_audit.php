@@ -55,7 +55,7 @@ final class IntegrationAuditController
    */
   public static function receive(array $config): void
   {
-    $body = json_decode(file_get_contents('php://input'), true);
+    $body = Request::json();
 
     if (!$body || !is_array($body)) {
       Responde::erro('Body JSON inválido.', 400);

@@ -93,7 +93,7 @@
             <span id="user-role" class="user-role"></span>
           </div>
           <div class="avatar" id="user-avatar">U</div>
-          <button class="logout-btn" id="logout-btn" onclick="window.App.logout()">
+          <button class="logout-btn" id="logout-btn">
             <span class="gcc-icon gcc-icon--sm"><img src="css/icons/logout.svg" alt="" /></span>
           </button>
         </div>
@@ -218,10 +218,10 @@
     <input id="ticket-category" class="ticket-input" type="number" placeholder="ID da categoria (opcional)" style="margin-bottom:20px;" />
 
     <div class="ticket-actions">
-      <button onclick="window.Tickets.send()" class="ticket-btn-save">
+      <button id="ticket-send-btn" class="ticket-btn-save">
         Salvar no GLPI
       </button>
-      <button onclick="window.Tickets.closeModal()" class="ticket-btn-cancel">
+      <button id="ticket-cancel-btn" class="ticket-btn-cancel">
         Cancelar
       </button>
     </div>
@@ -240,7 +240,7 @@
         <p class="chat-header-title">Assistente de Horários</p>
         <p class="chat-header-subtitle">Carrinhos de Chromebooks — Colégio Satélite</p>
       </div>
-      <button onclick="window.Chat.closePanel()" class="chat-close-btn">✕</button>
+      <button id="chat-close-btn" class="chat-close-btn">✕</button>
     </div>
 
     <!-- Mensagens -->
@@ -257,10 +257,9 @@
         class="chat-input"
         type="text"
         placeholder="Ex: Qual carrinho usa o 6º ano A?"
-        onkeydown="if(event.key==='Enter') window.Chat.send()"
       />
       <button
-        onclick="window.Chat.send()"
+        id="chat-send-btn"
         class="chat-send-btn">
         Enviar
       </button>

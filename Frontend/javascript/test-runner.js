@@ -101,10 +101,15 @@ window.TestRunner = (function () {
    * @param {Function} fn - Função com os testes
    */
   function describe(name, fn) {
-    _currentSuite = { name, tests: [], beforeEach: null, afterEach: null };
-    fn();
-    _suites.push(_currentSuite);
-    _currentSuite = null;
+    const parentSuite = _currentSuite;
+    const suite = { name, tests: [], beforeEach: null, afterEach: null };
+    _currentSuite = suite;
+    try {
+      fn();
+      _suites.push(suite);
+    } finally {
+      _currentSuite = parentSuite;
+    }
   }
 
   /**

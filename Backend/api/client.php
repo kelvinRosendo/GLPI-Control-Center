@@ -63,8 +63,8 @@ final class GlpiClient
         'App-Token: ' . $this->appToken,
       ],
       CURLOPT_TIMEOUT        => 25,
-      CURLOPT_SSL_VERIFYPEER => false,
-      CURLOPT_SSL_VERIFYHOST => 0,
+      CURLOPT_SSL_VERIFYPEER => !$this->sslInsecure,
+      CURLOPT_SSL_VERIFYHOST => $this->sslInsecure ? 0 : 2,
     ]);
 
     curl_exec($ch);
@@ -112,6 +112,21 @@ final class GlpiClient
       'Session-Token' => $sessionToken,
       'App-Token' => $this->appToken,
     ]);
+  }
+
+  public function getAllWithParams(string $path, string $sessionToken, array $params = [], int $batchSize = 200): array
+  {
+    $batchSize = max(1, min(1000, $batchSize));
+    $all = [];
+    for ($offset = 0; $offset < 10000; $offset += $batchSize) {
+      $batch = $this->getWithParams($path, $sessionToken, array_merge($params, [
+        'range' => $offset . '-' . ($offset + $batchSize - 1),
+      ]));
+      if (!array_is_list($batch)) break;
+      $all = array_merge($all, $batch);
+      if (count($batch) < $batchSize) break;
+    }
+    return $all;
   }
 
   private function request(string $method, string $url, array $headers): array

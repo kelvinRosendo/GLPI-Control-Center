@@ -38,6 +38,18 @@ window.AuditUI = (function () {
 
   // ── Helpers ─────────────────────────────────────────────────────────────
 
+  function _esc(value) {
+    return window.Sanitization?.escapeHtml(value) || String(value ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function _safeColor(value) {
+    const color = String(value ?? '');
+    return /^(?:#[0-9a-f]{3,8}|rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)|[a-z]{3,20})$/i.test(color)
+      ? color : '#6b7280';
+  }
+
   /**
    * Formata timestamp para exibição amigável.
    * @param {string} isoString
@@ -503,30 +515,31 @@ window.AuditUI = (function () {
         const catConfig = window.AUDIT_CONFIG.getCategory(record.categoria);
         const sevConfig = window.AUDIT_CONFIG.getSeverity(record.severity);
         const truncatedDesc = _truncate(record.descricao, window.AUDIT_CONFIG.ui.maxDescriptionLength);
+        const color = _safeColor(record.categoryColor);
 
         html += `
-          <div class="audit-timeline__event" data-id="${record.id}">
-            <div class="audit-timeline__event-dot" style="background:${record.categoryColor}"></div>
+          <div class="audit-timeline__event" data-id="${_esc(record.id)}">
+            <div class="audit-timeline__event-dot" style="background:${color}"></div>
             <div class="audit-timeline__event-content">
               <div class="audit-timeline__event-header">
-                <span class="audit-timeline__event-icon" style="color:${record.categoryColor}">${window.gccIcon ? window.gccIcon(record.categoryIconKey || 'info', 'sm') : record.categoryIcon}</span>
-                <span class="audit-timeline__event-action">${record.acaoLabel}</span>
-                <span class="audit-timeline__event-severity audit-timeline__event-severity--${record.severity}">
-                  ${sevConfig ? sevConfig.icon : ''} ${sevConfig ? sevConfig.label : record.severity}
+                <span class="audit-timeline__event-icon" style="color:${color}">${window.gccIcon ? window.gccIcon(record.categoryIconKey || 'info', 'sm') : _esc(record.categoryIcon)}</span>
+                <span class="audit-timeline__event-action">${_esc(record.acaoLabel)}</span>
+                <span class="audit-timeline__event-severity audit-timeline__event-severity--${_esc(record.severity)}">
+                  ${sevConfig ? sevConfig.icon : ''} ${_esc(sevConfig ? sevConfig.label : record.severity)}
                 </span>
                 <span class="audit-timeline__event-time">${_formatTimestamp(record.timestamp)}</span>
               </div>
-              <div class="audit-timeline__event-desc">${truncatedDesc}</div>
+              <div class="audit-timeline__event-desc">${_esc(truncatedDesc)}</div>
               <div class="audit-timeline__event-meta">
-                <span class="audit-timeline__event-user"><i class="fas fa-user"></i> ${record.usuario}</span>
-                <span class="audit-timeline__event-category" style="color:${record.categoryColor}">
-                  ${catConfig ? catConfig.label : record.categoria}
+                <span class="audit-timeline__event-user"><i class="fas fa-user"></i> ${_esc(record.usuario)}</span>
+                <span class="audit-timeline__event-category" style="color:${color}">
+                  ${_esc(catConfig ? catConfig.label : record.categoria)}
                 </span>
-                ${record.equipamento ? `<span class="audit-timeline__event-equip"><i class="fas fa-desktop"></i> ${record.equipamento}</span>` : ''}
-                ${record.fornecedor ? `<span class="audit-timeline__event-supplier"><i class="fas fa-truck"></i> ${record.fornecedor}</span>` : ''}
+                ${record.equipamento ? `<span class="audit-timeline__event-equip"><i class="fas fa-desktop"></i> ${_esc(record.equipamento)}</span>` : ''}
+                ${record.fornecedor ? `<span class="audit-timeline__event-supplier"><i class="fas fa-truck"></i> ${_esc(record.fornecedor)}</span>` : ''}
               </div>
             </div>
-            <button class="audit-timeline__event-detail" data-id="${record.id}" title="Ver detalhes">
+            <button class="audit-timeline__event-detail" data-id="${_esc(record.id)}" title="Ver detalhes">
               <i class="fas fa-chevron-right"></i>
             </button>
           </div>
@@ -635,15 +648,16 @@ window.AuditUI = (function () {
     const catConfig = window.AUDIT_CONFIG.getCategory(record.categoria);
     const sevConfig = window.AUDIT_CONFIG.getSeverity(record.severity);
     const date = new Date(record.timestamp);
+    const color = _safeColor(record.categoryColor);
 
     modalBody.innerHTML = `
       <div class="audit-detail">
-        <div class="audit-detail__header" style="border-left-color: ${record.categoryColor}">
-          <span class="audit-detail__icon" style="color:${record.categoryColor}">${window.gccIcon ? window.gccIcon(record.categoryIconKey || 'info', 'sm') : record.categoryIcon}</span>
+        <div class="audit-detail__header" style="border-left-color: ${color}">
+          <span class="audit-detail__icon" style="color:${color}">${window.gccIcon ? window.gccIcon(record.categoryIconKey || 'info', 'sm') : _esc(record.categoryIcon)}</span>
           <div>
-            <h4>${record.acaoLabel}</h4>
-            <span class="audit-detail__severity audit-detail__severity--${record.severity}">
-              ${sevConfig ? sevConfig.icon : ''} ${sevConfig ? sevConfig.label : record.severity}
+            <h4>${_esc(record.acaoLabel)}</h4>
+            <span class="audit-detail__severity audit-detail__severity--${_esc(record.severity)}">
+              ${sevConfig ? sevConfig.icon : ''} ${_esc(sevConfig ? sevConfig.label : record.severity)}
             </span>
           </div>
         </div>
@@ -655,44 +669,44 @@ window.AuditUI = (function () {
           </div>
           <div class="audit-detail__field">
             <label>Usuário</label>
-            <span><i class="fas fa-user"></i> ${record.usuario}</span>
+            <span><i class="fas fa-user"></i> ${_esc(record.usuario)}</span>
           </div>
           <div class="audit-detail__field">
             <label>Categoria</label>
-            <span style="color:${record.categoryColor}">${catConfig ? catConfig.label : record.categoria}</span>
+            <span style="color:${color}">${_esc(catConfig ? catConfig.label : record.categoria)}</span>
           </div>
           <div class="audit-detail__field">
             <label>Módulo</label>
-            <span>${window.AUDIT_CONFIG.getModuleLabel(record.modulo)}</span>
+            <span>${_esc(window.AUDIT_CONFIG.getModuleLabel(record.modulo))}</span>
           </div>
           ${record.equipamento ? `
           <div class="audit-detail__field">
             <label>Equipamento</label>
-            <span><i class="fas fa-desktop"></i> ${record.equipamento}</span>
+            <span><i class="fas fa-desktop"></i> ${_esc(record.equipamento)}</span>
           </div>` : ''}
           ${record.fornecedor ? `
           <div class="audit-detail__field">
             <label>Fornecedor</label>
-            <span><i class="fas fa-truck"></i> ${record.fornecedor}</span>
+            <span><i class="fas fa-truck"></i> ${_esc(record.fornecedor)}</span>
           </div>` : ''}
           <div class="audit-detail__field audit-detail__field--full">
             <label>Descrição</label>
-            <span>${record.descricao}</span>
+            <span>${_esc(record.descricao)}</span>
           </div>
           ${record.extras ? `
           <div class="audit-detail__field audit-detail__field--full">
             <label>Dados Extras</label>
-            <pre class="audit-detail__extras">${JSON.stringify(record.extras, null, 2)}</pre>
+            <pre class="audit-detail__extras">${_esc(JSON.stringify(record.extras, null, 2))}</pre>
           </div>` : ''}
           ${record.browser ? `
           <div class="audit-detail__field audit-detail__field--full">
             <label>Browser</label>
-            <span class="audit-detail__browser">${record.browser.userAgent || 'N/A'}</span>
+            <span class="audit-detail__browser">${_esc(record.browser.userAgent || 'N/A')}</span>
           </div>` : ''}
         </div>
 
         <div class="audit-detail__footer">
-          <span class="audit-detail__id">ID: ${record.id}</span>
+          <span class="audit-detail__id">ID: ${_esc(record.id)}</span>
         </div>
       </div>
     `;

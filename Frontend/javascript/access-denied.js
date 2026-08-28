@@ -45,10 +45,10 @@ window.AccessDenied = (function () {
             ` : ''}
           </div>
           <div class="access-denied-actions">
-            <button class="access-denied-btn access-denied-btn--primary" onclick="window.App.go('home')">
+            <button class="access-denied-btn access-denied-btn--primary" data-app-action="home">
               &#128200; Ir para Dashboard
             </button>
-            <button class="access-denied-btn access-denied-btn--secondary" onclick="window.Auth?.logout()">
+            <button class="access-denied-btn access-denied-btn--secondary" data-app-action="logout">
               &#128682; Trocar de conta
             </button>
           </div>

@@ -17,18 +17,14 @@ window.ApiInterceptors = (function () {
    * Adiciona token de autenticação aos requests.
    */
   function authInterceptor(config) {
-    const user = window.UserContext?.getCurrentUser?.();
-    if (user?.token) {
+    const session = window.UserContext?.getSession?.();
+    if (session?.token) {
       config.headers = config.headers || {};
-      config.headers['Authorization'] = `Bearer ${user.token}`;
+      config.headers['Authorization'] = `Bearer ${session.token}`;
     }
-    if (user?.perfil) {
+    if (session?.csrfToken) {
       config.headers = config.headers || {};
-      config.headers['X-GCC-Profile'] = user.perfil;
-    }
-    if (user?.email) {
-      config.headers = config.headers || {};
-      config.headers['X-GCC-Email'] = user.email;
+      config.headers['X-CSRF-Token'] = session.csrfToken;
     }
     return config;
   }

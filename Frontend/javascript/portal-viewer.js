@@ -134,7 +134,7 @@ window.PortalViewer = {
 
     const iframe = document.createElement('iframe');
     iframe.className = 'pv-iframe';
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-popups');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-forms allow-popups');
     iframe.setAttribute('title', this._integrationConfig?.nome || 'Portal');
     iframe.setAttribute('loading', 'eager');
     iframe.src = url;

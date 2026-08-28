@@ -10,10 +10,14 @@ window.GlpiClient = {
   },
 
   async _fetch(path, options = {}) {
+    const session = window.UserContext?.getSession?.();
     const config = {
       method: options.method || 'GET',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+        ...(session?.csrfToken ? { 'X-CSRF-Token': session.csrfToken } : {}),
         ...(options.headers || {}),
       },
     };

@@ -33,8 +33,9 @@ window.Chat = {
 
     // Indicador de carregamento
     const loadingId = 'chat-loading-' + Date.now();
-    messages.innerHTML += `
-      <div id="${loadingId}" style="display:flex;gap:8px;align-items:flex-start;">
+    const loading = document.createElement('div');
+    loading.innerHTML = `
+      <div style="display:flex;gap:8px;align-items:flex-start;">
         <div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:rgba(var(--color-accent-rgb),0.1);flex-shrink:0;">
           <span class="gcc-icon gcc-icon--sm" style="color:var(--color-accent)"><img src="css/icons/assistance.svg" alt="" /></span>
         </div>
@@ -42,16 +43,12 @@ window.Chat = {
           Pensando...
         </div>
       </div>`;
+    loading.firstElementChild.id = loadingId;
+    messages.appendChild(loading.firstElementChild);
     messages.scrollTop = messages.scrollHeight;
 
     try {
-      const res = await fetch(`${window.CONFIG.backendUrl}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: texto }),
-      });
-
-      const json = await res.json();
+      const json = await window.GlpiClient._fetch('/api/chat', { method: 'POST', body: { message: texto } });
 
       // Remove loading
       document.getElementById(loadingId)?.remove();
@@ -79,15 +76,18 @@ window.Chat = {
     const textColor  = isUser  ? '#fff'                         : isError ? 'var(--red,#ff5555)'   : 'var(--text,#e8eaf6)';
     const align      = isUser  ? 'flex-end'                     : 'flex-start';
     const icon       = isUser  ? '' : `<div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:rgba(var(--color-accent-rgb),0.1);flex-shrink:0;"><span class="gcc-icon gcc-icon--sm" style="color:var(--color-accent)"><img src="css/icons/assistance.svg" alt="" /></span></div>`;
-    const iconOrder  = isUser  ? '' : icon;
-
-    messages.innerHTML += `
-      <div style="display:flex;gap:8px;align-items:flex-start;justify-content:${align};">
-        ${iconOrder}
-        <div style="background:${bgColor};color:${textColor};padding:10px 14px;border-radius:10px;font-size:13px;max-width:80%;line-height:1.5;white-space:pre-wrap;">
-          ${texto.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-        </div>
-      </div>`;
+    const row = document.createElement('div');
+    row.style.cssText = `display:flex;gap:8px;align-items:flex-start;justify-content:${align};`;
+    if (!isUser) {
+      const iconWrapper = document.createElement('div');
+      iconWrapper.innerHTML = icon;
+      row.appendChild(iconWrapper.firstElementChild);
+    }
+    const bubble = document.createElement('div');
+    bubble.style.cssText = `background:${bgColor};color:${textColor};padding:10px 14px;border-radius:10px;font-size:13px;max-width:80%;line-height:1.5;white-space:pre-wrap;`;
+    bubble.textContent = String(texto ?? '');
+    row.appendChild(bubble);
+    messages.appendChild(row);
 
     messages.scrollTop = messages.scrollHeight;
   },

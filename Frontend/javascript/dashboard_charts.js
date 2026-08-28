@@ -72,7 +72,8 @@ window.DashboardCharts = {
   _renderChartError(chartId, error) {
     const container = document.getElementById(`chart-container-${chartId}`);
     if (container) {
-      container.innerHTML = `<div class="dash-chart-error"><span>Erro: ${error}</span></div>`;
+      const message = window.Sanitization?.escapeHtml(error?.message || String(error)) || 'Erro ao carregar gráfico';
+      container.innerHTML = `<div class="dash-chart-error"><span>Erro: ${message}</span></div>`;
     }
   },
 

@@ -15,7 +15,7 @@ final class TicketsEndpoint
   {
     $glpi    = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    $raw     = $glpi->get('/Ticket?range=0-200&expand_dropdowns=true', $session);
+    $raw     = $glpi->getAllWithParams('/Ticket', $session, ['expand_dropdowns' => 'true'], 200);
     $glpi->killSession($session);
 
     $items = [];
@@ -62,7 +62,7 @@ final class TicketsEndpoint
 
   public static function create(array $config): void
   {
-    $body = json_decode(file_get_contents('php://input'), true);
+    $body = Request::json();
 
     if (!$body) {
       Responde::erro('Body JSON inválido.', 400);
@@ -77,6 +77,9 @@ final class TicketsEndpoint
 
     if ($titulo === '' || $descricao === '' || $glpiId === 0) {
       Responde::erro('Campos obrigatórios: titulo, descricao, glpiId.', 400);
+    }
+    if (!in_array($itemtype, ['Computer', 'Printer'], true)) {
+      Responde::erro('itemtype inválido.', 422);
     }
 
     $glpi    = new GlpiClient($config['glpi'] ?? []);

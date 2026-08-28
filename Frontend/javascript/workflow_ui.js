@@ -87,10 +87,10 @@ window.WorkflowUI = {
       else if (s.completedSteps.includes(stepNum)) cls += ' completed';
 
       const clickable = s.completedSteps.includes(stepNum) || stepNum === s.currentStep;
-      const onclick = clickable ? `onclick="window.Workflow.goTo(${stepNum})"` : '';
+      const navigation = clickable ? `data-wf-step="${stepNum}"` : '';
 
       return `
-        <div class="${cls}" ${onclick}>
+        <div class="${cls}" ${navigation}>
           <div class="workflow-step-circle">
             ${s.completedSteps.includes(stepNum) && stepNum !== s.currentStep ? '&#10003;' : stepNum}
           </div>
@@ -506,6 +506,10 @@ window.WorkflowUI = {
 
     this._modalEl.querySelectorAll('[data-wf-close]').forEach(el => {
       el.addEventListener('click', () => window.Workflow.close());
+    });
+
+    this._modalEl.querySelectorAll('[data-wf-step]').forEach(el => {
+      el.addEventListener('click', () => window.Workflow.goTo(Number(el.dataset.wfStep)));
     });
 
     this._modalEl.querySelectorAll('[data-wf-nav]').forEach(el => {

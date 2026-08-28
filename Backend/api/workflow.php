@@ -37,7 +37,7 @@ final class WorkflowEndpoint
 
   public static function create(array $config): void
   {
-    $body = json_decode(file_get_contents('php://input'), true);
+    $body = Request::json();
 
     if (!$body || !is_array($body)) {
       Responde::erro('Body JSON inválido.', 400);
@@ -55,6 +55,9 @@ final class WorkflowEndpoint
 
     if ($errors !== []) {
       Responde::erro('Dados inválidos.', 422, ['errors' => $errors]);
+    }
+    if (!in_array($itemtype, ['Computer', 'Printer'], true)) {
+      Responde::erro('itemtype inválido.', 422);
     }
 
     // ── Montar titulo e descricao ──────────────────────────────────────────

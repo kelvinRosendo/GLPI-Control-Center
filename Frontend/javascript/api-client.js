@@ -65,11 +65,12 @@ window.ApiClient = (function () {
     // Construir request
     let requestConfig = {
       method,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
-      signal: options.timeout ? AbortSignal.timeout(options.timeout || _config.timeout) : undefined,
+      signal: AbortSignal.timeout(options.timeout ?? _config.timeout),
     };
 
     if (options.body !== undefined) {

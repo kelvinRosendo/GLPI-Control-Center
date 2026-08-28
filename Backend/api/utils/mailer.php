@@ -47,6 +47,9 @@ final class Mailer
     }
 
     $recipients = is_array($to) ? $to : [$to];
+    $recipients = array_values(array_filter($recipients, static fn($email): bool => is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL) !== false));
+    if ($recipients === []) return ['ok' => false, 'error' => 'Nenhum destinatário válido.'];
+    $subject = str_replace(["\r", "\n", "\0"], ' ', $subject);
     $results = [];
 
     foreach ($recipients as $recipient) {
@@ -63,6 +66,14 @@ final class Mailer
     ];
   }
 
+  public static function sendWithAlerts(array $to, array $alerts, array $results): array
+  {
+    $subject = '[GLPI] Alertas preventivos de projetores';
+    $html = MailTemplates::renderAlertHtml($alerts, $results);
+    $text = MailTemplates::renderAlertText($alerts, $results);
+    return self::send($to, $subject, $html, $text);
+  }
+
   private static function sendSingle(
     array $config,
     string $to,
@@ -70,6 +81,9 @@ final class Mailer
     string $htmlBody,
     ?string $textBody
   ): array {
+    if (filter_var($to, FILTER_VALIDATE_EMAIL) === false) {
+      return ['ok' => false, 'to' => '', 'error' => 'Destinatário inválido.'];
+    }
     $boundary = md5(uniqid((string) time()));
 
     $headerLines = [];
@@ -161,6 +175,8 @@ final class Mailer
 
   private static function formatAddress(string $email, string $name): string
   {
+    $email = str_replace(["\r", "\n", "\0"], '', $email);
+    $name = str_replace(["\r", "\n", "\0", '"', '\\'], ['', '', '', "'", ''], $name);
     if ($name !== '') {
       return '"' . $name . '" <' . $email . '>';
     }

@@ -40,29 +40,29 @@
   <div id="console"></div>
 
   <!-- Core modules -->
-  <script src="../javascript/utils.js"></script>
-  <script src="../javascript/cache.js"></script>
-  <script src="../javascript/loading-states.js"></script>
-  <script src="../javascript/permissions.js"></script>
-  <script src="../javascript/permission-checker.js"></script>
-  <script src="../javascript/user_context.js"></script>
-  <script src="../javascript/theme.js"></script>
-  <script src="../javascript/settings.js"></script>
-  <script src="../javascript/search_storage.js"></script>
-  <script src="../javascript/search.js"></script>
-  <script src="../javascript/keyboard_shortcuts.js"></script>
-  <script src="../javascript/notification-preferences.js"></script>
-  <script src="../javascript/audit_storage.js"></script>
-  <script src="../javascript/audit.config.js"></script>
-  <script src="../javascript/audit.js"></script>
-  <script src="../javascript/audit_analytics.js"></script>
+  <script src="javascript/utils.js"></script>
+  <script src="javascript/cache.js"></script>
+  <script src="javascript/loading-states.js"></script>
+  <script src="javascript/permissions.js"></script>
+  <script src="javascript/permission-checker.js"></script>
+  <script src="javascript/user_context.js"></script>
+  <script src="javascript/theme.js"></script>
+  <script src="javascript/settings.js"></script>
+  <script src="javascript/search_storage.js"></script>
+  <script src="javascript/search.js"></script>
+  <script src="javascript/keyboard_shortcuts.js"></script>
+  <script src="javascript/notification-preferences.js"></script>
+  <script src="javascript/audit.config.js"></script>
+  <script src="javascript/audit_storage.js"></script>
+  <script src="javascript/audit.js"></script>
+  <script src="javascript/audit_analytics.js"></script>
 
   <!-- Test runner -->
-  <script src="../javascript/test-runner.js"></script>
+  <script src="javascript/test-runner.js"></script>
 
   <!-- Tests -->
-  <script src="unit.js"></script>
-  <script src="integration.js"></script>
+  <script src="javascript/tests/unit.js"></script>
+  <script src="javascript/tests/integration.js"></script>
 
   <script>
     function runTests() {
@@ -85,6 +85,10 @@
         projetores: [],
         impressoras: [],
       };
+
+      window.Settings?.init?.();
+      window.KeyboardShortcuts?.init?.();
+      window.NotificationPreferences?.init?.();
 
       const results = TestRunner.run(function (r) {
         console.log = originalLog;

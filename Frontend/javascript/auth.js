@@ -146,7 +146,7 @@ window.Auth = (function () {
     }
   }
 
-  function _showDemoLogin() {
+  async function _showDemoLogin() {
     const email = prompt('Modo Demo - Digite seu email (@colegiosatelite.com.br):');
     if (!email) return;
 
@@ -157,13 +157,7 @@ window.Auth = (function () {
 
     const name = email.split('@')[0].replace('.', ' ').replace(/\b\w/g, c => c.toUpperCase());
 
-    _handleLoginSuccess({
-      sub: 'demo_' + Date.now(),
-      name: name,
-      email: email,
-      picture: '',
-      access_token: 'demo_token',
-    });
+    await _authenticate('/api/auth/demo', { email: email, name: name });
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -174,49 +168,31 @@ window.Auth = (function () {
    * Chamado quando o Google retorna a resposta.
    * @param {object} response - Resposta do Google
    */
-  function _handleGoogleResponse(response) {
+  async function _handleGoogleResponse(response) {
     try {
-      // Decodificar o JWT token
-      const payload = _decodeJwtPayload(response.credential);
-
-      if (!payload) {
-        _showError(window.AUTH_CONFIG.messages.genericError);
-        return;
-      }
-
-      _handleLoginSuccess({
-        sub: payload.sub,
-        name: payload.name,
-        email: payload.email,
-        picture: payload.picture,
-        access_token: response.credential,
-      });
+      await _authenticate('/api/auth/google', { credential: response.credential });
     } catch (e) {
       console.error('[Auth] Erro ao processar resposta do Google:', e);
       _showError(window.AUTH_CONFIG.messages.genericError);
     }
   }
 
-  /**
-   * Decodifica o payload de um JWT token.
-   * @param {string} token
-   * @returns {object|null}
-   */
-  function _decodeJwtPayload(token) {
+  async function _authenticate(path, body) {
     try {
-      const base64Url = token.split('.')[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const jsonPayload = decodeURIComponent(
-        atob(base64)
-          .split('')
-          .map(function (c) {
-            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-          })
-          .join('')
-      );
-      return JSON.parse(jsonPayload);
-    } catch {
-      return null;
+      const baseUrl = (window.CONFIG?.backendUrl ?? 'http://localhost:8080').replace(/\/$/, '');
+      const response = await fetch(baseUrl + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(15000),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || 'Falha de autenticação');
+      _handleLoginSuccess(result);
+    } catch (error) {
+      console.error('[Auth] Falha na autenticação pelo servidor:', error);
+      _showError(error.message || window.AUTH_CONFIG.messages.genericError);
     }
   }
 
@@ -227,48 +203,28 @@ window.Auth = (function () {
   /**
    * Processa login bem-sucedido.
    * Valida domínio, cria sessão e notifica App.
-   * @param {object} googleUser - Dados do usuário Google
+   * @param {object} authResult - Sessão verificada e assinada pelo backend
    */
-  function _handleLoginSuccess(googleUser) {
+  function _handleLoginSuccess(authResult) {
     _hideError();
-
-    // Validar domínio
-    if (!window.AUTH_CONFIG.isDomainAllowed(googleUser.email)) {
-      _showError(window.AUTH_CONFIG.messages.domainNotAllowed);
-      _auditLoginFailed(googleUser.email, 'domain_not_allowed');
-      return;
-    }
-
-    // Determinar perfil do usuário
-    const profileKey = _determineProfile(googleUser.email);
-
-    // Criar sessão
-    const session = window.UserContext.createSession(googleUser, profileKey);
+    const verifiedUser = authResult.user;
+    window.UserContext.createSession({
+      sub: verifiedUser.id,
+      name: verifiedUser.name,
+      email: verifiedUser.email,
+      picture: verifiedUser.picture,
+      access_token: '',
+      csrf_token: authResult.csrfToken,
+      expires_at: authResult.expiresAt,
+    }, verifiedUser.profile);
 
     // Registrar auditoria
-    _auditLoginSuccess(googleUser);
+    _auditLoginSuccess(verifiedUser);
 
     // Notificar App
     if (window.App?.onLoginSuccess) {
-      window.App.onLoginSuccess(googleUser.name);
+      window.App.onLoginSuccess(verifiedUser.name);
     }
-  }
-
-  /**
-   * Determina o perfil do usuário baseado no email.
-   * Em produção, isso viria de um backend.
-   * @param {string} email
-   * @returns {string}
-   */
-  function _determineProfile(email) {
-    const lowerEmail = email.toLowerCase();
-
-    // Administradores específicos
-    if (lowerEmail === 'kelvinrosendo@colegiosatelite.com.br') return 'ADMIN';
-    if (lowerEmail.includes('admin')) return 'ADMIN';
-
-    // Todos os demais são Suporte
-    return 'SUPORTE';
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -280,6 +236,13 @@ window.Auth = (function () {
    */
   function logout() {
     const user = window.UserContext.getCurrentUser();
+    const session = window.UserContext.getSession();
+    const baseUrl = (window.CONFIG?.backendUrl ?? 'http://localhost:8080').replace(/\/$/, '');
+    fetch(baseUrl + '/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+      headers: session?.csrfToken ? { 'X-CSRF-Token': session.csrfToken } : {},
+    }).catch(() => {});
 
     // Revogar token Google
     if (window.google?.accounts?.id && user?.provedor === 'google') {

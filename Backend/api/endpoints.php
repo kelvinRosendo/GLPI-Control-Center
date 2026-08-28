@@ -18,9 +18,15 @@ Env::load(__DIR__ . '/../.env.local', true);
 
 $config = require __DIR__ . '/../config/config.php';
 
-header('Access-Control-Allow-Origin: ' . ($config['cors']['origin'] ?? '*'));
+$requestOrigin = trim((string) ($_SERVER['HTTP_ORIGIN'] ?? ''));
+$allowedOrigins = $config['cors']['origins'] ?? [];
+if ($requestOrigin !== '' && in_array($requestOrigin, $allowedOrigins, true)) {
+  header('Access-Control-Allow-Origin: ' . $requestOrigin);
+  header('Access-Control-Allow-Credentials: true');
+  header('Vary: Origin');
+}
 header('Access-Control-Allow-Methods: GET, POST, PUT, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-CSRF-Token');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
   http_response_code(204);
@@ -28,6 +34,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 }
 
 require_once __DIR__ . '/client.php';
+require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/utils/request.php';
+require_once __DIR__ . '/middleware/permissions.php';
 require_once __DIR__ . '/mappers.php';
 require_once __DIR__ . '/tickets.php';
 require_once __DIR__ . '/workflow.php';
@@ -120,10 +129,9 @@ final class Endpoints
   {
     $glpi = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    $raw = $glpi->getWithParams('/Computer', $session, [
-      'range' => '0-999',
+    $raw = $glpi->getAllWithParams('/Computer', $session, [
       'expand_dropdowns' => 'true',
-    ]);
+    ], 500);
     $glpi->killSession($session);
 
     return array_filter($raw, 'is_array');
@@ -147,17 +155,7 @@ final class Endpoints
 
   private static function parseJsonBody(): array
   {
-    $raw = file_get_contents('php://input');
-    if ($raw === false || trim($raw) === '') {
-      return [];
-    }
-
-    $json = json_decode($raw, true);
-    if (!is_array($json)) {
-      Responde::erro('Corpo JSON inválido.', 400);
-    }
-
-    return $json;
+    return Request::json();
   }
 
   public static function computers(array $config): void
@@ -282,9 +280,46 @@ $uri = rtrim($uri, '/');
 $normalized = str_replace('/api/endpoints.php', '', $uri);
 $path = $normalized ?: '/';
 
+function authorizeRequest(string $path, string $method, array $config): void
+{
+  if (in_array($path, ['/api/health', '/api/auth/google', '/api/auth/demo'], true)) return;
+
+  AuthService::requireAuthenticated($config, in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true));
+
+  if ($path === '/api/auth/logout') return;
+
+  if (in_array($path, ['/api/projetors/diagnostic', '/api/projetors/config'], true)) {
+    PermissionMiddleware::requireMinLevel('ADMIN');
+    return;
+  }
+
+  $rules = [
+    '#^/api/assets/computers#' => ['computadores', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/assets/chromebooks#' => ['computadores', 'view'],
+    '#^/api/assets/projetores#' => ['projetores', 'view'],
+    '#^/api/assets/impressoras#' => ['impressoras', 'view'],
+    '#^/api/projetors(?:/\d+/maintenance)?$#' => ['projetores', $method === 'GET' ? 'view' : 'maintenance'],
+    '#^/api/projetors#' => ['projetores', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/tickets#' => ['chamados', $method === 'GET' ? 'view' : 'create'],
+    '#^/api/chat$#' => ['assistente', 'chat'],
+    '#^/api/integration#' => ['integrations', $method === 'GET' ? 'view' : 'manage'],
+  ];
+
+  foreach ($rules as $pattern => [$module, $action]) {
+    if (preg_match($pattern, $path) === 1) {
+      PermissionMiddleware::requireAction($module, $action);
+      return;
+    }
+  }
+  PermissionMiddleware::requireMinLevel('ADMIN');
+}
+
 try {
+  $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+  authorizeRequest($path, $method, $config);
+
   $configErrors = isConfigValid($config);
-  $needsGlpi = !in_array($path, ['/api/health'], true);
+  $needsGlpi = !in_array($path, ['/api/health', '/api/auth/google', '/api/auth/demo', '/api/auth/logout'], true);
 
   if ($needsGlpi && $configErrors !== []) {
     Responde::erro(
@@ -296,6 +331,9 @@ try {
 
   match ($path) {
     '/api/health' => Endpoints::health(),
+    '/api/auth/google' => $method === 'POST' ? AuthService::login($config) : Responde::erro('Método não permitido.', 405),
+    '/api/auth/demo' => $method === 'POST' ? AuthService::demoLogin($config) : Responde::erro('Método não permitido.', 405),
+    '/api/auth/logout' => $method === 'POST' ? AuthService::logout() : Responde::erro('Método não permitido.', 405),
     '/api/assets/computers' => Endpoints::computers($config),
     '/api/assets/chromebooks-geekiees' => Endpoints::chromebooksGeekiees($config),
     '/api/assets/chromebooks-apoio' => Endpoints::chromebooksApoio($config),
@@ -425,7 +463,5 @@ try {
     . $e->getTraceAsString() . "\n";
   @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
 
-  Responde::erro('Erro interno no backend.', 500, [
-    'message' => $e->getMessage(),
-  ]);
+  Responde::erro('Erro interno no backend.', 500);
 }

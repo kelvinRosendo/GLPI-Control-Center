@@ -164,15 +164,8 @@ class PermissionMiddleware
      */
     public static function getUserProfile(): ?string
     {
-        // Buscar perfil do header de autorização
-        $profile = $_SERVER['HTTP_X_GCC_PROFILE'] ?? null;
-        if ($profile) {
-            return strtoupper($profile);
-        }
-
-        // Fallback: buscar do token JWT decoded
-        // Preparado para implementação futura com validação backend
-        return null;
+        $profile = AuthService::context()['profile'] ?? null;
+        return is_string($profile) ? strtoupper($profile) : null;
     }
 
     /**
@@ -182,7 +175,8 @@ class PermissionMiddleware
      */
     public static function getUserEmail(): ?string
     {
-        return $_SERVER['HTTP_X_GCC_EMAIL'] ?? null;
+        $email = AuthService::context()['email'] ?? null;
+        return is_string($email) ? $email : null;
     }
 
     /**
@@ -192,7 +186,8 @@ class PermissionMiddleware
      */
     public static function getUserName(): ?string
     {
-        return $_SERVER['HTTP_X_GCC_NAME'] ?? null;
+        $name = AuthService::context()['name'] ?? null;
+        return is_string($name) ? $name : null;
     }
 
     /**
@@ -235,7 +230,12 @@ class PermissionMiddleware
         $timestamp = date('c');
         $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
 
-        $logMessage = "[{$timestamp}] ACCESS_DENIED | User: {$email} | Profile: {$profile} | Module: {$module} | Action: {$action} | IP: {$ip} | UA: {$userAgent}\n";
+        $logMessage = "[{$timestamp}] ACCESS_DENIED | User: " . self::logValue($email)
+          . " | Profile: " . self::logValue($profile)
+          . " | Module: " . self::logValue($module)
+          . " | Action: " . self::logValue($action)
+          . " | IP: " . self::logValue($ip)
+          . " | UA: " . self::logValue($userAgent) . "\n";
 
         $logFile = __DIR__ . '/../logs/access_denied_' . date('Y-m-d') . '.log';
         @file_put_contents($logFile, $logMessage, FILE_APPEND | LOCK_EX);
@@ -256,9 +256,18 @@ class PermissionMiddleware
         $timestamp = date('c');
 
         $detailsJson = json_encode($details, JSON_UNESCAPED_UNICODE);
-        $logMessage = "[{$timestamp}] ADMIN_ACTION | User: {$email} | Profile: {$profile} | Action: {$action} | Details: {$detailsJson} | IP: {$ip}\n";
+        $logMessage = "[{$timestamp}] ADMIN_ACTION | User: " . self::logValue($email)
+          . " | Profile: " . self::logValue($profile)
+          . " | Action: " . self::logValue($action)
+          . " | Details: " . self::logValue((string) $detailsJson)
+          . " | IP: " . self::logValue($ip) . "\n";
 
         $logFile = __DIR__ . '/../logs/admin_actions_' . date('Y-m-d') . '.log';
         @file_put_contents($logFile, $logMessage, FILE_APPEND | LOCK_EX);
+    }
+
+    private static function logValue(string $value): string
+    {
+        return str_replace(["\r", "\n", "\0"], ' ', substr($value, 0, 2000));
     }
 }

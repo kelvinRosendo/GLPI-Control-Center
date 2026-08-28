@@ -63,7 +63,7 @@ window.ErrorUI = (function () {
         </div>
       </div>
       ${options.dismissible !== false ? `
-        <button class="error-toast-close" onclick="ErrorUI.dismiss('${error.id}')">&times;</button>
+        <button class="error-toast-close" type="button">&times;</button>
       ` : ''}
     `;
 
@@ -108,7 +108,7 @@ window.ErrorUI = (function () {
       <div class="error-toast-content">
         <div class="error-toast-title">${_escapeHtml(message)}</div>
       </div>
-      <button class="error-toast-close" onclick="ErrorUI.dismiss(this.parentElement.dataset.errorId)">&times;</button>
+      <button class="error-toast-close" type="button">&times;</button>
     `;
 
     _addToasts(toast, 4000);
@@ -126,6 +126,7 @@ window.ErrorUI = (function () {
 
     container.appendChild(toast);
     _toasts.push(toast);
+    toast.querySelector('.error-toast-close')?.addEventListener('click', () => dismiss(toast.dataset.errorId));
 
     // Animar entrada
     requestAnimationFrame(() => toast.classList.add('show'));
@@ -141,7 +142,7 @@ window.ErrorUI = (function () {
    * @param {string} id
    */
   function dismiss(id) {
-    const toast = document.querySelector(`[data-error-id="${id}"]`);
+    const toast = _toasts.find(item => item.dataset.errorId === String(id));
     if (toast) {
       toast.classList.remove('show');
       toast.classList.add('hide');
@@ -172,12 +173,12 @@ window.ErrorUI = (function () {
     const modal = document.createElement('div');
     modal.className = 'error-modal';
     modal.innerHTML = `
-      <div class="error-modal-backdrop" onclick="this.parentElement.remove()"></div>
+      <div class="error-modal-backdrop"></div>
       <div class="error-modal-content">
         <div class="error-modal-header">
           <span class="error-modal-icon" style="color: ${category.color || '#f7768e'}">${category.icon || '&#10067;'}</span>
           <h3>Erro Detectado</h3>
-          <button class="error-modal-close" onclick="this.closest('.error-modal').remove()">&times;</button>
+          <button class="error-modal-close" type="button">&times;</button>
         </div>
         <div class="error-modal-body">
           <div class="error-modal-message">${_escapeHtml(error.message)}</div>
@@ -203,12 +204,16 @@ window.ErrorUI = (function () {
           </div>
         </div>
         <div class="error-modal-footer">
-          <button class="error-btn" onclick="ErrorUI.copyError('${error.id}')">Copiar Erro</button>
-          <button class="error-btn error-btn--primary" onclick="this.closest('.error-modal').remove()">Fechar</button>
+          <button class="error-btn" data-error-copy type="button">Copiar Erro</button>
+          <button class="error-btn error-btn--primary" data-error-close type="button">Fechar</button>
         </div>
       </div>
     `;
     document.body.appendChild(modal);
+    modal.querySelector('.error-modal-backdrop')?.addEventListener('click', () => modal.remove());
+    modal.querySelector('.error-modal-close')?.addEventListener('click', () => modal.remove());
+    modal.querySelector('[data-error-close]')?.addEventListener('click', () => modal.remove());
+    modal.querySelector('[data-error-copy]')?.addEventListener('click', () => copyError(error.id));
     requestAnimationFrame(() => modal.classList.add('show'));
   }
 
@@ -256,11 +261,12 @@ window.ErrorUI = (function () {
           <div class="error-boundary-icon">&#128196;</div>
           <div class="error-boundary-title">Erro ao renderizar</div>
           <div class="error-boundary-message">${_escapeHtml(error.message)}</div>
-          <button class="error-btn" onclick="this.closest('.error-boundary').parentElement.innerHTML = ''">
+          <button class="error-btn" data-error-boundary-reset>
             Tentar Novamente
           </button>
         </div>
       `;
+      el.querySelector('[data-error-boundary-reset]')?.addEventListener('click', () => el.replaceChildren());
     }
   }
 

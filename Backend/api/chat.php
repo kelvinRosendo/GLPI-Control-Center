@@ -19,11 +19,15 @@ final class ChatEndpoint
         }
 
         // Lê o body
-        $body = json_decode(file_get_contents('php://input'), true);
+        Request::rateLimit('chat', 20, 60);
+        $body = Request::json(16384);
         $mensagem = trim($body['message'] ?? '');
 
         if ($mensagem === '') {
             Responde::erro('Campo "message" é obrigatório.', 400);
+        }
+        if (mb_strlen($mensagem) > 2000) {
+            Responde::erro('Mensagem muito longa.', 422);
         }
 
         $apiKey = getenv('OPENAI_API_KEY');

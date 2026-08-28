@@ -7,7 +7,7 @@ window.Sanitization = (function () {
 
   var _htmlMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;', '/': '&#x2F;' };
   var _attrMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#x27;' };
-  var _dangerousProtocols = ['javascript:', 'data:', 'vbscript:'];
+  var _dangerousProtocols = ['javascript:', 'vbscript:'];
 
   function escapeHtml(str) {
     if (!str) return '';
@@ -31,10 +31,13 @@ window.Sanitization = (function () {
 
   function sanitizeUrl(url) {
     if (!url) return '';
-    var trimmed = String(url).trim();
+    var trimmed = String(url).trim().replace(/&colon;/gi, ':').replace(/[\u0000-\u001F\u007F\s]+/g, '');
     var lower = trimmed.toLowerCase();
     for (var i = 0; i < _dangerousProtocols.length; i++) {
       if (lower.startsWith(_dangerousProtocols[i])) return '';
+    }
+    if (lower.startsWith('data:')) {
+      return /^data:image\/(?:png|gif|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(trimmed) ? trimmed : '';
     }
     if (!lower.startsWith('http://') && !lower.startsWith('https://') && !lower.startsWith('/')) return '';
     return trimmed;

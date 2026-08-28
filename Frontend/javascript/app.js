@@ -8,6 +8,7 @@ window.App = {
   assetsLoaded: false,
 
   async init() {
+    this._bindStaticActions();
     // Inicializar tema
     if (window.Theme) window.Theme.init();
 
@@ -55,6 +56,23 @@ window.App = {
     }
   },
 
+  _bindStaticActions() {
+    document.getElementById('logout-btn')?.addEventListener('click', () => this.logout());
+    document.getElementById('ticket-send-btn')?.addEventListener('click', () => window.Tickets?.send());
+    document.getElementById('ticket-cancel-btn')?.addEventListener('click', () => window.Tickets?.closeModal());
+    document.getElementById('chat-close-btn')?.addEventListener('click', () => window.Chat?.closePanel());
+    document.getElementById('chat-send-btn')?.addEventListener('click', () => window.Chat?.send());
+    document.getElementById('chat-input')?.addEventListener('keydown', event => {
+      if (event.key === 'Enter') window.Chat?.send();
+    });
+    document.addEventListener('click', event => {
+      const action = event.target.closest('[data-app-action]')?.dataset.appAction;
+      if (action === 'home') this.go('home');
+      if (action === 'logout') window.Auth?.logout();
+      if (action === 'open-chat') window.Chat?.openPanel();
+    });
+  },
+
   async onLoginSuccess(username) {
     const user = window.UserContext?.getCurrentUser();
 
@@ -62,7 +80,16 @@ window.App = {
     const avatar = document.getElementById('user-avatar');
     if (avatar && user) {
       if (user.foto) {
-        avatar.innerHTML = `<img src="${user.foto}" alt="${user.nome}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">`;
+        const safeUrl = window.Sanitization?.sanitizeUrl(user.foto) || '';
+        if (safeUrl) {
+          const image = document.createElement('img');
+          image.src = safeUrl;
+          image.alt = user.nome || 'Usuário';
+          image.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+          avatar.replaceChildren(image);
+        } else {
+          avatar.textContent = user.nome?.charAt(0).toUpperCase() || 'U';
+        }
       } else {
         avatar.textContent = user.nome?.charAt(0).toUpperCase() || username?.charAt(0).toUpperCase() || 'U';
       }
@@ -255,7 +282,7 @@ window.App = {
         }
 
         if (window.STATE.ticketsError && !window.STATE.ticketsLoaded) {
-          return `<p class="empty-msg">${window.STATE.ticketsError}</p>`;
+          return `<p class="empty-msg">${window.Sanitization?.escapeHtml(window.STATE.ticketsError) || 'Falha ao carregar chamados.'}</p>`;
         }
 
         return window.UI.renderTickets(window.STATE.tickets);
@@ -273,7 +300,7 @@ window.App = {
             </div>
             <h3 style="margin:0;font-size:18px;">Assistente de Horários</h3>
             <p style="margin:0;color:var(--text2,#9299b8);font-size:14px;text-align:center;">Tire dúvidas sobre os horários dos carrinhos de Chromebooks.</p>
-            <button onclick="window.Chat.openPanel()" style="padding:12px 28px;background:var(--accent,#4f7ef7);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">Abrir chat</button>
+            <button data-app-action="open-chat" style="padding:12px 28px;background:var(--accent,#4f7ef7);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;">Abrir chat</button>
           </div>
         `;
       default:
@@ -363,6 +390,13 @@ window.App = {
     document.querySelectorAll('[data-computer-toggle]').forEach(btn => {
       btn.addEventListener('click', async () => {
         await this.toggleComputerPanel(Number(btn.dataset.computerToggle));
+      });
+    });
+    document.querySelectorAll('[data-open-workflow]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = Number(btn.dataset.openWorkflow);
+        const asset = (window.DATA.computadores || []).find(item => Number(item.glpiId) === id);
+        if (asset) window.Workflow.open(asset);
       });
     });
   },

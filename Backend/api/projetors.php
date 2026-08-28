@@ -80,10 +80,9 @@ final class ProjectorsEndpoint
   {
     $glpi = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    $raw = $glpi->getWithParams('/Computer', $session, [
-      'range' => '0-999',
+    $raw = $glpi->getAllWithParams('/Computer', $session, [
       'expand_dropdowns' => 'true',
-    ]);
+    ], 500);
     $glpi->killSession($session);
 
     $items = [];
@@ -580,6 +579,28 @@ final class ProjectorsEndpoint
       }
     }
 
+    foreach (['lamp_life_hours', 'maintenance_interval_days', 'cleaning_interval_days'] as $field) {
+      $value = filter_var($currentConfig[$field] ?? null, FILTER_VALIDATE_INT);
+      if ($value === false || $value < 1 || $value > 100000) Responde::erro("Valor inválido para {$field}.", 422);
+      $currentConfig[$field] = $value;
+    }
+    foreach (['warning_percentage', 'critical_percentage'] as $field) {
+      $value = filter_var($currentConfig[$field] ?? null, FILTER_VALIDATE_INT);
+      if ($value === false || $value < 1 || $value > 100) Responde::erro("Valor inválido para {$field}.", 422);
+      $currentConfig[$field] = $value;
+    }
+    if ($currentConfig['warning_percentage'] >= $currentConfig['critical_percentage']) {
+      Responde::erro('O percentual de aviso deve ser menor que o crítico.', 422);
+    }
+    $currentConfig['email_enabled'] = filter_var($currentConfig['email_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    $recipients = is_array($currentConfig['email_recipients'] ?? null) ? $currentConfig['email_recipients'] : [];
+    foreach ($recipients as $recipient) {
+      if (!is_string($recipient) || filter_var($recipient, FILTER_VALIDATE_EMAIL) === false) {
+        Responde::erro('Lista de destinatários contém e-mail inválido.', 422);
+      }
+    }
+    $currentConfig['email_recipients'] = array_values(array_unique($recipients));
+
     $data['config'] = $currentConfig;
     self::saveData($data);
 
@@ -622,17 +643,7 @@ final class ProjectorsEndpoint
 
   private static function parseJsonBody(): array
   {
-    $raw = file_get_contents('php://input');
-    if ($raw === false || trim($raw) === '') {
-      return [];
-    }
-
-    $json = json_decode($raw, true);
-    if (!is_array($json)) {
-      Responde::erro('Corpo JSON inválido.', 400);
-    }
-
-    return $json;
+    return Request::json();
   }
 
   /**
@@ -644,13 +655,12 @@ final class ProjectorsEndpoint
     $result = [
       'timestamp' => date('c'),
       'config' => [
-        'glpi_url' => $config['glpi']['url'] ?? 'NAO_CONFIGURADO',
+        'glpi_configured' => !empty($config['glpi']['url']),
         'has_app_token' => !empty($config['glpi']['app_token']),
         'has_user_token' => !empty($config['glpi']['user_token']),
       ],
       'data_file' => [
         'exists' => is_file(self::DATA_FILE),
-        'path' => self::DATA_FILE,
       ],
       'glpi_test' => null,
       'projectors_found' => 0,
@@ -661,10 +671,9 @@ final class ProjectorsEndpoint
     try {
       $glpi = new GlpiClient($config['glpi'] ?? []);
       $session = $glpi->initSession();
-      $raw = $glpi->getWithParams('/Computer', $session, [
-        'range' => '0-999',
+      $raw = $glpi->getAllWithParams('/Computer', $session, [
         'expand_dropdowns' => 'true',
-      ]);
+      ], 500);
       $glpi->killSession($session);
 
       $result['glpi_test'] = 'OK';
@@ -689,7 +698,8 @@ final class ProjectorsEndpoint
       $result['projectors_ids'] = array_column($projectors, 'id');
 
     } catch (\Throwable $e) {
-      $result['glpi_test'] = 'ERRO: ' . $e->getMessage();
+      error_log('[Projectors diagnostic] ' . str_replace(["\r", "\n"], ' ', $e->getMessage()));
+      $result['glpi_test'] = 'ERRO';
     }
 
     // Verificar dados salvos

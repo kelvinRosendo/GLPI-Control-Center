@@ -358,8 +358,10 @@ window.SettingsUI = (function () {
   function _handleAction(action) {
     switch (action) {
       case 'clearCache':
-        if (confirm('Limpar todo o cache do sistema?')) {
-          localStorage.clear();
+        if (confirm('Limpar o cache do sistema?')) {
+          window.Cache?.clearAll?.();
+          window.ApiClient?.invalidateCache?.();
+          window.SearchStorage?.invalidateCache?.();
           alert('Cache limpo com sucesso!');
         }
         break;

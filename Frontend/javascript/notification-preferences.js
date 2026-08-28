@@ -73,7 +73,7 @@ window.NotificationPreferences = (function () {
    * @returns {object}
    */
   function getAll() {
-    return { ..._preferences };
+    return _clone(DEFAULT_PREFERENCES, _preferences);
   }
 
   /**
@@ -163,7 +163,7 @@ window.NotificationPreferences = (function () {
    * Reseta preferências para o padrão.
    */
   function reset() {
-    _preferences = { ...DEFAULT_PREFERENCES };
+    _preferences = _clone(DEFAULT_PREFERENCES);
     _save();
     _emit('preferences:reset', {});
   }
@@ -175,9 +175,9 @@ window.NotificationPreferences = (function () {
   function _load() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      _preferences = saved ? { ...DEFAULT_PREFERENCES, ...JSON.parse(saved) } : { ...DEFAULT_PREFERENCES };
+      _preferences = saved ? _mergeDeep(_clone(DEFAULT_PREFERENCES), JSON.parse(saved)) : _clone(DEFAULT_PREFERENCES);
     } catch {
-      _preferences = { ...DEFAULT_PREFERENCES };
+      _preferences = _clone(DEFAULT_PREFERENCES);
     }
   }
 
@@ -203,6 +203,12 @@ window.NotificationPreferences = (function () {
       }
     }
     return result;
+  }
+
+  function _clone(value, fallback) {
+    const source = fallback === undefined ? value : fallback;
+    if (typeof structuredClone === 'function') return structuredClone(source);
+    return JSON.parse(JSON.stringify(source));
   }
 
   function _emit(eventName, detail) {

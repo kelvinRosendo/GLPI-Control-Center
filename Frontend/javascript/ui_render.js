@@ -180,7 +180,8 @@ window.UI = {
     const statusLabel = { ativo: 'Ativo', manutencao: 'Manutencao', emprestado: 'Emprestado' }[a.status] || 'Ativo';
     const base = (window.CONFIG?.glpiUrl || '').replace(/\/$/, '');
     const formPath = tipo === 'impressora' ? 'front/printer.form.php' : 'front/computer.form.php';
-    const glpiLink = a.glpiId ? `${base}/${formPath}?id=${a.glpiId}` : '#';
+    const rawGlpiLink = a.glpiId ? `${base}/${formPath}?id=${encodeURIComponent(String(a.glpiId))}` : '#';
+    const glpiLink = window.Sanitization?.sanitizeUrl(rawGlpiLink) || '#';
     const canExpand = ['computer', 'geekie', 'apoio', 'projetor'].includes(tipo) && !!a.glpiId;
     const infoLines = [];
 
@@ -218,8 +219,8 @@ window.UI = {
         </div>
         <div class="asset-card-footer">
           ${canExpand ? `<button class="btn-expand" data-computer-toggle="${a.glpiId}">Ver dados completos</button>` : ''}
-          <a class="btn-glpi" href="${glpiLink}" target="_blank" rel="noopener">Abrir no GLPI</a>
-          ${a.glpiId ? `<button class="btn-ticket" onclick='window.Workflow.open(${JSON.stringify(a).replace(/'/g, '&#39;')})'>Abrir chamado</button>` : ''}
+          <a class="btn-glpi" href="${this._escapeHtml(glpiLink)}" target="_blank" rel="noopener noreferrer">Abrir no GLPI</a>
+          ${a.glpiId ? `<button class="btn-ticket" data-open-workflow="${this._escapeHtml(String(a.glpiId))}">Abrir chamado</button>` : ''}
         </div>
       </div>
     `;

@@ -239,10 +239,21 @@ window.Settings = (function () {
   function _load() {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      _settings = saved ? { ...DEFAULTS, ...JSON.parse(saved) } : { ...DEFAULTS };
+      _settings = saved ? _mergeDeep(getDefaults(), JSON.parse(saved)) : getDefaults();
     } catch {
-      _settings = { ...DEFAULTS };
+      _settings = getDefaults();
     }
+  }
+
+  function _mergeDeep(target, source) {
+    const result = { ...target };
+    Object.keys(source || {}).forEach(key => {
+      const value = source[key];
+      result[key] = value && typeof value === 'object' && !Array.isArray(value)
+        ? _mergeDeep(result[key] || {}, value)
+        : value;
+    });
+    return result;
   }
 
   function _save() {
@@ -264,7 +275,7 @@ window.Settings = (function () {
   function importSettings(jsonString) {
     try {
       const imported = JSON.parse(jsonString);
-      _settings = { ...DEFAULTS, ...imported };
+      _settings = _mergeDeep(getDefaults(), imported);
       _save();
       _applySettings();
       _emit('settings:imported', {});

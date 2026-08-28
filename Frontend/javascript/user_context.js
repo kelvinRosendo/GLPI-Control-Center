@@ -52,9 +52,10 @@ window.UserContext = (function () {
     _session = {
       token: googleUser.access_token || googleUser.id_token || '',
       createdAt: now.toISOString(),
-      expiresAt: new Date(now.getTime() + (config.maxSessionDurationMs || 43200000)).toISOString(),
+      expiresAt: googleUser.expires_at || new Date(now.getTime() + (config.maxSessionDurationMs || 43200000)).toISOString(),
       lastActivity: now.toISOString(),
       refreshCount: 0,
+      csrfToken: googleUser.csrf_token || '',
     };
 
     _saveToStorage();
@@ -72,7 +73,6 @@ window.UserContext = (function () {
 
     const now = new Date();
     const config = window.AUTH_CONFIG?.session || {};
-    const maxDuration = config.maxSessionDurationMs || 43200000;
 
     // Verificar se não expirou
     if (new Date(_session.expiresAt).getTime() < now.getTime()) {
@@ -82,7 +82,7 @@ window.UserContext = (function () {
 
     _session.lastActivity = now.toISOString();
     _session.refreshCount++;
-    _session.expiresAt = new Date(now.getTime() + maxDuration).toISOString();
+    // A expiração é assinada pelo backend e não pode ser prorrogada pelo cliente.
 
     _saveToStorage();
     _emit('user:refresh', { session: _session });
@@ -125,7 +125,8 @@ window.UserContext = (function () {
       const config = window.AUTH_CONFIG?.session || {};
       const key = config.storageKey || 'glpi:gcc:session';
       const data = { user: _user, session: _session };
-      localStorage.setItem(key, JSON.stringify(data));
+      sessionStorage.setItem(key, JSON.stringify(data));
+      localStorage.removeItem(key);
     } catch (e) {
       console.warn('[UserContext] Erro ao salvar sessão:', e);
     }
@@ -135,7 +136,7 @@ window.UserContext = (function () {
     try {
       const config = window.AUTH_CONFIG?.session || {};
       const key = config.storageKey || 'glpi:gcc:session';
-      const raw = localStorage.getItem(key);
+      const raw = sessionStorage.getItem(key);
       if (!raw) return null;
 
       const data = JSON.parse(raw);
@@ -152,6 +153,7 @@ window.UserContext = (function () {
     try {
       const config = window.AUTH_CONFIG?.session || {};
       const key = config.storageKey || 'glpi:gcc:session';
+      sessionStorage.removeItem(key);
       localStorage.removeItem(key);
     } catch {
       // Ignorar erros
@@ -163,7 +165,7 @@ window.UserContext = (function () {
   // ══════════════════════════════════════════════════════════════════════════
 
   /**
-   * Tenta restaurar sessão do localStorage.
+   * Tenta restaurar sessão da aba atual.
    * @returns {boolean} true se sessão restaurada com sucesso
    */
   function restoreSession() {
