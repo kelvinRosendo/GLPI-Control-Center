@@ -82,7 +82,10 @@ window.Projectors = {
               rawComment: parsed.rawComment,
             };
           });
-          indicators = response.indicators || this._calculateIndicators(projectors);
+          // As horas podem vir do Nome alternativo de usuario e sao normalizadas
+          // durante o mapeamento acima. Recalcular evita usar os indicadores do
+          // backend produzidos antes dessa normalizacao.
+          indicators = this._calculateIndicators(projectors);
         }
       } catch (enrichedErr) {
         console.warn('[Projectors] API enriquecida falhou, tentando dados basicos:', enrichedErr.message);
@@ -92,7 +95,7 @@ window.Projectors = {
           projectors = basicData.map(p => ({
             ...p,
             calculatedStatus: p.status || 'operando',
-            horas_lampada: p.horas_lampada || 0,
+            horas_lampada: p.horas_lampada || p.horas_lampada_glpi || 0,
             vida_util_estimada: p.vida_util_estimada || 3000,
             ultima_manutencao: p.ultima_manutencao || '',
             ultima_limpeza: p.ultima_limpeza || '',

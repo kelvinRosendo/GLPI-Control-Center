@@ -72,6 +72,15 @@
   object-fit: contain;
 }
 
+.sidebar-header[role="link"] {
+  cursor: pointer;
+}
+
+.sidebar-header[role="link"]:focus-visible {
+  outline: 2px solid var(--accent, #4f7ef7);
+  outline-offset: -2px;
+}
+
 .sidebar-logo-full {
   display: block;
 }

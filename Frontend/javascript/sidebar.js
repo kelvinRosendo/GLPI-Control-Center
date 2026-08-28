@@ -96,7 +96,7 @@ window.Sidebar = (function () {
     const visibleModules = _getVisibleModules();
 
     let html = `
-      <div class="sidebar-header">
+      <div class="sidebar-header" id="sidebar-home-link" role="link" tabindex="0" aria-label="Voltar para a home" title="Voltar para a home">
         <img src="assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite" class="sidebar-logo sidebar-logo-full" />
         <img src="assets/branding/logo/logo.png" alt="Colégio Satélite" class="sidebar-logo sidebar-logo-symbol" />
         <div class="sidebar-brand">
@@ -151,6 +151,18 @@ window.Sidebar = (function () {
   // ════════════════════════════════════════════════════════════════════════════
 
   function _bindEvents() {
+    const homeLink = document.getElementById('sidebar-home-link');
+    if (homeLink) {
+      const goHome = () => window.App?.go?.('home');
+      homeLink.addEventListener('click', goHome);
+      homeLink.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          goHome();
+        }
+      });
+    }
+
     // Toggle sidebar
     const toggleBtn = document.getElementById('sidebar-toggle');
     if (toggleBtn) {

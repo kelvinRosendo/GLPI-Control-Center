@@ -92,34 +92,67 @@ final class Mappers
 
   public static function projetor(array $c): array
   {
+    $alternateUser = self::rawString($c['contact'] ?? '');
+    $alternateUserNumber = self::rawString($c['contact_num'] ?? '');
+
     return [
       'glpiId'     => $c['id'] ?? null,
       'nome'       => $c['name'] ?? '',
       'serial'     => $c['serial'] ?? '',
       'patrimonio' => $c['otherserial'] ?? '',
       'status'     => self::status($c),
-      'reparticao' => self::extractName($c['locations_id'] ?? null),
+      // Neste inventario, o local fisico e mantido no campo
+      // "Nome alternativo de usuario" (contact) do GLPI.
+      'reparticao' => $alternateUser !== ''
+        ? $alternateUser
+        : self::extractName($c['locations_id'] ?? null),
       'usuario'    => self::extractName($c['users_id'] ?? null),
       'modelo'     => self::extractName($c['computermodels_id'] ?? null),
       'comentario' => $c['comment'] ?? '',
+      'nome_alternativo_usuario' => $alternateUser,
+      'numero_nome_alternativo_usuario' => $alternateUserNumber,
+      'horas_lampada_glpi' => self::extractHours($alternateUserNumber),
     ];
   }
 
   public static function impressora(array $p): array
   {
+    $alternateUser = self::rawString($p['contact'] ?? '');
+
     return [
       'glpiId'     => $p['id'] ?? null,
       'nome'       => $p['name'] ?? '',
       'serial'     => $p['serial'] ?? '',
       'patrimonio' => $p['otherserial'] ?? '',
       'status'     => self::status($p),
-      'reparticao' => self::extractName($p['locations_id'] ?? null),
+      'reparticao' => $alternateUser !== ''
+        ? $alternateUser
+        : self::extractName($p['locations_id'] ?? null),
       'usuario'    => self::extractName($p['users_id'] ?? null),
       'modelo'     => self::extractName($p['computermodels_id'] ?? $p['printermodels_id'] ?? null),
       'fabricante' => self::extractName($p['manufacturers_id'] ?? null),
       'ip'         => self::extractName($p['networks_id'] ?? null),
       'comentario' => $p['comment'] ?? '',
+      'nome_alternativo_usuario' => $alternateUser,
     ];
+  }
+
+  private static function extractHours(mixed $value): int
+  {
+    $text = self::rawString($value);
+    if ($text === '') {
+      return 0;
+    }
+
+    // Aceita tanto um numero puro quanto formatos como "1.250 h".
+    if (preg_match('/(?:horas?\s*[:=]?\s*)?([0-9][0-9.,]*)\s*(?:h|hrs?|horas?)?/iu', $text, $match) !== 1) {
+      return 0;
+    }
+
+    $digits = preg_replace('/\D+/', '', $match[1]);
+    $hours = $digits !== '' ? (int) $digits : 0;
+
+    return ($hours >= 0 && $hours < 100000) ? $hours : 0;
   }
 
   public static function computerDetails(array $c): array
