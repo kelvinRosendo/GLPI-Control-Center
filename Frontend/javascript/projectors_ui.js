@@ -181,16 +181,64 @@ window.ProjectorsUI = {
     const alerts = window.Projectors.getAlerts();
     if (!alerts.length) return '';
 
-    const critical = alerts.filter(a => a.highestSeverity === 'critical').length;
-    const warning = alerts.filter(a => a.highestSeverity === 'warning').length;
+    const criticalAlerts = alerts.filter(a => a.highestSeverity === 'critical');
+    const warningAlerts = alerts.filter(a => a.highestSeverity === 'warning');
+
+    // Coletar projectores únicos com alertas críticos
+    const criticalProjectors = [...new Set(criticalAlerts.map(a => a.projector.glpiId))]
+      .map(glpiId => {
+        const projector = window.Projectors.getProjector(glpiId);
+        return projector ? { glpiId, name: projector.nome } : null;
+      }).filter(p => p);
+
+    // Coletar projectores únicos com alertas de aviso
+    const warningProjectors = [...new Set(warningAlerts.map(a => a.projector.glpiId))]
+      .map(glpiId => {
+        const projector = window.Projectors.getProjector(glpiId);
+        return projector ? { glpiId, name: projector.nome } : null;
+      }).filter(p => p);
+
+    let items = '';
+
+    if (criticalAlerts.length > 0) {
+      items += `<div>
+        <strong>${criticalAlerts.length} crítico${criticalAlerts.length > 1 ? 's' : ''}</strong>
+        ${criticalProjectors.length > 0 ? `
+        <div style="margin-top:4px;">
+          ${criticalProjectors.slice(0, 3).map(p => `
+            <a href="#pj-detail-${p.glpiId}" style="font-size:12px;color:var(--color-red);text-decoration:underline;">
+              ${this._escapeHtml(p.name)}
+            </a>
+          `).join(' ')}
+          ${criticalProjectors.length > 3 ? `+${criticalProjectors.length - 3} mais` : ''}
+        </div>` : ''}
+      </div>`;
+    }
+
+    if (criticalAlerts.length > 0 && warningAlerts.length > 0) {
+      items += `· `;
+    }
+
+    if (warningAlerts.length > 0) {
+      items += `<div>
+        <strong>${warningAlerts.length} com atenção</strong>
+        ${warningProjectors.length > 0 ? `
+        <div style="margin-top:4px;">
+          ${warningProjectors.slice(0, 3).map(p => `
+            <a href="#pj-detail-${p.glpiId}" style="font-size:12px;color:var(--color-yellow);text-decoration:underline;">
+              ${this._escapeHtml(p.name)}
+            </a>
+          `).join(' ')}
+          ${warningProjectors.length > 3 ? `+${warningProjectors.length - 3} mais` : ''}
+        </div>` : ''}
+      </div>`;
+    }
 
     return `
       <div class="pj-alerts-banner" role="alert">
         <span class="pj-alerts-icon">&#9888;</span>
         <span class="pj-alerts-text">
-          ${critical > 0 ? `<strong>${critical}</strong> crítico${critical > 1 ? 's' : ''}` : ''}
-          ${critical > 0 && warning > 0 ? ' · ' : ''}
-          ${warning > 0 ? `<strong>${warning}</strong> com atenção` : ''}
+          ${items}
           ${alerts.length === 1 ? '1 alerta ativo' : `${alerts.length} alertas ativos`}
         </span>
       </div>
@@ -289,15 +337,49 @@ window.ProjectorsUI = {
     const alerts = window.Projectors.getAlerts().find(a => a.projector.glpiId === projector.glpiId);
     const hasAlerts = !!alerts;
 
+    const statusKey = projector.calculatedStatus || 'operando';
+    const statusColors = {
+      operando: 'var(--color-green)',
+      atencao: 'var(--color-yellow)',
+      manutencao: 'var(--color-orange)',
+      fora_de_uso: 'var(--color-red)',
+    };
+    const cardAccent = statusColors[statusKey] || statusColors.operando;
+
+    // Calcular dias desde última manutenção e limpeza
+    const daysSinceMaint = projector.ultima_manutencao
+      ? Math.floor((Date.now() - new Date(projector.ultima_manutencao)) / (1000 * 60 * 60 * 24))
+      : null;
+    const daysSinceCleaning = projector.ultima_limpeza
+      ? Math.floor((Date.now() - new Date(projector.ultima_limpeza)) / (1000 * 60 * 60 * 24))
+      : null;
+
+    // Badge de limpeza com cor baseada em dias
+    let cleaningBadge = '';
+    if (daysSinceCleaning !== null) {
+      let cleaningColor, cleaningLabel;
+      if (daysSinceCleaning < 30) {
+        cleaningColor = 'var(--color-green)';
+        cleaningLabel = `${daysSinceCleaning} dias`;
+      } else if (daysSinceCleaning < 60) {
+        cleaningColor = 'var(--color-yellow)';
+        cleaningLabel = `Há ${daysSinceCleaning} dias`;
+      } else {
+        cleaningColor = 'var(--color-red)';
+        cleaningLabel = 'EM MANUTENÇÃO';
+      }
+      cleaningBadge = `<div class="pj-cleaning-badge" style="color: ${cleaningColor}">${cleaningLabel}</div>`;
+    }
+
     return `
       <div class="pj-card ${hasAlerts ? 'pj-card-alert' : ''}"
            data-pj-select="${projector.glpiId}"
            tabindex="0" role="button"
-           aria-label="Ver detalhes de ${this._escapeAttr(projector.nome)}"
-           style="--card-accent: ${statusConfig.color}">
+           aria-label="Ver detalhes de ${this._escapeAttr(projector.nome)}">
         <div class="pj-card-header">
           <span class="pj-card-icon">&#128249;</span>
-          <span class="pj-card-status" style="color: ${statusConfig.color}">
+          <span class="pj-card-status ds-badge ds-badge--neutral"
+                style="color: ${cardAccent};">
             ${statusConfig.icon} ${statusConfig.label}
           </span>
         </div>
@@ -309,6 +391,7 @@ window.ProjectorsUI = {
             ${projector.modelo ? `<span class="pj-card-meta-item"><strong>Mod.</strong> ${this._escapeHtml(projector.modelo)}</span>` : ''}
             ${projector.reparticao ? `<span class="pj-card-meta-item"><strong>Local.</strong> ${this._escapeHtml(projector.reparticao)}</span>` : ''}
           </div>
+          ${cleaningBadge}
         </div>
 
         <div class="pj-card-lamp">

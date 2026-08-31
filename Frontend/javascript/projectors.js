@@ -109,6 +109,9 @@ window.Projectors = {
       // 2. Calcular alertas para o frontend
       this._state.alerts = this._calculateAlerts(projectors);
 
+      // 3. Dispatchar eventos de notificação para o centro de notificações
+      this._dispatchProjectorAlerts();
+
       // 3. Armazenar
       this._state.projectors = projectors;
       this._state.indicators = indicators;
@@ -371,8 +374,60 @@ window.Projectors = {
     // Ordenar por severidade
     const severityOrder = { critical: 0, warning: 1, info: 2 };
     alerts.sort((a, b) => severityOrder[a.highestSeverity] - severityOrder[b.highestSeverity]);
+return alerts;
+  },
 
-    return alerts;
+  /**
+   * Dispatcha eventos de notificação para o centro de notificações
+   * baseado nos alertas calculados dos projetores.
+   * @private
+   */
+  _dispatchProjectorAlerts() {
+    const alerts = this._state.alerts;
+
+    // Dispatchar eventos por severidade e tipo
+    alerts.forEach(alert => {
+      const { projector, alerts: alertDetails, highestSeverity } = alert;
+
+      let eventKey, config;
+
+      switch (highestSeverity) {
+        case 'critical':
+          if (alertDetails.some(a => a.type === 'lampada_critica')) {
+            eventKey = 'PROJECTOR_LAMP_CRITICAL';
+            config = window.NOTIFICATIONS_CONFIG.getEventConfig(eventKey);
+          } else if (alertDetails.some(a => a.type === 'manutencao_atrasada')) {
+            eventKey = 'PROJECTOR_MAINT_OVERDUE';
+            config = window.NOTIFICATIONS_CONFIG.getEventConfig(eventKey);
+          }
+          break;
+        case 'warning':
+          if (alertDetails.some(a => a.type === 'lampada_aviso')) {
+            eventKey = 'PROJECTOR_LAMP_HIGH';
+            config = window.NOTIFICATIONS_CONFIG.getEventConfig(eventKey);
+          } else if (alertDetails.some(a => a.type === 'manutencao_atrasada') || alertDetails.some(a => a.type === 'limpeza_necessaria')) {
+            eventKey = 'PROJECTOR_MAINT_OVERDUE';
+            config = window.NOTIFICATIONS_CONFIG.getEventConfig(eventKey);
+          }
+          break;
+        case 'info':
+          if (alertDetails.some(a => a.type === 'manutencao_proxima')) {
+            eventKey = 'PROJECTOR_MAINT_DONE';
+            config = window.NOTIFICATIONS_CONFIG.getEventConfig(eventKey);
+          }
+          break;
+      }
+
+      if (eventKey && config) {
+        window.NotificationEvents.dispatchProjector(eventKey, {
+          glpiId: projector.glpiId,
+          nome: projector.nome,
+          patrimonio: projector.patrimonio,
+          tipo: highestSeverity,
+          percentualUso: projector.percentual_uso,
+        });
+      }
+    });
   },
 
   // ══════════════════════════════════════════════════════════════════════════

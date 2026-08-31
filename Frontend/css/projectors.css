@@ -103,6 +103,18 @@
   animation: pjFadeIn 0.3s ease;
 }
 
+.pj-alerts-banner a {
+  font-size: 12px;
+  color: var(--color-red);
+  text-decoration: underline;
+  margin-left: 4px;
+}
+
+.pj-alerts-banner a:hover {
+  color: var(--color-red);
+  text-decoration: none;
+}
+
 .pj-alerts-icon {
   font-size: 20px;
   color: var(--yellow, #ffc107);
@@ -249,7 +261,13 @@
 .pj-card:hover::before { opacity: 1; }
 
 .pj-card-alert {
-  border-color: rgba(255, 193, 7, 0.4);
+  border-color: rgba(var(--status-warning-rgb), 0.4);
+}
+
+.pj-cleaning-badge {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .pj-card:focus-visible {
