@@ -5,14 +5,13 @@
 # Environment files (NUNCA commite)
 .env
 .env.local
-.env.development
-.env.production
 .env.staging
 *.env
 .env.*
 
-# Exceção: manter .env.example como template
+# Exceção: manter templates como referência
 !Backend/.env.example
+!Backend/.env.local.example
 
 # PHP
 vendor/
