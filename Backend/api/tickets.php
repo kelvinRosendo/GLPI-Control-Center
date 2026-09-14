@@ -15,17 +15,23 @@ final class TicketsEndpoint
   {
     $glpi    = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    $raw     = $glpi->getAllWithParams('/Ticket', $session, ['expand_dropdowns' => 'true'], 200);
-    $glpi->killSession($session);
+    try {
+      $result  = $glpi->getAllWithParams('/Ticket', $session, ['expand_dropdowns' => 'true'], 200);
+      $raw = $result['items'];
+      $glpi->killSession($session);
 
-    $items = [];
-    foreach ($raw as $t) {
-      if (is_array($t)) {
-        $items[] = self::mapTicket($t);
+      $items = [];
+      foreach ($raw as $t) {
+        if (is_array($t)) {
+          $items[] = self::mapTicket($t);
+        }
       }
-    }
 
-    Responde::ok(['data' => $items, 'count' => count($items)]);
+      Responde::ok(['data' => $items, 'count' => count($items)]);
+    } catch (\Throwable $e) {
+      $glpi->killSession($session);
+      throw $e;
+    }
   }
 
   // ── Lista chamados de um ativo específico ──────────────────────────────────
@@ -44,6 +50,22 @@ final class TicketsEndpoint
 
     if (is_array($vinculos)) {
       foreach ($vinculos as $v) {
+        if (!is_array($v) || empty($v['tickets_id'])) continue;
+
+        $ticket = $glpi->get('/Ticket/' . $v['tickets_id'] . '?expand_dropdowns=true', $session);
+        if (is_array($ticket) && isset($ticket['id'])) {
+          $items[] = self::mapTicket($ticket);
+        }
+      }
+    }
+
+    $vinculosPrinter = $glpi->get(
+      '/Item_Ticket?itemtype=Printer&items_id=' . $glpiId . '&expand_dropdowns=true',
+      $session
+    );
+
+    if (is_array($vinculosPrinter)) {
+      foreach ($vinculosPrinter as $v) {
         if (!is_array($v) || empty($v['tickets_id'])) continue;
 
         $ticket = $glpi->get('/Ticket/' . $v['tickets_id'] . '?expand_dropdowns=true', $session);

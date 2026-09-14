@@ -48,10 +48,10 @@ window.NotificationsUI = (function () {
     const max = UI_CONFIG.badgeMax || 99;
 
     if (count === 0) {
-      badge.style.display = 'none';
+      badge.classList.add('hidden');
       badge.textContent = '';
     } else {
-      badge.style.display = 'flex';
+      badge.classList.remove('hidden');
       badge.textContent = count > max ? `${max}+` : String(count);
     }
   }

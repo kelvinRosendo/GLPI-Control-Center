@@ -19,6 +19,7 @@ final class Mappers
   public static function computer(array $c): array
   {
     return [
+      'itemtype'   => 'Computer',
       'glpiId'     => $c['id'] ?? null,
       'nome'       => $c['name'] ?? '',
       'serial'     => $c['serial'] ?? '',
@@ -34,6 +35,7 @@ final class Mappers
   public static function chromebookGeekiee(array $c): array
   {
     return [
+      'itemtype'   => 'Computer',
       'glpiId'     => $c['id'] ?? null,
       'nome'       => $c['name'] ?? '',
       'serial'     => $c['serial'] ?? '',
@@ -48,6 +50,7 @@ final class Mappers
   public static function chromebookApoio(array $c): array
   {
     return [
+      'itemtype'   => 'Computer',
       'glpiId'     => $c['id'] ?? null,
       'nome'       => $c['name'] ?? '',
       'serial'     => $c['serial'] ?? '',
@@ -97,6 +100,7 @@ final class Mappers
     $comment = self::rawString($c['comment'] ?? '');
 
     return [
+      'itemtype'   => 'Computer',
       'glpiId'     => $c['id'] ?? null,
       'nome'       => $c['name'] ?? '',
       'serial'     => $c['serial'] ?? '',
@@ -128,15 +132,10 @@ final class Mappers
       'serial'     => $p['serial'] ?? '',
       'patrimonio' => $p['otherserial'] ?? '',
       'status'     => self::status($p),
-      'reparticao' => $alternateUserNumber !== ''
-        ? $alternateUserNumber
-        : ($alternateUser !== ''
-          ? $alternateUser
-          : self::extractName($p['locations_id'] ?? null)),
+      'reparticao' => self::extractName($p['locations_id'] ?? null),
       'usuario'    => self::extractName($p['users_id'] ?? null),
-      'modelo'     => self::extractName($p['computermodels_id'] ?? $p['printermodels_id'] ?? null),
+      'modelo'     => self::extractName($p['printermodels_id'] ?? $p['computermodels_id'] ?? null),
       'fabricante' => self::extractName($p['manufacturers_id'] ?? null),
-      'ip'         => self::extractName($p['networks_id'] ?? null),
       'comentario' => $p['comment'] ?? '',
       'nome_alternativo_usuario' => $alternateUser,
       'numero_nome_alternativo_usuario' => $alternateUserNumber,
@@ -242,6 +241,40 @@ final class Mappers
     ];
   }
 
+  public static function printerDetails(array $p): array
+  {
+    return [
+      'asset' => self::impressora($p),
+      'editableValues' => [],
+      'sections' => [
+        self::detailSection('identificacao', 'Identificação', [
+          self::detailField('name', 'Nome da impressora', $p['name'] ?? '', false),
+          self::detailField('serial', 'Serial', $p['serial'] ?? '', false),
+          self::detailField('otherserial', 'Patrimônio', $p['otherserial'] ?? '', false),
+          self::detailField('contact', 'Contato', $p['contact'] ?? '', false),
+          self::detailField('contact_num', 'Telefone / ramal', $p['contact_num'] ?? '', false),
+          self::detailField('comment', 'Observações', $p['comment'] ?? '', false, 'textarea'),
+        ]),
+        self::detailSection('alocacao', 'Alocação', [
+          self::detailField('location_name', 'Local', self::extractName($p['locations_id'] ?? null), false),
+          self::detailField('user_name', 'Usuário', self::extractName($p['users_id'] ?? null), false),
+          self::detailField('state_label', 'Status no GLPI', self::extractStateLabel($p), false),
+          self::detailField('entity_name', 'Entidade', self::extractName($p['entities_id'] ?? null), false),
+        ]),
+        self::detailSection('dados_tecnicos', 'Dados técnicos', [
+          self::detailField('model_name', 'Modelo', self::extractName($p['printermodels_id'] ?? $p['computermodels_id'] ?? null), false),
+          self::detailField('manufacturer_name', 'Fabricante', self::extractName($p['manufacturers_id'] ?? null), false),
+          self::detailField('type_name', 'Tipo', self::extractName($p['printertypes_id'] ?? null), false),
+        ]),
+        self::detailSection('rastreio', 'Rastreio', [
+          self::detailField('id', 'ID GLPI', self::rawString($p['id'] ?? ''), false),
+          self::detailField('date_creation', 'Criado em', self::rawString($p['date_creation'] ?? ''), false),
+          self::detailField('date_mod', 'Atualizado em', self::rawString($p['date_mod'] ?? ''), false),
+        ]),
+      ],
+    ];
+  }
+
   public static function filterEditableComputerInput(array $input): array
   {
     $filtered = [];
@@ -262,6 +295,16 @@ final class Mappers
   {
     $stateId = $item['states_id'] ?? null;
     if ($stateId === null || $stateId === 0) return 'ativo';
+
+    if (is_string($stateId) && $stateId !== '') {
+      $lower = strtolower(trim($stateId));
+      if (str_contains($lower, 'manuten')) return 'manutencao';
+      if (str_contains($lower, 'emprest') || str_contains($lower, 'loan')) return 'emprestado';
+      if (str_contains($lower, 'ativo') || str_contains($lower, 'active') || str_contains($lower, 'in_use')) return 'ativo';
+      if (str_contains($lower, 'inativo') || str_contains($lower, 'inactive') || str_contains($lower, 'not_in_use')) return 'inativo';
+      if (str_contains($lower, 'reserv') || str_contains($lower, 'stock')) return 'reservado';
+      return 'ativo';
+    }
 
     return match ((int) $stateId) {
       2       => 'manutencao',
@@ -340,15 +383,24 @@ final class Mappers
 
   private static function extractStateLabel(array $item): string
   {
-    $expanded = self::extractName($item['states_id'] ?? null);
-    if ($expanded !== null) {
-      return $expanded;
+    $stateId = $item['states_id'] ?? null;
+
+    if (is_string($stateId) && $stateId !== '') {
+      return $stateId;
     }
 
-    return match ((int) ($item['states_id'] ?? 0)) {
-      2 => 'Em manutenção',
-      3 => 'Emprestado',
-      default => 'Ativo',
-    };
+    if (is_array($stateId)) {
+      return $stateId['name'] ?? $stateId['completename'] ?? '';
+    }
+
+    if (is_int($stateId) && $stateId > 0) {
+      return match ($stateId) {
+        2 => 'Em manutenção',
+        3 => 'Emprestado',
+        default => 'Ativo',
+      };
+    }
+
+    return 'Ativo';
   }
 }

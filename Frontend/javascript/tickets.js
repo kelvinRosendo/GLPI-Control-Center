@@ -55,7 +55,7 @@ window.Tickets = {
           prioridade,
           categoria,
           glpiId:   ativo.glpiId,
-          itemtype: 'Computer',
+          itemtype: ativo.itemtype || 'Computer',
         }),
       });
 

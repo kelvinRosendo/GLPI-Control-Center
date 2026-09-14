@@ -958,6 +958,9 @@ code, pre, .mono {
 .ds-gap-3 { gap: var(--space-3); }
 .ds-gap-4 { gap: var(--space-4); }
 
+.hidden { display: none !important; }
+.ds-mb-4 { margin-bottom: var(--space-4); }
+
 .ds-text-primary { color: var(--color-text); }
 .ds-text-secondary { color: var(--color-text-secondary); }
 .ds-text-muted { color: var(--color-text-muted); }

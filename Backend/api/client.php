@@ -114,25 +114,172 @@ final class GlpiClient
     ]);
   }
 
-  public function getAllWithParams(string $path, string $sessionToken, array $params = [], int $batchSize = 200): array
+  /**
+   * Busca todos os registros de uma coleção GLPI com paginação robusta.
+   *
+   * Usa o header Content-Range retornado pelo GLPI para determinar o total
+   * real e parar corretamente. Trata HTTP 206 como resposta parcial válida.
+   * Não possui limite silencioso de 10 mil registros.
+   *
+   * @return array{items: array, total: int|null, complete: bool, errors: string[]}
+   */
+  public function getAllWithParams(string $path, string $sessionToken, array $params = [], int $batchSize = 500): array
   {
-    $batchSize = max(1, min(1000, $batchSize));
+    $batchSize = max(1, min(5000, $batchSize));
     $all = [];
-    for ($offset = 0; $offset < 10000; $offset += $batchSize) {
-      $batch = $this->getWithParams($path, $sessionToken, array_merge($params, [
+    $total = null;
+    $seenIds = [];
+    $errors = [];
+    $previousBatchCount = null;
+
+    for ($offset = 0; ; $offset += $batchSize) {
+      $batch = $this->getWithParamsRaw($path, $sessionToken, array_merge($params, [
         'range' => $offset . '-' . ($offset + $batchSize - 1),
       ]));
-      if (!self::isList($batch)) break;
-      $all = array_merge($all, $batch);
-      if (count($batch) < $batchSize) break;
+
+      $httpCode = $batch['_http_code'] ?? 0;
+      $items = $batch['items'] ?? [];
+      $contentRange = $batch['_content_range'] ?? null;
+
+      if ($contentRange !== null && $total === null) {
+        $total = self::parseContentRangeTotal($contentRange);
+      }
+
+      if ($httpCode === 400 || $httpCode === 404) {
+        $errors[] = "Paginação encerrada no offset {$offset}: HTTP {$httpCode}";
+        break;
+      }
+
+      if (!is_array($items) || $items === []) {
+        break;
+      }
+
+      $validItems = array_values(array_filter($items, 'is_array'));
+      $batchCount = count($validItems);
+
+      foreach ($validItems as $item) {
+        $id = $item['id'] ?? null;
+        $key = $id !== null ? $id : spl_object_hash($item);
+        if (!isset($seenIds[$key])) {
+          $seenIds[$key] = true;
+          $all[] = $item;
+        }
+      }
+
+      if ($previousBatchCount !== null && $batchCount === $previousBatchCount && $batchCount === $batchSize) {
+        $errors[] = "Possível página repetida no offset {$offset}";
+      }
+      $previousBatchCount = $batchCount;
+
+      if ($total !== null && count($all) >= $total) {
+        break;
+      }
+
+      if ($batchCount < $batchSize) {
+        break;
+      }
     }
-    return $all;
+
+    $complete = $total === null ? true : count($all) >= $total;
+
+    return [
+      'items' => $all,
+      'total' => $total,
+      'complete' => $complete,
+      'errors' => $errors,
+    ];
   }
 
-  private static function isList(array $value): bool
+  /**
+   * Busca uma página e retorna items + metadados sem chamar Responde::erro.
+   */
+  private function getWithParamsRaw(string $path, string $sessionToken, array $params = []): array
   {
-    if ($value === []) return true;
-    return array_keys($value) === range(0, count($value) - 1);
+    $this->validate();
+
+    if (!isset($params['expand_dropdowns'])) {
+      $params['expand_dropdowns'] = 'true';
+    }
+
+    $queryString = http_build_query($params);
+    $url = $this->baseUrl . $path;
+    if ($queryString !== '') {
+      $url .= '?' . $queryString;
+    }
+
+    $ch = curl_init($url);
+    $finalHeaders = [
+      'Session-Token: ' . $sessionToken,
+      'App-Token: ' . $this->appToken,
+    ];
+
+    curl_setopt_array($ch, [
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_CUSTOMREQUEST  => 'GET',
+      CURLOPT_HTTPHEADER     => $finalHeaders,
+      CURLOPT_TIMEOUT        => 30,
+      CURLOPT_HEADER         => true,
+    ]);
+
+    if ($this->sslInsecure) {
+      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 0);
+    } else {
+      curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+      curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
+    }
+
+    $raw = curl_exec($ch);
+    $err = curl_error($ch);
+    $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $headerSize = (int) curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+    $headerStr = substr((string) $raw, 0, $headerSize);
+    $body = substr((string) $raw, $headerSize);
+    $ch = null;
+
+    if ($raw === false) {
+      return ['items' => [], '_http_code' => 0, '_content_range' => null, '_error' => $err];
+    }
+
+    $contentRange = null;
+    foreach (explode("\r\n", $headerStr) as $line) {
+      if (stripos($line, 'Content-Range:') === 0) {
+        $contentRange = trim(substr($line, strlen('Content-Range:')));
+        break;
+      }
+    }
+
+    $json = json_decode($body, true);
+    if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
+      return ['items' => [], '_http_code' => $code, '_content_range' => $contentRange, '_error' => 'JSON decode failed'];
+    }
+
+    return [
+      'items' => $json,
+      '_http_code' => $code,
+      '_content_range' => $contentRange,
+    ];
+  }
+
+  /**
+   * Extrai o total do header Content-Range: "items 0-499/1234"
+   */
+  private static function parseContentRangeTotal(string $header): ?int
+  {
+    if (preg_match('/\/(\d+)\s*$/', $header, $m) === 1) {
+      return (int) $m[1];
+    }
+    return null;
+  }
+
+  /**
+   * Wrapper legado para chamadas que ainda esperam só o array.
+   * @deprecated Use getAllWithParams que retorna {items, total, complete, errors}
+   */
+  public function getAllWithParamsLegacy(string $path, string $sessionToken, array $params = [], int $batchSize = 500): array
+  {
+    $result = $this->getAllWithParams($path, $sessionToken, $params, $batchSize);
+    return $result['items'];
   }
 
   private function request(string $method, string $url, array $headers): array

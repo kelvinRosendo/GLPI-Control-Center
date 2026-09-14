@@ -11,8 +11,9 @@ window.AssetResolver = (function () {
 
   const TYPE_MAP = {
     computadores: { tab: 'computadores', label: 'Computador' },
-    chromebooks_geekiees: { tab: 'geekiees', label: 'Chromebook Geekie' },
+    chromebooks_geekiees: { tab: 'geekiees', label: 'Chromebook Alunos' },
     chromebooks_apoio: { tab: 'apoio', label: 'Chromebook Apoio' },
+    chromebooks_exibicao: { tab: 'exibicao', label: 'Chromebook Exibição' },
     projetores: { tab: 'projetores', label: 'Projetor' },
     impressoras: { tab: 'impressoras', label: 'Impressora' },
   };

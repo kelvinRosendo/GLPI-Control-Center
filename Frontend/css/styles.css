@@ -1146,6 +1146,7 @@ textarea,
 }
 
 .computer-modal {
+  display: flex;
   position: fixed;
   inset: 0;
   z-index: 1200;
@@ -1690,4 +1691,45 @@ textarea,
 .chat-send-btn:hover {
   transform: translateY(-1px);
   box-shadow: var(--shadow-button-hover);
+}
+
+/* ==========================================================================
+   Cache State Info (Admin Sync)
+   ========================================================================== */
+.cache-state-info {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--color-surface-alt, rgba(255,255,255,0.03));
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border, #2e3347);
+}
+
+.cache-state-info h4 {
+  margin: 0 0 8px 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cache-state-message {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  border-left: 3px solid var(--color-accent);
+}
+
+.cache-state-ok {
+  color: var(--color-success, #4caf50);
+}
+
+.cache-state-warn {
+  color: var(--color-warning, #ff9800);
+}
+
+.cache-state-error {
+  color: var(--color-error, #f44336);
 }

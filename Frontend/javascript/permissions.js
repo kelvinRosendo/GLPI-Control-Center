@@ -49,12 +49,16 @@ window.Permissions = (function () {
     computadores: { key: 'computadores', label: 'Computadores', icon: '&#128421;', order: 2 },
     geekiees: { key: 'geekiees', label: 'Geekiees', icon: '&#128214;', order: 3 },
     apoio: { key: 'apoio', label: 'Carrinhos', icon: '&#128666;', order: 4 },
+    salas: { key: 'salas', label: 'Salas/Turmas', icon: '&#127979;', order: 4.5 },
     projetores: { key: 'projetores', label: 'Projetores', icon: '&#128249;', order: 5 },
     impressoras: { key: 'impressoras', label: 'Impressoras', icon: '&#128424;', order: 6 },
     chamados: { key: 'chamados', label: 'Chamados', icon: '&#128196;', order: 7 },
     relatorios: { key: 'relatorios', label: 'Relatórios', icon: '&#128203;', order: 8 },
     auditoria: { key: 'auditoria', label: 'Auditoria', icon: '&#128737;', order: 9 },
     assistente: { key: 'assistente', label: 'Assistente', icon: '&#129302;', order: 10 },
+    inventario: { key: 'inventario', label: 'Inventário Geral', icon: '&#128203;', order: 11 },
+    exibicao: { key: 'exibicao', label: 'Exibição', icon: '&#128187;', order: 12 },
+    'admin-sync': { key: 'admin-sync', label: 'Sincronização GLPI', icon: '&#128260;', order: 13 },
   };
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -120,6 +124,22 @@ window.Permissions = (function () {
     assistente: {
       view: BOTH,
       chat: BOTH,
+    },
+    salas: {
+      view: BOTH,
+      search: BOTH,
+    },
+    inventario: {
+      view: BOTH,
+      search: BOTH,
+    },
+    exibicao: {
+      view: BOTH,
+      search: BOTH,
+    },
+    'admin-sync': {
+      view: ['ADMIN', 'SUPORTE'],
+      execute: ['ADMIN'],
     },
   };
 

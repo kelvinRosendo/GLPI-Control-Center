@@ -18,10 +18,14 @@ window.SearchUI = (function () {
   const FILTERS = [
     { key: 'all', label: 'Todos' },
     { key: 'computadores', label: 'Computadores' },
-    { key: 'chromebooks_geekiees', label: 'Geekie' },
+    { key: 'chromebooks_geekiees', label: 'Alunos' },
     { key: 'chromebooks_apoio', label: 'Apoio' },
+    { key: 'chromebooks_exibicao', label: 'Exibição' },
     { key: 'projetores', label: 'Projetores' },
     { key: 'impressoras', label: 'Impressoras' },
+    { key: 'all_classified', label: 'Classificados' },
+    { key: 'unclassified', label: 'Não classificados' },
+    { key: 'low_confidence', label: 'Baixa confiança' },
   ];
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -489,6 +493,7 @@ window.SearchUI = (function () {
       computadores: '&#128187;',
       chromebooks_geekiees: '&#128187;',
       chromebooks_apoio: '&#128187;',
+      chromebooks_exibicao: '&#128187;',
       projetores: '&#128190;',
       impressoras: '&#128424;',
     };
@@ -500,6 +505,7 @@ window.SearchUI = (function () {
       computadores: 'Computador',
       chromebooks_geekiees: 'Chromebook',
       chromebooks_apoio: 'Chromebook',
+      chromebooks_exibicao: 'Chromebook',
       projetores: 'Projetor',
       impressoras: 'Impressora',
     };
@@ -511,6 +517,7 @@ window.SearchUI = (function () {
       computadores: 'computadores',
       chromebooks_geekiees: 'geekiees',
       chromebooks_apoio: 'apoio',
+      chromebooks_exibicao: 'exibicao',
       projetores: 'projetores',
       impressoras: 'impressoras',
     };

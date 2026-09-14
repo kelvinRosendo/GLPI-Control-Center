@@ -117,7 +117,7 @@ window.App = {
     this._setGlpiStatus('carregando');
     this.go('home');
 
-    this._loadInitialData();
+    await this._loadInitialData();
   },
 
   async _loadInitialData() {
@@ -125,24 +125,34 @@ window.App = {
     try {
       const result = await window.GlpiClient.loadAll();
       this.assetsLoading = false;
-      this.assetsLoaded = true;
 
       if (result.ok) {
+        this.assetsLoaded = true;
         this._setGlpiStatus('conectado');
-      } else {
-        this._setGlpiStatus('parcial');
+      } else if (result.noSync) {
+        this.assetsLoaded = false;
+        this._setGlpiStatus('sem_sync');
+      } else if (result.partial) {
+        this.assetsLoaded = true;
+        this._setGlpiStatus('parcial', result.errors);
         console.warn('[App] Alguns endpoints falharam:', result.errors);
+      } else {
+        this.assetsLoaded = false;
+        this._setGlpiStatus('offline', result.errors);
+        console.warn('[App] Todos os endpoints falharam:', result.errors);
       }
 
-      console.log('[App] Dados iniciais carregados, chamando _loadDashboard');
+      console.log('[App] Dados iniciais carregados, renderizando');
+      this.render();
+
+      // Dashboard e tickets em background — não bloqueiam renderização inicial
       this._preloadTickets();
       this._loadDashboard();
-      this.render();
 
     } catch (e) {
       this.assetsLoading = false;
       this.assetsLoaded = false;
-      this._setGlpiStatus('offline');
+      this._setGlpiStatus('offline', [e.message]);
       console.warn('[App] Backend indisponivel.', e);
       this.render();
     }
@@ -258,6 +268,16 @@ window.App = {
           return window.UI.renderSectionLoading('Carregando carrinhos...');
         }
         return window.UI.renderCarrinhos();
+      case 'salas':
+        if (this.assetsLoading && !Object.keys(window.DATA.chromebooksSalas || {}).length) {
+          return window.UI.renderSectionLoading('Carregando salas/turmas...');
+        }
+        return window.UI.renderSalas();
+      case 'exibicao':
+        if (this.assetsLoading && !window.DATA.chromebooksExibicao.length) {
+          return window.UI.renderSectionLoading('Carregando Chromebooks de Exibição...');
+        }
+        return window.UI.renderAssetList(window.DATA.chromebooksExibicao, 'Buscar Chromebook de exibição por nome ou serial...', 'chromebook');
       case 'projetores':
         if (this.assetsLoading && !window.DATA.projetores.length) {
           return window.UI.renderSectionLoading('Carregando projetores...');
@@ -286,11 +306,19 @@ window.App = {
         }
 
         return window.UI.renderTickets(window.STATE.tickets);
+      case 'inventario':
+        if (this.assetsLoading && !window.DATA.classifiedAssets?.length) {
+          return window.UI.renderSectionLoading('Carregando inventário...');
+        }
+        return window.UI.renderInventoryTable();
       case 'relatorios':
         window.ReportsUI.render('main-content');
         return '';
       case 'auditoria':
         window.AuditUI.render('main-content');
+        return '';
+      case 'admin-sync':
+        if (window.AdminSync) window.AdminSync.render('main-content');
         return '';
       case 'assistente':
         return `
@@ -378,24 +406,103 @@ window.App = {
       });
     }
 
+    // Inventory search
+    const invSearch = document.getElementById('inventory-search');
+    const invClear = document.getElementById('inventory-search-clear');
+
+    if (invSearch) {
+      invSearch.addEventListener('input', () => {
+        window.State.setSearch(invSearch.value);
+        window.State.setInventoryPage(1);
+        this._renderContent();
+      });
+    }
+
+    if (invClear) {
+      invClear.addEventListener('click', () => {
+        window.State.setSearch('');
+        window.State.setInventoryPage(1);
+        this._renderContent();
+      });
+    }
+
     document.querySelectorAll('.filter-btn[data-status]').forEach(btn => {
       btn.addEventListener('click', () => {
         window.State.setStatus(btn.dataset.status);
         this._renderContent();
       });
     });
+
+    // Inventory table filters
+    const catFilter = document.getElementById('filter-category');
+    const itemtypeFilter = document.getElementById('filter-itemtype');
+    const stateFilter = document.getElementById('filter-state');
+
+    if (catFilter) {
+      catFilter.addEventListener('change', () => {
+        window.State.setCategoryFilter(catFilter.value);
+        this._renderContent();
+      });
+    }
+    if (itemtypeFilter) {
+      itemtypeFilter.addEventListener('change', () => {
+        window.State.setItemtypeFilter(itemtypeFilter.value);
+        this._renderContent();
+      });
+    }
+    if (stateFilter) {
+      stateFilter.addEventListener('change', () => {
+        window.State.setStateFilter(stateFilter.value);
+        this._renderContent();
+      });
+    }
+
+    // Inventory pagination
+    document.querySelectorAll('.btn-page[data-page]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        window.State.setInventoryPage(Number(btn.dataset.page));
+        this._renderContent();
+      });
+    });
+
+    // Inventory sort headers
+    document.querySelectorAll('.sortable-th[data-sort-field]').forEach(th => {
+      th.addEventListener('click', () => {
+        window.State.setInventorySort(th.dataset.sortField);
+        this._renderContent();
+      });
+    });
+
+    // Clear filters button
+    const clearFiltersBtn = document.getElementById('clear-inventory-filters');
+    if (clearFiltersBtn) {
+      clearFiltersBtn.addEventListener('click', () => {
+        window.State.resetFilters();
+        this._renderContent();
+      });
+    }
   },
 
   _bindComputerCardEvents() {
     document.querySelectorAll('[data-computer-toggle]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        await this.toggleComputerPanel(Number(btn.dataset.computerToggle));
+        const itemtype = btn.dataset.itemtype || 'Computer';
+        await this.toggleComputerPanel(Number(btn.dataset.computerToggle), { itemtype });
       });
     });
     document.querySelectorAll('[data-open-workflow]').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = Number(btn.dataset.openWorkflow);
-        const asset = (window.DATA.computadores || []).find(item => Number(item.glpiId) === id);
+        const itemtype = btn.dataset.itemtype || 'Computer';
+        const allAssets = [
+          ...(window.DATA.computadores || []),
+          ...(window.DATA.chromebooksGeekiees || []),
+          ...(window.DATA.projetores || []),
+          ...(window.DATA.impressoras || []),
+          ...Object.values(window.DATA.chromebooksApoio || {}).flat(),
+          ...Object.values(window.DATA.chromebooksSalas || {}).flat(),
+        ];
+        const asset = allAssets.find(item => Number(item.glpiId) === id && (item.itemtype || 'Computer') === itemtype);
         if (asset) window.Workflow.open(asset);
       });
     });
@@ -411,35 +518,43 @@ window.App = {
 
     window.State.setExpandedComputer(glpiId);
     const cached = window.STATE.computerDetailsById[glpiId];
+    const DETAIL_TTL = 300000;
 
-    if (cached?.data && !options.forceReload) {
+    if (cached?.data && !options.forceReload && cached._fetchedAt && (Date.now() - cached._fetchedAt < DETAIL_TTL)) {
       this._renderComputerModal();
       return;
     }
+
+    // Determinar itemtype do ativo
+    const itemtype = options.itemtype || this._resolveItemtype(glpiId) || 'Computer';
 
     window.State.updateComputerDetails(glpiId, {
       loading: true,
       saving: false,
       error: '',
       successMessage: '',
+      itemtype,
     });
     this._renderComputerModal();
 
     try {
-      const detail = await window.GlpiClient.fetchComputerDetails(glpiId);
+      const detail = await window.GlpiClient.fetchAssetDetails(glpiId, itemtype);
       window.State.updateComputerDetails(glpiId, {
         loading: false,
         saving: false,
         error: '',
         successMessage: '',
         data: detail,
+        itemtype,
         draft: { ...(detail?.editableValues || {}) },
+        _fetchedAt: Date.now(),
       });
     } catch (error) {
       window.State.updateComputerDetails(glpiId, {
         loading: false,
         saving: false,
-        error: error.message || 'Falha ao carregar os detalhes do computador.',
+        error: error.message || 'Falha ao carregar os detalhes do ativo.',
+        itemtype,
       });
     }
 
@@ -448,6 +563,8 @@ window.App = {
 
   async saveComputerDetails(glpiId, form) {
     const payload = Object.fromEntries(new FormData(form).entries());
+    const state = window.STATE.computerDetailsById[glpiId] || {};
+    const itemtype = state.itemtype || 'Computer';
 
     window.State.updateComputerDetails(glpiId, {
       saving: true,
@@ -458,20 +575,21 @@ window.App = {
     this._renderComputerModal();
 
     try {
-      const detail = await window.GlpiClient.updateComputer(glpiId, payload);
+      const detail = await window.GlpiClient.updateAsset(glpiId, itemtype, payload);
       this._replaceComputerSummary(detail?.asset);
       window.State.updateComputerDetails(glpiId, {
         loading: false,
         saving: false,
         error: '',
-        successMessage: 'Alteracoes salvas no GLPI e sincronizadas com a lista.',
+        successMessage: 'Alterações salvas no GLPI e sincronizadas com a lista.',
         data: detail,
         draft: { ...(detail?.editableValues || {}) },
+        _fetchedAt: Date.now(),
       });
     } catch (error) {
       window.State.updateComputerDetails(glpiId, {
         saving: false,
-        error: error.message || 'Nao foi possivel salvar as alteracoes.',
+        error: error.message || 'Não foi possível salvar as alterações.',
         successMessage: '',
         draft: payload,
       });
@@ -526,6 +644,20 @@ window.App = {
     window.DATA.computadores = (window.DATA.computadores || []).map(item => item.glpiId === asset.glpiId ? { ...item, ...asset } : item);
   },
 
+  /**
+   * Resolve itemtype de um ativo pelo glpiId.
+   * Procura em TODAS as coleções com itemtype para desambiguar.
+   */
+  _resolveItemtype(glpiId) {
+    const id = Number(glpiId);
+    const classified = window.DATA.classifiedAssets || [];
+    const found = classified.find(a => Number(a.id) === id);
+    if (found?.itemtype) return found.itemtype;
+    if ((window.DATA.computadores || []).some(a => Number(a.glpiId) === id)) return 'Computer';
+    if ((window.DATA.impressoras || []).some(a => Number(a.glpiId) === id)) return 'Printer';
+    return 'Computer';
+  },
+
   _renderContent() {
     const mainEl = document.getElementById('main-content');
     if (!mainEl) return;
@@ -576,18 +708,35 @@ window.App = {
 
     const glpiId = window.STATE.expandedComputerId;
     if (!glpiId) {
-      modalEl.style.display = 'none';
+      modalEl.classList.add('hidden');
       contentEl.innerHTML = '';
       document.body.classList.remove('modal-open');
       return;
     }
 
-    const asset = (window.DATA.computadores || []).find(item => item.glpiId === glpiId) || { glpiId };
+    // Buscar asset classificado por id
+    const classified = window.DATA.classifiedAssets || [];
+    const classifiedAsset = classified.find(a => Number(a.id) === Number(glpiId));
+    const asset = classifiedAsset || (window.DATA.computadores || []).find(item => item.glpiId === glpiId) || { glpiId };
     const state = window.STATE.computerDetailsById[glpiId] || null;
+    const itemtype = state?.itemtype || classifiedAsset?.itemtype || asset.itemtype || 'Computer';
 
-    contentEl.innerHTML = window.UI.renderComputerModal(asset, state);
-    modalEl.style.display = 'flex';
+    contentEl.innerHTML = window.UI.renderComputerModal(asset, state, itemtype);
+    modalEl.classList.remove('hidden');
     document.body.classList.add('modal-open');
+
+    // Injetar seção de classificação se disponível
+    if (classifiedAsset && contentEl.querySelector('.computer-panel')) {
+      const panel = contentEl.querySelector('.computer-panel');
+      const classSection = window.UI.renderClassificationSection(classifiedAsset);
+      const rawSection = window.UI.renderRawDataSection(classifiedAsset._raw);
+      if (classSection) {
+        panel.insertAdjacentHTML('beforeend', classSection);
+      }
+      if (rawSection) {
+        panel.insertAdjacentHTML('beforeend', rawSection);
+      }
+    }
 
     modalEl.querySelectorAll('[data-computer-modal-close]').forEach(element => {
       element.addEventListener('click', () => {
@@ -598,7 +747,7 @@ window.App = {
 
     modalEl.querySelectorAll('[data-computer-retry]').forEach(btn => {
       btn.addEventListener('click', async () => {
-        await this.toggleComputerPanel(Number(btn.dataset.computerRetry), { forceReload: true });
+        await this.toggleComputerPanel(Number(btn.dataset.computerRetry), { forceReload: true, itemtype });
       });
     });
 
@@ -618,18 +767,32 @@ window.App = {
     });
   },
 
-  _setGlpiStatus(estado) {
+  _setGlpiStatus(estado, errors) {
     const el = document.getElementById('glpi-status');
     if (!el) return;
+
+    // Enriquecer com info de sync
+    const D = window.DATA || {};
+
     const map = {
       carregando: { texto: 'Conectando...', cor: 'var(--color-text-muted)', bg: 'rgba(var(--color-text-muted-rgb), 0.08)' },
-      conectado: { texto: 'Conectado ao GLPI', cor: 'var(--color-green)', bg: 'rgba(var(--color-green-rgb), 0.08)' },
-      parcial: { texto: 'Parcialmente conectado', cor: 'var(--color-yellow)', bg: 'rgba(var(--color-yellow-rgb), 0.08)' },
+      conectado: { texto: 'Dados carregados', cor: 'var(--color-green)', bg: 'rgba(var(--color-green-rgb), 0.08)' },
+      sem_sync: { texto: 'Sem dados — execute sincronização', cor: 'var(--color-yellow)', bg: 'rgba(var(--color-yellow-rgb), 0.08)' },
+      parcial: { texto: 'Dados parciais (algumas fontes falharam)', cor: 'var(--color-yellow)', bg: 'rgba(var(--color-yellow-rgb), 0.08)' },
       offline: { texto: 'Backend indisponível', cor: 'var(--color-red)', bg: 'rgba(var(--color-red-rgb), 0.08)' },
     };
+
+    // Enriquecer com info de sync se disponível
+    if (D.syncStatus?.status === 'partial' && estado === 'conectado') {
+      map.conectado.texto = 'Dados parciais (sync incompleta)';
+      map.conectado.cor = 'var(--color-yellow)';
+      map.conectado.bg = 'rgba(var(--color-yellow-rgb), 0.08)';
+    }
+
     const s = map[estado] || map.offline;
     el.style.color = s.cor;
     el.style.background = s.bg;
+    el.title = (errors && errors.length) ? 'Falhas: ' + errors.join('; ') : '';
     const dot = el.querySelector('.glpi-status-dot');
     if (dot) dot.style.background = s.cor;
     const text = el.querySelector('.glpi-status-text');

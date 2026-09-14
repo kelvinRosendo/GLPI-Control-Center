@@ -1,0 +1,78 @@
+{
+  "metadata": {
+    "data_coleta": "2026-09-10T23:15:41+02:00",
+    "relatorio_gerado": "2026-09-11",
+    "fonte": "inventario_2026-09-10_23-15-51.json",
+    "total_glpi": 575,
+    "total_computers": 572,
+    "total_printers": 3,
+    "cache_existe": false,
+    "sync_executada": false
+  },
+  "contagens": {
+    "por_itemtype": {
+      "Computer": 572,
+      "Printer": 3
+    },
+    "por_categoria": {
+      "chromebook_student": 99,
+      "chromebook_support": 345,
+      "chromebook_display": 3,
+      "computer_cs": 84,
+      "projector": 32,
+      "printer_computer": 9,
+      "printer": 3,
+      "unclassified": 0
+    },
+    "por_estado": {
+      "em_uso": 225,
+      "comodato": 145,
+      "finalizado": 96,
+      "permanente": 55,
+      "emprestado": 36,
+      "vazio": 10,
+      "devolvido": 3,
+      "substituido": 1,
+      "baixa": 1
+    },
+    "carrinhos": {
+      "Carrinho 1": 11,
+      "Carrinho 2": 14,
+      "Carrinho 3": 30,
+      "Carrinho 4": 33,
+      "Carrinho 5": 33,
+      "total": 121
+    }
+  },
+  "divergencias": [
+    {
+      "tipo": "CONFLITO",
+      "severidade": "alta",
+      "descricao": "150 Chrome-* em grupos de turma classificados como chromebook_support",
+      "itens_afetados": "Chrome-177 a Chrome-345 (aproximadamente)",
+      "causa": "Dispositivos com nomenclatura Chrome-* sem prefixo G- em grupos de turma",
+      "acao_recomendada": "Verificar nomenclatura no GLPI ou adicionar regra alternativa baseada em grupo"
+    },
+    {
+      "tipo": "MODERADO",
+      "severidade": "media",
+      "descricao": "145 itens com estado Comodato Geekie (Aluno Ativo) não classificados como student",
+      "causa": "Classificação baseada em nome, não em estado",
+      "acao_recomendada": "Estado é dimensão separada; não alterar regra de classificação"
+    },
+    {
+      "tipo": "INFO",
+      "severidade": "baixa",
+      "descricao": "4 itens com computertypes_id=0 (CS-010, CS-014, CS-031, CS-035)",
+      "causa": "Tipo técnico não preenchido no GLPI",
+      "acao_recomendada": "Classificação correta pelo padrão de nome CS-*"
+    }
+  ],
+  "camadas_nao_verificadas": [
+    "backend_cache (classified_assets.json não existe)",
+    "api_assets_all (retorna array vazio)",
+    "estado_frontend (sem dados classificados)",
+    "lista_sem_filtros (sem dados para exibir)",
+    "card_dashboard (sem dados para calcular)"
+  ]
+}

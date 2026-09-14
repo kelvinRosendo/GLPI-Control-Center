@@ -67,8 +67,9 @@ window.DASHBOARD_CONFIG = {
 
   assetCategories: [
     { id: 'computadores', label: 'Computadores', color: '#4f7ef7', tab: 'computadores', searchPrefix: '' },
-    { id: 'chromebooks_geekiees', label: 'Chromebooks Geekie', color: '#00c896', tab: 'geekiees', searchPrefix: '' },
+    { id: 'chromebooks_geekiees', label: 'Chromebooks Alunos', color: '#00c896', tab: 'geekiees', searchPrefix: '' },
     { id: 'chromebooks_apoio', label: 'Chromebooks Apoio', color: '#6c5ce7', tab: 'apoio', searchPrefix: '' },
+    { id: 'chromebooks_exibicao', label: 'Chromebooks Exibição', color: '#f97316', tab: 'exibicao', searchPrefix: '' },
     { id: 'projetores', label: 'Projetores', color: '#ffc107', tab: 'projetores', searchPrefix: '' },
     { id: 'impressoras', label: 'Impressoras', color: '#ff5555', tab: 'impressoras', searchPrefix: '' },
   ],

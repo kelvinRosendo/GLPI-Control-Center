@@ -205,7 +205,7 @@ window.Workflow = {
 
     return {
       glpiId: a.glpiId,
-      itemtype: 'Computer',
+      itemtype: a.itemtype || 'Computer',
       assistance: this.workflowData.assistance,
       checklist: {
         prioridade: cl.prioridade,

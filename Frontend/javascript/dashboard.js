@@ -30,35 +30,56 @@ window.Dashboard = {
     this._state.error = '';
 
     try {
-      await this._ensureData();
+      const loadResult = await this._ensureData();
+
       this._state.indicators = this._calculateIndicators();
       this._state.widgets = this._calculateWidgets();
       this._state.analytics = window.DashboardAnalytics.calculate(this._state.indicators);
 
       this._state.loaded = true;
-      this._state.loadedAt = new Date().toISOString();
-      this._state.lastRefresh = new Date().toISOString();
-      this._state.isStale = false;
       this._state.loading = false;
+
+      if (loadResult.ok) {
+        this._state.loadedAt = new Date().toISOString();
+        this._state.lastRefresh = new Date().toISOString();
+        this._state.isStale = false;
+      } else if (loadResult.noSync) {
+        this._state.isStale = true;
+        this._state.error = 'Nenhum dado sincronizado. Execute uma sincronização no painel de administração.';
+      } else if (loadResult.partial) {
+        this._state.isStale = true;
+        console.warn('[Dashboard] Sincronização parcial. Falharam:', loadResult.errors);
+      } else {
+        this._state.isStale = true;
+        this._state.error = 'Falha ao carregar dados. Usando cache local.';
+      }
 
       this._emit('dashboard:loaded', {
         indicators: this._state.indicators,
         widgets: this._state.widgets,
         analytics: this._state.analytics,
+        partial: loadResult.partial || false,
+        noSync: loadResult.noSync || false,
+        errors: loadResult.errors || [],
       });
 
       if (window.Audit) {
         window.Audit.register({
           action: 'dashboard_carregado',
           module: 'dashboard',
-          descricao: 'Dashboard operacional carregado',
+          descricao: loadResult.ok
+            ? 'Dashboard operacional carregado'
+            : loadResult.noSync
+              ? 'Dashboard sem dados — sync não executada'
+              : 'Dashboard operacional carregado (parcial)',
         });
       }
 
       this._startAutoRefresh();
-      return { ok: true };
+      return { ok: true, partial: loadResult.partial || false, noSync: loadResult.noSync || false, errors: loadResult.errors || [] };
     } catch (err) {
       this._state.error = err.message || 'Erro ao carregar dashboard.';
+      this._state.loaded = true;
       this._state.loading = false;
       this._emit('dashboard:error', { error: this._state.error });
       return { ok: false, error: this._state.error };
@@ -104,7 +125,7 @@ window.Dashboard = {
       if (this._state.loaded && !this._state.loading) {
         this._state.isStale = true;
         this._emit('dashboard:stale', { loadedAt: this._state.loadedAt });
-        this.recalculate();
+        this.load();
       }
     }, config.autoRefreshInterval);
 
@@ -140,7 +161,6 @@ window.Dashboard = {
 
   async forceRefresh() {
     this._state.isStale = false;
-    this._state.loadedAt = new Date().toISOString();
     this._emit('dashboard:refreshing', {});
     if (window.Audit) {
       window.Audit.register({
@@ -156,15 +176,21 @@ window.Dashboard = {
 
   async _ensureData() {
     const D = window.DATA;
-    const needsLoad =
-      !D.computadores?.length &&
-      !D.chromebooksGeekiees?.length &&
-      !D.projetores?.length;
 
-    if (needsLoad) {
-      const result = await window.GlpiClient.loadAll();
-      if (!result.ok) {
-        throw new Error('Falha ao carregar dados do GLPI.');
+    // Dados já foram carregados por _loadInitialData → loadAll().
+    // Não chamar loadAll() aqui para evitar requests duplicados e race conditions.
+    // Se classifiedAssets já existe, os dados estão prontos.
+    const hasData = (D.classifiedAssets && D.classifiedAssets.length > 0)
+      || (D.computadores && D.computadores.length > 0);
+
+    let loadResult = { ok: true };
+
+    if (!hasData) {
+      // Fallback: só chama loadAll se dados realmente não existem
+      try {
+        loadResult = await window.GlpiClient.loadAll() || { ok: true };
+      } catch (e) {
+        loadResult = { ok: false, errors: [e.message], partial: false };
       }
     }
 
@@ -184,6 +210,19 @@ window.Dashboard = {
         // Projetores podem falhar — não é crítico
       }
     }
+
+    if (!D.syncStatus && window.AssetClassifier) {
+      try {
+        const statusResult = await window.AssetClassifier.fetchSyncStatus();
+        if (statusResult.ok) {
+          D.syncStatus = statusResult.data;
+        }
+      } catch {
+        // Sync status pode falhar — não é crítico
+      }
+    }
+
+    return loadResult;
   },
 
   // ── Cálculo de Indicadores ───────────────────────────────────────────────
@@ -192,23 +231,48 @@ window.Dashboard = {
     const D = window.DATA;
     const indicators = {};
 
-    // ── Contagem por Categoria ──────────────────────────────────────────
-    indicators.computadores = this._countArray(D.computadores);
-    indicators.geekiees = this._countArray(D.chromebooksGeekiees);
-    indicators.apoio = this._countFlat(D.chromebooksApoio);
-    indicators.projetores = this._countArray(D.projetores);
-    indicators.impressoras = this._countArray(D.impressoras);
+    // Usar ativos classificados como fonte principal
+    const classified = D.classifiedAssets || [];
+    const hasClassified = classified.length > 0;
+
+    // ── Contagem por Categoria (do backend) ────────────────────────────
+    if (hasClassified && window.AssetClassifier) {
+      const stats = window.AssetClassifier.computeStats(classified);
+      indicators.computadores = stats.byCategory.computer_cs ?? 0;
+      indicators.geekiees = stats.byCategory.chromebook_student ?? 0;
+      indicators.apoio = stats.byCategory.chromebook_support ?? 0;
+      indicators.exibicao = stats.byCategory.chromebook_display ?? 0;
+      indicators.projetores = stats.byCategory.projector ?? 0;
+      indicators.impressoras = (stats.byCategory.printer ?? 0) + (stats.byCategory.printer_computer ?? 0);
+      indicators.unclassified_count = stats.unclassified ?? 0;
+      indicators.low_confidence_count = classified.filter(a => (a.classificationConfidence ?? 1) < 0.7).length;
+    } else {
+      indicators.computadores = this._countArray(D.computadores);
+      indicators.geekiees = this._countArray(D.chromebooksGeekiees);
+      indicators.apoio = this._countFlat(D.chromebooksApoio);
+      indicators.exibicao = this._countArray(D.chromebooksExibicao);
+      indicators.projetores = this._countArray(D.projetores);
+      indicators.impressoras = this._countArray(D.impressoras);
+      indicators.unclassified_count = 0;
+      indicators.low_confidence_count = 0;
+    }
 
     // ── Chromebooks combinados ──────────────────────────────────────────
-    indicators.chromebooks_total = indicators.geekiees + indicators.apoio;
+    indicators.chromebooks_total = indicators.geekiees + indicators.apoio + indicators.exibicao;
+
+    // ── Chromebooks em carrinhos ────────────────────────────────────────
+    if (hasClassified) {
+      indicators.chromebooks_carrinhos = classified.filter(a =>
+        a.category === 'chromebook_support' && a.cart
+      ).length;
+    } else {
+      indicators.chromebooks_carrinhos = indicators.apoio;
+    }
 
     // ── Total de Ativos ────────────────────────────────────────────────
-    indicators.total_ativos =
-      indicators.computadores +
-      indicators.geekiees +
-      indicators.apoio +
-      indicators.projetores +
-      indicators.impressoras;
+    indicators.total_ativos = hasClassified
+      ? classified.length
+      : indicators.computadores + indicators.geekiees + indicators.apoio + indicators.exibicao + indicators.projetores + indicators.impressoras;
 
     // ── Percentuais por categoria ───────────────────────────────────────
     const total = indicators.total_ativos || 1;
@@ -216,6 +280,11 @@ window.Dashboard = {
     indicators.pct_chromebooks = Math.round((indicators.chromebooks_total / total) * 1000) / 10;
     indicators.pct_projetores = Math.round((indicators.projetores / total) * 1000) / 10;
     indicators.pct_impressoras = Math.round((indicators.impressoras / total) * 1000) / 10;
+
+    // ── Sincronização ─────────────────────────────────────────────────
+    indicators.sync_status = D.syncStatus?.status ?? 'desconhecido';
+    indicators.sync_partial = D.syncStatus?.status === 'partial';
+    indicators.last_sync = D.syncStatus?.last_run ?? D.lastSuccessfulSync;
 
     // ── Chamados (todos) ────────────────────────────────────────────────
     const tickets = window.STATE.tickets || [];

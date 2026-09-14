@@ -44,9 +44,12 @@ window.Sidebar = (function () {
       id: 'gestao',
       label: 'GESTÃO',
       items: [
-        { id: 'geekiees', label: 'Geekiees', icon: 'chromebook', module: 'geekiees' },
+        { id: 'geekiees', label: 'Alunos', icon: 'chromebook', module: 'geekiees' },
         { id: 'apoio', label: 'Carrinhos', icon: 'cart', module: 'apoio' },
+        { id: 'salas', label: 'Salas/Turmas', icon: 'computer', module: 'salas' },
+        { id: 'exibicao', label: 'Exibição', icon: 'computer', module: 'exibicao' },
         { id: 'impressoras', label: 'Impressoras', icon: 'printer', module: 'impressoras' },
+        { id: 'inventario', label: 'Inventário Geral', icon: 'computer', module: 'inventario' },
         { id: 'relatorios', label: 'Relatórios', icon: 'reports', module: 'relatorios' },
         { id: 'auditoria', label: 'Auditoria', icon: 'audit', module: 'auditoria' },
       ],
@@ -64,6 +67,7 @@ window.Sidebar = (function () {
       label: 'ADMINISTRAÇÃO',
       items: [
         { id: 'configuracoes', label: 'Configurações', icon: 'settings', module: 'configuracoes' },
+        { id: 'admin-sync', label: 'Sincronização GLPI', icon: 'sync', module: 'admin-sync' },
       ],
     },
   ];

@@ -39,6 +39,7 @@
     'arrow-right': 'css/icons/arrow-right.svg',
     plus: 'css/icons/plus.svg',
     calendar: 'css/icons/calendar.svg',
+    sync: 'css/icons/refresh.svg',
   };
 
   /**

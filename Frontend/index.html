@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GLPI Control Center</title>
+  <link rel="icon" type="image/png" href="assets/branding/logo/logo.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -29,6 +30,7 @@
   <link rel="stylesheet" href="css/access-denied.css" />
 
 <link rel="stylesheet" href="css/styles.css" />
+<link rel="stylesheet" href="css/inventory.css" />
 </head>
 
 <body>
@@ -49,7 +51,7 @@
         <span class="mano-isa-text">Mano Isa</span>
       </div>
 
-      <p class="login-error" id="login-error" style="display:none;"></p>
+      <p class="login-error hidden" id="login-error"></p>
     </div>
   </div>
 
@@ -86,7 +88,7 @@
             <button class="notif-bell-btn" id="notification-bell-btn" data-notif-action="toggle" title="Central de Notificações">
               <span class="gcc-icon gcc-icon--md"><img src="css/icons/notifications.svg" alt="" /></span>
             </button>
-            <span class="notif-badge" id="notification-badge" style="display:none;"></span>
+            <span class="notif-badge hidden" id="notification-badge"></span>
           </div>
           <div class="user-info">
             <span id="user-name" class="user-name"></span>
@@ -110,7 +112,7 @@
   <!-- CENTRAL DE NOTIFICAÇÕES -->
   <div id="notifications-panel"></div>
 
-  <div id="computer-details-modal" class="computer-modal" style="display:none;">
+  <div id="computer-details-modal" class="computer-modal hidden">
     <div class="computer-modal-backdrop" data-computer-modal-close="backdrop"></div>
     <div class="computer-modal-dialog">
       <div id="computer-details-modal-content"></div>
@@ -127,6 +129,7 @@
 <script src="javascript/access-denied.js"></script>
 <script src="javascript/permission-checker.js"></script>
 <script src="javascript/data.js"></script>
+<script src="javascript/group_mapper.js"></script>
 <script src="javascript/state.js"></script>
 <script src="javascript/auth.config.js"></script>
 <script src="javascript/permissions.js"></script>
@@ -196,6 +199,8 @@
 <script src="javascript/perf-metrics.js"></script>
 <script src="javascript/security.js"></script>
 <script src="javascript/sanitization.js"></script>
+<script src="javascript/asset_classifier.js"></script>
+<script src="javascript/admin_sync.js"></script>
 <script src="javascript/app.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <!-- MODAL DE CHAMADO -->
@@ -215,7 +220,7 @@
       <option value="5">△△ Muito alta</option>
     </select>
 
-    <input id="ticket-category" class="ticket-input" type="number" placeholder="ID da categoria (opcional)" style="margin-bottom:20px;" />
+    <input id="ticket-category" class="ticket-input ds-mb-4" type="number" placeholder="ID da categoria (opcional)" />
 
     <div class="ticket-actions">
       <button id="ticket-send-btn" class="ticket-btn-save">

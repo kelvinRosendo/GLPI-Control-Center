@@ -38,6 +38,10 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/utils/request.php';
 require_once __DIR__ . '/middleware/permissions.php';
 require_once __DIR__ . '/mappers.php';
+require_once __DIR__ . '/classifier.php';
+require_once __DIR__ . '/classification_pipeline.php';
+require_once __DIR__ . '/sync.php';
+require_once __DIR__ . '/sync_status.php';
 require_once __DIR__ . '/tickets.php';
 require_once __DIR__ . '/workflow.php';
 require_once __DIR__ . '/assistance_action.php';
@@ -46,6 +50,7 @@ require_once __DIR__ . '/integration_audit_repository.php';
 require_once __DIR__ . '/integration_audit_service.php';
 require_once __DIR__ . '/chat.php';
 require_once __DIR__ . '/projetors.php';
+require_once __DIR__ . '/diagnostic.php';
 require_once __DIR__ . '/utils/mailer.php';
 require_once __DIR__ . '/utils/mail_templates.php';
 
@@ -69,22 +74,28 @@ function isConfigValid(array $config): array
 
 function isComputador(string $nome): bool
 {
-  return preg_match('/^(CS-|CO-)/i', $nome) === 1;
+  $cat = Classifier::classifyComputerByName($nome);
+  return $cat === Classifier::CAT_COMPUTADOR;
 }
 
 function isGeekiee(string $nome): bool
 {
-  return preg_match('/^Chrome\s+G-/i', $nome) === 1;
+  return Classifier::classifyComputerByName($nome) === Classifier::CAT_ALUNOS;
 }
 
 function isApoio(string $nome): bool
 {
-  return preg_match('/^Chrome-/i', $nome) === 1;
+  return Classifier::classifyComputerByName($nome) === Classifier::CAT_APOIO;
+}
+
+function isExibicao(string $nome): bool
+{
+  return Classifier::classifyComputerByName($nome) === Classifier::CAT_EXIBICAO;
 }
 
 function isProjetor(string $nome): bool
 {
-  return preg_match('/^Projetor/i', $nome) === 1;
+  return Classifier::classifyComputerByName($nome) === Classifier::CAT_PROJETOR;
 }
 
 function getComputerType(array $c): string
@@ -104,14 +115,12 @@ function getComputerType(array $c): string
 
 function isProjetorType(array $c): bool
 {
-  $type = getComputerType($c);
-  return $type === 'projetor' || $type === 'projetores';
+  return Classifier::classify($c)[0] === Classifier::CAT_PROJETOR;
 }
 
 function isImpressoraType(array $c): bool
 {
-  $type = getComputerType($c);
-  return $type === 'impressora' || $type === 'impressoras';
+  return Classifier::classify($c)[0] === Classifier::CAT_IMPRESSORA;
 }
 
 final class Endpoints
@@ -129,12 +138,34 @@ final class Endpoints
   {
     $glpi = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    $raw = $glpi->getAllWithParams('/Computer', $session, [
-      'expand_dropdowns' => 'true',
-    ], 500);
-    $glpi->killSession($session);
+    try {
+      $result = $glpi->getAllWithParams('/Computer', $session, [
+        'expand_dropdowns' => 'true',
+      ], 500);
+      $items = $result['items'];
+      $glpi->killSession($session);
+      return array_filter($items, 'is_array');
+    } catch (\Throwable $e) {
+      $glpi->killSession($session);
+      throw $e;
+    }
+  }
 
-    return array_filter($raw, 'is_array');
+  private static function getAllPrinters(array $config): array
+  {
+    $glpi = new GlpiClient($config['glpi'] ?? []);
+    $session = $glpi->initSession();
+    try {
+      $result = $glpi->getAllWithParams('/Printer', $session, [
+        'expand_dropdowns' => 'true',
+      ], 500);
+      $items = $result['items'];
+      $glpi->killSession($session);
+      return array_filter($items, 'is_array');
+    } catch (\Throwable $e) {
+      $glpi->killSession($session);
+      throw $e;
+    }
   }
 
   private static function getComputerById(array $config, int $id): array
@@ -164,10 +195,9 @@ final class Endpoints
     $items = [];
 
     foreach ($all as $c) {
-      $nome = trim($c['name'] ?? '');
-      if (isComputador($nome)) {
-        $items[] = Mappers::computer($c);
-      }
+      [$cat] = Classifier::classify($c);
+      if ($cat !== Classifier::CAT_COMPUTADOR) continue;
+      $items[] = Mappers::computer($c);
     }
 
     Responde::ok(['data' => $items, 'count' => count($items)]);
@@ -180,6 +210,29 @@ final class Endpoints
     Responde::ok([
       'data' => Mappers::computerDetails($computer),
     ]);
+  }
+
+  public static function printerDetails(array $config, int $id): void
+  {
+    $glpi = new GlpiClient($config['glpi'] ?? []);
+    $session = $glpi->initSession();
+    try {
+      $raw = $glpi->getWithParams("/Printer/{$id}", $session, [
+        'expand_dropdowns' => 'true',
+      ]);
+      $glpi->killSession($session);
+
+      if (!is_array($raw) || !isset($raw['id'])) {
+        Responde::erro('Impressora não encontrada no GLPI.', 404, ['glpiId' => $id]);
+      }
+
+      Responde::ok([
+        'data' => Mappers::printerDetails($raw),
+      ]);
+    } catch (\Throwable $e) {
+      $glpi->killSession($session);
+      throw $e;
+    }
   }
 
   public static function updateComputer(array $config, int $id): void
@@ -214,8 +267,8 @@ final class Endpoints
     $items = [];
 
     foreach ($all as $c) {
-      $nome = trim($c['name'] ?? '');
-      if (isGeekiee($nome)) {
+      [$cat] = Classifier::classify($c);
+      if ($cat === Classifier::CAT_ALUNOS) {
         $items[] = Mappers::chromebookGeekiee($c);
       }
     }
@@ -229,8 +282,8 @@ final class Endpoints
     $apoioItems = [];
 
     foreach ($all as $c) {
-      $nome = trim($c['name'] ?? '');
-      if (isApoio($nome)) {
+      [$cat] = Classifier::classify($c);
+      if ($cat === Classifier::CAT_APOIO) {
         $apoioItems[] = $c;
       }
     }
@@ -243,32 +296,34 @@ final class Endpoints
     ]);
   }
 
-  public static function projetores(array $config): void
+  public static function chromebooksExibicao(array $config): void
   {
     $all = self::getAllComputers($config);
     $items = [];
 
     foreach ($all as $c) {
-      $nome = trim($c['name'] ?? '');
-      if (isProjetor($nome) || isProjetorType($c)) {
-        $items[] = Mappers::projetor($c);
+      [$cat] = Classifier::classify($c);
+      if ($cat === Classifier::CAT_EXIBICAO) {
+        $items[] = Mappers::chromebookGeekiee($c);
       }
     }
 
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
 
+  public static function projetores(array $config): void
+  {
+    ProjectorsEndpoint::list($config);
+  }
+
   public static function impressoras(array $config): void
   {
-    $all = self::getAllComputers($config);
+    $all = self::getAllPrinters($config);
     $items = [];
 
-    foreach ($all as $c) {
-      $nome = trim($c['name'] ?? '');
-      // Match by name containing "impressora" or by GLPI type
-      if (stripos($nome, 'impressora') !== false || isImpressoraType($c)) {
-        $items[] = Mappers::impressora($c);
-      }
+    foreach ($all as $p) {
+      if (!is_array($p)) continue;
+      $items[] = Mappers::impressora($p);
     }
 
     Responde::ok(['data' => $items, 'count' => count($items)]);
@@ -288,7 +343,7 @@ function authorizeRequest(string $path, string $method, array $config): void
 
   if ($path === '/api/auth/logout') return;
 
-  if (in_array($path, ['/api/projetors/diagnostic', '/api/projetors/config'], true)) {
+  if (in_array($path, ['/api/projetors/diagnostic', '/api/projetors/config', '/api/diagnostic/compare', '/api/diagnostic/export', '/api/sync/run', '/api/sync/incremental'], true)) {
     PermissionMiddleware::requireMinLevel('ADMIN');
     return;
   }
@@ -298,6 +353,11 @@ function authorizeRequest(string $path, string $method, array $config): void
     '#^/api/assets/chromebooks#' => ['computadores', 'view'],
     '#^/api/assets/projetores#' => ['projetores', 'view'],
     '#^/api/assets/impressoras#' => ['impressoras', 'view'],
+    '#^/api/assets/all#' => ['computadores', 'view'],
+    '#^/api/sync/status#' => ['computadores', 'view'],
+    '#^/api/sync/report#' => ['computadores', 'view'],
+    '#^/api/sync/assets#' => ['computadores', 'view'],
+    '#^/api/sync/cache-state#' => ['computadores', 'view'],
     '#^/api/projetors(?:/\d+/maintenance)?$#' => ['projetores', $method === 'GET' ? 'view' : 'maintenance'],
     '#^/api/projetors#' => ['projetores', $method === 'GET' ? 'view' : 'edit'],
     '#^/api/tickets#' => ['chamados', $method === 'GET' ? 'view' : 'create'],
@@ -337,8 +397,33 @@ try {
     '/api/assets/computers' => Endpoints::computers($config),
     '/api/assets/chromebooks-geekiees' => Endpoints::chromebooksGeekiees($config),
     '/api/assets/chromebooks-apoio' => Endpoints::chromebooksApoio($config),
+    '/api/assets/chromebooks-exibicao' => Endpoints::chromebooksExibicao($config),
     '/api/assets/projetores' => Endpoints::projetores($config),
     '/api/assets/impressoras' => Endpoints::impressoras($config),
+    '/api/assets/all' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET' => SyncEndpoint::assets($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
+    '/api/sync/status' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET' => SyncEndpoint::status($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
+    '/api/sync/run' => match ($_SERVER['REQUEST_METHOD'] ?? 'POST') {
+      'POST' => SyncEndpoint::run($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
+    '/api/sync/incremental' => match ($_SERVER['REQUEST_METHOD'] ?? 'POST') {
+      'POST' => SyncEndpoint::incremental($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
+    '/api/sync/report' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET' => SyncEndpoint::report($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
+    '/api/sync/cache-state' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET' => SyncEndpoint::cacheState($config),
+      default => Responde::erro('Método não permitido.', 405),
+    },
     '/api/projetors' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
       'GET' => ProjectorsEndpoint::list($config),
       default => Responde::erro('Método não permitido.', 405),
@@ -410,6 +495,15 @@ try {
         Responde::erro('Método não permitido.', 405);
       }
 
+      if (preg_match('#^/api/assets/printers/(\d+)$#', $path, $m)) {
+        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+        if ($method === 'GET') {
+          Endpoints::printerDetails($config, (int) $m[1]);
+          return;
+        }
+        Responde::erro('Método não permitido.', 405);
+      }
+
       if (preg_match('#^/api/projetors/(\d+)$#', $path, $m)) {
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         if ($method === 'GET') {
@@ -445,6 +539,16 @@ try {
 
       if (preg_match('#^/api/tickets/asset/(\d+)$#', $path, $m)) {
         TicketsEndpoint::listByAsset($config, (int) $m[1]);
+        return;
+      }
+
+      if ($path === '/api/diagnostic/compare') {
+        DiagnosticEndpoint::compare($config);
+        return;
+      }
+
+      if ($path === '/api/diagnostic/export') {
+        DiagnosticEndpoint::export($config);
         return;
       }
 

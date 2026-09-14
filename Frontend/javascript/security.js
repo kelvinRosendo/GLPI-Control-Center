@@ -27,7 +27,32 @@ window.Security = (function () {
     if (!_config.cspEnabled) return;
     var meta = document.createElement('meta');
     meta.httpEquiv = 'Content-Security-Policy';
-    meta.content = "default-src 'self'; script-src 'self' https://accounts.google.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://accounts.google.com https://oauth2.googleapis.com https://cdn.jsdelivr.net http://localhost:8080 http://localhost:9090 http://192.168.1.20:9090; object-src 'none'; base-uri 'self'; frame-ancestors 'self';";
+    var glpiOrigin = '';
+    try { glpiOrigin = new URL(window.CONFIG?.glpiUrl || '').origin; } catch (_) {}
+    var backendOrigin = '';
+    try { backendOrigin = new URL(window.CONFIG?.backendUrl || '').origin; } catch (_) {}
+    var connectSources = [
+      "'self'",
+      'https://accounts.google.com',
+      'https://oauth2.googleapis.com',
+      'https://cdn.jsdelivr.net',
+      'http://localhost:8080',
+      'http://localhost:9090',
+      'http://192.168.1.20:9090',
+    ];
+    if (glpiOrigin && glpiOrigin !== 'null' && connectSources.indexOf(glpiOrigin) === -1) connectSources.push(glpiOrigin);
+    if (backendOrigin && backendOrigin !== 'null' && connectSources.indexOf(backendOrigin) === -1) connectSources.push(backendOrigin);
+    meta.content = [
+      "default-src 'self'",
+      "script-src 'self' https://accounts.google.com https://cdn.jsdelivr.net",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: https:",
+      'connect-src ' + connectSources.join(' '),
+      "frame-src 'self' https://accounts.google.com https://oauth2.googleapis.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+    ].join('; ');
     document.head.appendChild(meta);
   }
 

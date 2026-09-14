@@ -58,8 +58,9 @@ window.DashboardAnalytics = {
   _calculateDistributions(analytics, indicators) {
     analytics.distribuicao_categorias = [
       { nome: 'Computadores', quantidade: indicators.computadores, cor: '#4f7ef7' },
-      { nome: 'Chromebooks Geekie', quantidade: indicators.geekiees, cor: '#00c896' },
+      { nome: 'Chromebooks Alunos', quantidade: indicators.geekiees, cor: '#00c896' },
       { nome: 'Chromebooks Apoio', quantidade: indicators.apoio, cor: '#6c5ce7' },
+      { nome: 'Chromebooks Exibição', quantidade: indicators.exibicao, cor: '#f97316' },
       { nome: 'Projetores', quantidade: indicators.projetores, cor: '#ffc107' },
       { nome: 'Impressoras', quantidade: indicators.impressoras, cor: '#ff5555' },
     ];
@@ -77,8 +78,9 @@ window.DashboardAnalytics = {
     // ── Ativos por Tipo (horizontal bar — gráfico principal) ────────────
     const categories = [
       { label: 'Computadores', count: indicators.computadores, color: '#4f7ef7', tab: 'computadores' },
-      { label: 'Chromebooks Geekie', count: indicators.geekiees, color: '#00c896', tab: 'geekiees' },
+      { label: 'Chromebooks Alunos', count: indicators.geekiees, color: '#00c896', tab: 'geekiees' },
       { label: 'Chromebooks Apoio', count: indicators.apoio, color: '#6c5ce7', tab: 'apoio' },
+      { label: 'Chromebooks Exibição', count: indicators.exibicao, color: '#f97316', tab: 'exibicao' },
       { label: 'Projetores', count: indicators.projetores, color: '#ffc107', tab: 'projetores' },
       { label: 'Impressoras', count: indicators.impressoras, color: '#ff5555', tab: 'impressoras' },
     ].sort((a, b) => b.count - a.count);

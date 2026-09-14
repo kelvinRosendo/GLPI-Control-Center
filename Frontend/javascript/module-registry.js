@@ -73,6 +73,16 @@ window.ModuleRegistry = (function () {
       depends: ['core'],
     },
 
+    exibicao: {
+      scripts: [
+        'javascript/data.js',
+        'javascript/state.js',
+        'javascript/glpi.client.js',
+        'javascript/ui_render.js',
+      ],
+      depends: ['core'],
+    },
+
     projetores: {
       scripts: [
         'javascript/projectors.config.js',
@@ -112,6 +122,25 @@ window.ModuleRegistry = (function () {
         'javascript/audit.js',
         'javascript/audit_ui.js',
         'javascript/audit_analytics.js',
+      ],
+      depends: ['core'],
+    },
+
+    inventario: {
+      scripts: [
+        'javascript/data.js',
+        'javascript/state.js',
+        'javascript/glpi.client.js',
+        'javascript/asset_classifier.js',
+        'javascript/ui_render.js',
+      ],
+      depends: ['core'],
+    },
+
+    'admin-sync': {
+      scripts: [
+        'javascript/asset_classifier.js',
+        'javascript/admin_sync.js',
       ],
       depends: ['core'],
     },

@@ -8,6 +8,7 @@ final class AuthService
 
   public static function login(array $config): void
   {
+    error_log("[GCC Auth] login() chamado - GOOGLE FLOW");
     $body = self::readJsonBody();
     $credential = trim((string) ($body['credential'] ?? ''));
     if ($credential === '') {
@@ -20,6 +21,7 @@ final class AuthService
 
   public static function demoLogin(array $config): void
   {
+    error_log("[GCC Auth] demoLogin() chamado - DEMO FLOW");
     if (($config['app']['env'] ?? 'production') === 'production') {
       Responde::erro('Login de demonstração desabilitado.', 404);
     }
@@ -71,8 +73,14 @@ final class AuthService
 
   private static function completeLogin(array $claims, array $config): void
   {
+    error_log("[GCC Auth] completeLogin chamado: claims_keys=" . implode(',', array_keys($claims)));
+
     $email = strtolower(trim((string) ($claims['email'] ?? '')));
-    if (($claims['email_verified'] ?? false) !== true || !self::domainAllowed($email, $config)) {
+    $emailVerified = $claims['email_verified'] ?? false;
+    $domainOk = self::domainAllowed($email, $config);
+
+    if ($emailVerified !== true || !$domainOk) {
+      error_log("[GCC Auth] completeLogin BLOQUEADO: email={$email} email_verified=" . var_export($emailVerified, true) . " domain_ok=" . var_export($domainOk, true) . " allowed_domains=" . implode(',', $config['auth']['allowed_domains'] ?? []));
       Responde::erro('Conta não autorizada para este sistema.', 403);
     }
 
@@ -108,6 +116,7 @@ final class AuthService
 
   private static function verifyGoogleCredential(string $credential, array $config): array
   {
+    $t0 = microtime(true);
     $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . rawurlencode($credential);
     $ch = curl_init($url);
     curl_setopt_array($ch, [
@@ -120,6 +129,8 @@ final class AuthService
     $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $error = curl_error($ch);
     $ch = null;
+    $elapsed = round((microtime(true) - $t0) * 1000);
+    error_log("[Auth] Google tokeninfo concluído em {$elapsed}ms (HTTP {$code})");
 
     if ($raw === false || $code !== 200) {
       error_log('[Auth] Falha ao validar token Google: ' . self::logValue($error ?: ('HTTP ' . $code)));
@@ -133,6 +144,7 @@ final class AuthService
     }
 
     $claims['email_verified'] = filter_var($claims['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    error_log("[Auth] verifyGoogleCredential OK: email=" . ($claims['email'] ?? '?') . " email_verified=" . var_export($claims['email_verified'], true));
     return $claims;
   }
 

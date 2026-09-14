@@ -80,16 +80,17 @@ final class ProjectorsEndpoint
   {
     $glpi = new GlpiClient($config['glpi'] ?? []);
     $session = $glpi->initSession();
-    $raw = $glpi->getAllWithParams('/Computer', $session, [
+    $result = $glpi->getAllWithParams('/Computer', $session, [
       'expand_dropdowns' => 'true',
     ], 500);
     $glpi->killSession($session);
 
+    $raw = $result['items'];
     $items = [];
     foreach ($raw as $c) {
       if (!is_array($c)) continue;
-      $nome = trim($c['name'] ?? '');
-      if (preg_match('/^Projetor/i', $nome) === 1) {
+      [$cat] = Classifier::classify($c);
+      if ($cat === Classifier::CAT_PROJETOR) {
         $items[] = Mappers::projetor($c);
       }
     }
@@ -671,11 +672,12 @@ final class ProjectorsEndpoint
     try {
       $glpi = new GlpiClient($config['glpi'] ?? []);
       $session = $glpi->initSession();
-      $raw = $glpi->getAllWithParams('/Computer', $session, [
+      $page = $glpi->getAllWithParams('/Computer', $session, [
         'expand_dropdowns' => 'true',
       ], 500);
       $glpi->killSession($session);
 
+      $raw = $page['items'];
       $result['glpi_test'] = 'OK';
       $result['total_computers'] = count($raw);
 
@@ -683,11 +685,11 @@ final class ProjectorsEndpoint
       $projectors = [];
       foreach ($raw as $c) {
         if (!is_array($c)) continue;
-        $nome = trim($c['name'] ?? '');
-        if (preg_match('/^Projetor/i', $nome) === 1) {
+        [$cat] = Classifier::classify($c);
+        if ($cat === Classifier::CAT_PROJETOR) {
           $projectors[] = [
             'id' => $c['id'] ?? null,
-            'name' => $nome,
+            'name' => trim($c['name'] ?? ''),
             'serial' => $c['serial'] ?? '',
           ];
         }

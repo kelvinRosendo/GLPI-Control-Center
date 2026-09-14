@@ -178,21 +178,30 @@ window.Auth = (function () {
   }
 
   async function _authenticate(path, body) {
+    const t0 = performance.now();
     try {
       const baseUrl = (window.CONFIG?.backendUrl ?? 'http://localhost:8080').replace(/\/$/, '');
+      console.log(`[Auth] Iniciando autenticação em ${baseUrl}${path}`);
       const response = await fetch(baseUrl + path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(30000),
       });
+      const t1 = performance.now();
+      console.log(`[Auth] Resposta do backend recebida em ${(t1 - t0).toFixed(0)}ms (HTTP ${response.status})`);
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error || 'Falha de autenticação');
       _handleLoginSuccess(result);
+      console.log(`[Auth] Login concluído em ${(performance.now() - t0).toFixed(0)}ms`);
     } catch (error) {
-      console.error('[Auth] Falha na autenticação pelo servidor:', error);
-      _showError(error.message || window.AUTH_CONFIG.messages.genericError);
+      const elapsed = (performance.now() - t0).toFixed(0);
+      console.error(`[Auth] Falha na autenticação após ${elapsed}ms:`, error);
+      const msg = error.name === 'TimeoutError'
+        ? `Tempo esgotado após ${elapsed}ms ao conectar com o servidor. Verifique sua conexão e tente novamente.`
+        : (error.message || window.AUTH_CONFIG.messages.genericError);
+      _showError(msg);
     }
   }
 
@@ -329,13 +338,13 @@ window.Auth = (function () {
     const errorEl = document.getElementById('login-error');
     if (errorEl) {
       errorEl.textContent = message;
-      errorEl.style.display = 'block';
+      errorEl.classList.remove('hidden');
     }
   }
 
   function _hideError() {
     const errorEl = document.getElementById('login-error');
-    if (errorEl) errorEl.style.display = 'none';
+    if (errorEl) errorEl.classList.add('hidden');
   }
 
   // ══════════════════════════════════════════════════════════════════════════

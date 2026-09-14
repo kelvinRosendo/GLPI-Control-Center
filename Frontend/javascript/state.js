@@ -18,7 +18,12 @@ window.STATE = {
   ticketPeriod: 'all',
   ticketCustomStart: null,
   ticketCustomEnd: null,
-
+  inventoryPage: 1,
+  inventorySort: 'name',
+  inventorySortDir: 'asc',
+  categoryFilter: 'all',
+  itemtypeFilter: 'all',
+  stateFilter: 'all',
 };
 
 window.State = {
@@ -98,6 +103,35 @@ window.State = {
     window.STATE.ticketCustomEnd = end || null;
   },
 
+  setInventoryPage(page) {
+    window.STATE.inventoryPage = Math.max(1, Number(page) || 1);
+  },
+
+  setInventorySort(field) {
+    if (window.STATE.inventorySort === field) {
+      window.STATE.inventorySortDir = window.STATE.inventorySortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      window.STATE.inventorySort = field;
+      window.STATE.inventorySortDir = 'asc';
+    }
+    window.STATE.inventoryPage = 1;
+  },
+
+  setCategoryFilter(value) {
+    window.STATE.categoryFilter = value || 'all';
+    window.STATE.inventoryPage = 1;
+  },
+
+  setItemtypeFilter(value) {
+    window.STATE.itemtypeFilter = value || 'all';
+    window.STATE.inventoryPage = 1;
+  },
+
+  setStateFilter(value) {
+    window.STATE.stateFilter = value || 'all';
+    window.STATE.inventoryPage = 1;
+  },
+
 
   resetFilters() {
     window.STATE.search = '';
@@ -108,5 +142,11 @@ window.State = {
     window.STATE.ticketCustomStart = null;
     window.STATE.ticketCustomEnd = null;
     window.STATE.reparticao = 'todas';
+    window.STATE.inventoryPage = 1;
+    window.STATE.inventorySort = 'name';
+    window.STATE.inventorySortDir = 'asc';
+    window.STATE.categoryFilter = 'all';
+    window.STATE.itemtypeFilter = 'all';
+    window.STATE.stateFilter = 'all';
   },
 };
