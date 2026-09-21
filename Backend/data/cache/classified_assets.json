@@ -1,1 +1,32 @@
-{"items":[{"id":1,"itemtype":"Computer","name":"Chrome G-001","category":"chromebook_student"},{"id":2,"itemtype":"Computer","name":"CS-001","category":"computer_cs"},{"id":3,"itemtype":"Printer","name":"EPSON","category":"printer"}],"stats":{"total":3},"generated":"2026-09-21T21:31:59+02:00"}
+[
+    {
+        "id": 1,
+        "itemtype": "Computer",
+        "name": "CS-002",
+        "category": "computer_cs",
+        "raw": {
+            "id": 1,
+            "name": "CS-002",
+            "serial": "SN999",
+            "locations_id": {
+                "id": 5,
+                "name": "Sala 05"
+            }
+        },
+        "serial": "SN999",
+        "otherserial": "",
+        "location": "Sala 05"
+    },
+    {
+        "id": 2,
+        "itemtype": "Printer",
+        "name": "EPSON",
+        "category": "printer"
+    },
+    {
+        "id": 3,
+        "itemtype": "Computer",
+        "name": "CS-003",
+        "category": "computer_cs"
+    }
+]

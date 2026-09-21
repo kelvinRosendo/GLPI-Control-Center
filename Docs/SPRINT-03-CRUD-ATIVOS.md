@@ -277,10 +277,10 @@ AssetDetailsUI.openCreate('Computer', (result) => {
 
 ## 11. Pendências para Sprint 4
 
-1. **Verificar permissões reais da conta de integração** — testar 11 coleções auxiliares com GLPI real
-2. **Concorrência de edição** — detectar `date_mod` antes e depois da edição para sobrescrever silenciosamente
-3. **Auditoria de operações** — logar cada escrita com antes/depois
-4. **Integração com AI** — conectar OpenCode Go para consultas e operações
-5. **Deploy VPS** — publicar ambiente de teste
-6. **Validação de dropdowns** — verificar se IDs enviados existem no GLPI antes de gravar
-7. **Cache pós-escrita** — atualizar `classified_assets.json` após cada operação de escrita
+1. ~~**Verificar permissões reais da conta de integração** — testar 11 coleções auxiliares com GLPI real~~ → Pendência externa
+2. ~~**Concorrência de edição** — detectar `date_mod` antes e depois da edição para sobrescrever silenciosamente~~ → ✅ Implementado na Sprint 4
+3. ~~**Auditoria de operações** — logar cada escrita com antes/depois~~ → ✅ Implementado na Sprint 4
+4. **Integração com AI** — conectar OpenCode Go para consultas e operações → Fora do escopo
+5. **Deploy VPS** — publicar ambiente de teste → Fora do escopo
+6. ~~**Validação de dropdowns** — verificar se IDs enviados existem no GLPI antes de gravar~~ → ✅ Implementado na Sprint 4
+7. ~~**Cache pós-escrita** — atualizar `classified_assets.json` após cada operação de escrita~~ → ✅ Implementado na Sprint 4

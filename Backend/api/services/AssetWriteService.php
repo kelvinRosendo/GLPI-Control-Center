@@ -7,6 +7,14 @@
  * Opera sobre Computer e Printer com allow-list de campos e operações.
  * Valida permissões, valida payload, grava no GLPI, relê e retorna resultado
  * completo incluindo itemtype:id, ação, campos, resultado da gravação e releitura.
+ *
+ * SPRINT 4 — Confiabilidade:
+ * - Validação de dropdowns via DropdownValidator antes de gravar
+ * - Controle de concorrência via date_mod antes/depois
+ * - ID de operação persistente com estados claros
+ * - Idempotência via IdempotencyGuard
+ * - Auditoria via OperationTracker
+ * - Atualização do cache via CacheUpdater
  */
 
 declare(strict_types=1);
@@ -15,6 +23,8 @@ final class AssetWriteService
 {
   private GlpiClient $glpi;
   private string $session;
+  private OperationTracker $tracker;
+  private ?string $userId;
 
   // ── Allow-lists ──────────────────────────────────────────────────────────────
 
@@ -49,11 +59,16 @@ final class AssetWriteService
     'Printer'  => ['create', 'update', 'delete', 'restore'],
   ];
 
-  public function __construct(array $glpiConfig)
+  public function __construct(array $glpiConfig, ?string $userId = null)
   {
     $this->glpi = new GlpiClient($glpiConfig);
     $this->session = $this->glpi->initSession();
+    $this->tracker = new OperationTracker();
+    $this->userId = $userId ?? 'system';
+    $this->glpiConfig = $glpiConfig;
   }
+
+  private array $glpiConfig;
 
   public function __destruct()
   {
@@ -67,191 +82,366 @@ final class AssetWriteService
   // CREATE
   // ══════════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Cria um ativo no GLPI.
-   *
-   * @return array Resultado padronizado da operação
-   */
-  public function create(string $itemtype, array $input): array
+  public function create(string $itemtype, array $input, ?string $idempotencyKey = null): array
   {
     $this->assertSupportedOperation($itemtype, 'create');
 
+    // Filtrar campos
     $filtered = $this->filterEditableFields($itemtype, $input);
     $this->validateRequiredFields($itemtype, $filtered);
 
-    $result = $this->glpi->post('/' . $itemtype, $this->session, [
-      'input' => $filtered,
-    ]);
-
-    $newId = $result['id'] ?? null;
-    if ($newId === null) {
-      return $this->operationResult($itemtype, null, 'create', $filtered, false, 'GLPI não retornou ID.');
+    // Validar dropdowns
+    $dropdownResult = $this->validateDropdowns($filtered);
+    if ($dropdownResult['errors'] !== []) {
+      $operation = $this->tracker->prepare($itemtype, 0, 'create', $filtered, $this->userId, $idempotencyKey);
+      $operation = $this->tracker->transition($operation, 'refused');
+      $this->tracker->audit($operation, 'dropdown_validation_failed', ['errors' => $dropdownResult['errors']]);
+      return $this->buildResult($operation, false, 'Dropdowns inválidos: ' . implode('; ', array_map(fn($e) => $e['message'], $dropdownResult['errors'])));
     }
 
-    $readBack = $this->readAsset($itemtype, (int) $newId);
+    // Verificar idempotência
+    $idempotency = $this->checkIdempotency($itemtype, 0, 'create', $filtered, $idempotencyKey);
+    if (!$idempotency['allowed']) {
+      return $idempotency['result'];
+    }
 
-    return $this->operationResult($itemtype, (int) $newId, 'create', $filtered, $readBack !== null, null, [
-      'read' => $readBack,
-    ]);
+    // Preparar e executar operação
+    $operation = $idempotency['operation'] ?? $this->tracker->prepare($itemtype, 0, 'create', $filtered, $this->userId, $idempotencyKey);
+    $operation = $this->tracker->transition($operation, 'executing');
+
+    try {
+      $result = $this->glpi->post('/' . $itemtype, $this->session, [
+        'input' => $filtered,
+      ]);
+
+      $newId = $result['id'] ?? null;
+      if ($newId === null) {
+        $operation = $this->tracker->transition($operation, 'failed');
+        $operation = $this->tracker->recordGlpiResult($operation, false, $result, 'GLPI não retornou ID.');
+        $this->tracker->audit($operation, 'create_failed_no_id');
+        return $this->buildResult($operation, false, 'GLPI não retornou ID.');
+      }
+
+      $operation['id'] = (int) $newId;
+      $operation = $this->tracker->recordGlpiResult($operation, true, $result);
+
+      // Releitura
+      $operation = $this->tracker->transition($operation, 'verifying');
+      $readBack = $this->readAsset($itemtype, (int) $newId);
+      $verified = $readBack !== null;
+      $operation = $this->tracker->recordReadback($operation, $verified, $readBack);
+
+      // Cache
+      $cacheResult = $this->updateCacheAfterWrite($itemtype, (int) $newId, $readBack ?? [], 'create');
+      $operation = $this->tracker->recordCacheUpdate($operation, $cacheResult['success'], $cacheResult['error'] ?? null);
+
+      // Estado final
+      if ($verified && $cacheResult['success']) {
+        $operation = $this->tracker->transition($operation, 'completed');
+      } elseif ($verified || $cacheResult['success']) {
+        $operation = $this->tracker->transition($operation, 'partial');
+      } else {
+        $operation = $this->tracker->transition($operation, 'partial');
+      }
+
+      $this->tracker->audit($operation, 'create_completed', [
+        'glpi_success' => true,
+        'readback_verified' => $verified,
+        'cache_updated' => $cacheResult['success'],
+      ]);
+
+      return $this->buildResult($operation, $verified, null, [
+        'read' => $readBack,
+      ]);
+
+    } catch (\Throwable $e) {
+      $operation = $this->tracker->transition($operation, 'failed');
+      $operation = $this->tracker->recordGlpiResult($operation, false, null, $e->getMessage());
+      $this->tracker->audit($operation, 'create_exception', ['error' => $e->getMessage()]);
+      return $this->buildResult($operation, false, $e->getMessage());
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
   // UPDATE
   // ══════════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Atualiza campos de um ativo no GLPI.
-   *
-   * Envia apenas campos explicitamente presentes no input.
-   * Campos ausentes são ignorados (não limpos).
-   * Campo com valor null/string vazia é limpo intencionalmente.
-   *
-   * @return array Resultado padronizado da operação
-   */
-  public function update(string $itemtype, int $id, array $input): array
+  public function update(string $itemtype, int $id, array $input, ?string $idempotencyKey = null): array
   {
     $this->assertSupportedOperation($itemtype, 'update');
 
+    // Leitura inicial (before)
     $before = $this->readAsset($itemtype, $id);
     if ($before === null) {
-      return $this->operationResult($itemtype, $id, 'update', [], false, "Ativo {$itemtype}:{$id} não encontrado no GLPI.");
+      $operation = $this->tracker->prepare($itemtype, $id, 'update', [], $this->userId, $idempotencyKey);
+      $operation = $this->tracker->transition($operation, 'refused');
+      $this->tracker->audit($operation, 'asset_not_found');
+      return $this->buildResult($operation, false, "Ativo {$itemtype}:{$id} não encontrado no GLPI.");
     }
 
+    // Filtrar campos
     $filtered = $this->filterEditableFields($itemtype, $input);
 
     if ($filtered === []) {
-      return $this->operationResult($itemtype, $id, 'update', [], false, 'Nenhum campo editável enviado.');
+      $operation = $this->tracker->prepare($itemtype, $id, 'update', [], $this->userId, $idempotencyKey);
+      $operation = $this->tracker->transition($operation, 'refused');
+      $this->tracker->audit($operation, 'no_editable_fields');
+      return $this->buildResult($operation, false, 'Nenhum campo editável enviado.');
     }
 
-    $this->glpi->put("/{$itemtype}/{$id}", $this->session, [
-      'input' => $filtered,
-    ]);
+    // Validar dropdowns
+    $dropdownResult = $this->validateDropdowns($filtered, $before);
+    if ($dropdownResult['errors'] !== []) {
+      $operation = $this->tracker->prepare($itemtype, $id, 'update', $filtered, $this->userId, $idempotencyKey);
+      $operation = $this->tracker->transition($operation, 'refused');
+      $this->tracker->audit($operation, 'dropdown_validation_failed', ['errors' => $dropdownResult['errors']]);
+      return $this->buildResult($operation, false, 'Dropdowns inválidos: ' . implode('; ', array_map(fn($e) => $e['message'], $dropdownResult['errors'])));
+    }
 
-    $after = $this->readAsset($itemtype, $id);
-    $changed = $this->computeChanges($before, $after, array_keys($filtered));
+    // Verificar concorrência
+    $concurrencyCheck = $this->checkConcurrency($before, $filtered);
+    if (!$concurrencyCheck['allowed']) {
+      $operation = $this->tracker->prepare($itemtype, $id, 'update', $filtered, $this->userId, $idempotencyKey);
+      $operation = $this->tracker->transition($operation, 'refused');
+      $this->tracker->audit($operation, 'concurrency_conflict', $concurrencyCheck);
+      return $this->buildResult($operation, false, $concurrencyCheck['reason'], [
+        'conflict' => $concurrencyCheck,
+      ]);
+    }
 
-    return $this->operationResult($itemtype, $id, 'update', $filtered, $after !== null, null, [
-      'before'  => $before,
-      'after'   => $after,
-      'changes' => $changed,
-    ]);
+    // Verificar idempotência
+    $idempotency = $this->checkIdempotency($itemtype, $id, 'update', $filtered, $idempotencyKey);
+    if (!$idempotency['allowed']) {
+      return $idempotency['result'];
+    }
+
+    // Preparar e executar
+    $operation = $idempotency['operation'] ?? $this->tracker->prepare($itemtype, $id, 'update', $filtered, $this->userId, $idempotencyKey);
+    $operation = $this->tracker->transition($operation, 'executing');
+
+    try {
+      $this->glpi->put("/{$itemtype}/{$id}", $this->session, [
+        'input' => $filtered,
+      ]);
+
+      $operation = $this->tracker->recordGlpiResult($operation, true);
+
+      // Releitura
+      $operation = $this->tracker->transition($operation, 'verifying');
+      $after = $this->readAsset($itemtype, $id);
+      $verified = $after !== null;
+      $changed = $this->computeChanges($before, $after, array_keys($filtered));
+      $operation = $this->tracker->recordReadback($operation, $verified, $after);
+
+      // Verificar se houve mudança concorrente após gravação
+      if ($verified && $after !== null) {
+        $afterMod = $after['date_mod'] ?? null;
+        $beforeMod = $before['date_mod'] ?? null;
+        if ($afterMod !== null && $beforeMod !== null && $afterMod !== $beforeMod) {
+          // date_mod mudou — pode ter havido outra escrita
+          $operation['concurrent_write_detected'] = true;
+        }
+      }
+
+      // Cache
+      $cacheResult = $this->updateCacheAfterWrite($itemtype, $id, $after ?? [], 'update', $before);
+      $operation = $this->tracker->recordCacheUpdate($operation, $cacheResult['success'], $cacheResult['error'] ?? null);
+
+      // Estado final
+      if ($verified && $cacheResult['success']) {
+        $operation = $this->tracker->transition($operation, 'completed');
+      } else {
+        $operation = $this->tracker->transition($operation, 'partial');
+      }
+
+      $this->tracker->audit($operation, 'update_completed', [
+        'glpi_success' => true,
+        'readback_verified' => $verified,
+        'cache_updated' => $cacheResult['success'],
+        'fields_changed' => count($changed),
+      ]);
+
+      return $this->buildResult($operation, $verified, null, [
+        'before'  => $before,
+        'after'   => $after,
+        'changes' => $changed,
+      ]);
+
+    } catch (\Throwable $e) {
+      $operation = $this->tracker->transition($operation, 'failed');
+      $operation = $this->tracker->recordGlpiResult($operation, false, null, $e->getMessage());
+      $this->tracker->audit($operation, 'update_exception', ['error' => $e->getMessage()]);
+      return $this->buildResult($operation, false, $e->getMessage());
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
   // DELETE (logical — states_id)
   // ══════════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Exclui logicamente um ativo definindo states_id para "Inativo".
-   *
-   * GLPI não suporta DELETE REST — exclusão lógica é via states_id.
-   * Retorna erro se states_id não estiver acessível.
-   *
-   * @return array Resultado padronizado da operação
-   */
   public function delete(string $itemtype, int $id): array
   {
     $this->assertSupportedOperation($itemtype, 'delete');
 
     $before = $this->readAsset($itemtype, $id);
     if ($before === null) {
-      return $this->operationResult($itemtype, $id, 'delete', [], false, "Ativo {$itemtype}:{$id} não encontrado.");
+      $operation = $this->tracker->prepare($itemtype, $id, 'delete', [], $this->userId);
+      $operation = $this->tracker->transition($operation, 'refused');
+      $this->tracker->audit($operation, 'asset_not_found');
+      return $this->buildResult($operation, false, "Ativo {$itemtype}:{$id} não encontrado.");
     }
 
     $inactiveStateId = $this->resolveStateId('Inativo');
     if ($inactiveStateId === null) {
-      return $this->operationResult($itemtype, $id, 'delete', [], false, 'Não foi possível resolver ID do estado "Inativo". Coleção State pode estar inacessível.');
+      $operation = $this->tracker->prepare($itemtype, $id, 'delete', [], $this->userId);
+      $operation = $this->tracker->transition($operation, 'refused');
+      $this->tracker->audit($operation, 'state_resolution_failed');
+      return $this->buildResult($operation, false, 'Não foi possível resolver ID do estado "Inativo". Coleção State pode estar inacessível.');
     }
 
     $payload = ['states_id' => $inactiveStateId];
-    $this->glpi->put("/{$itemtype}/{$id}", $this->session, [
-      'input' => $payload,
-    ]);
 
-    $after = $this->readAsset($itemtype, $id);
+    // Idempotência — delete é idempotente por natureza
+    $operation = $this->tracker->prepare($itemtype, $id, 'delete', $payload, $this->userId);
+    $operation = $this->tracker->transition($operation, 'executing');
 
-    return $this->operationResult($itemtype, $id, 'delete', $payload, $after !== null, null, [
-      'before' => $before,
-      'after'  => $after,
-    ]);
+    try {
+      $this->glpi->put("/{$itemtype}/{$id}", $this->session, [
+        'input' => $payload,
+      ]);
+
+      $operation = $this->tracker->recordGlpiResult($operation, true);
+
+      // Releitura
+      $operation = $this->tracker->transition($operation, 'verifying');
+      $after = $this->readAsset($itemtype, $id);
+      $verified = $after !== null;
+      $operation = $this->tracker->recordReadback($operation, $verified, $after);
+
+      // Cache
+      $cacheResult = $this->updateCacheAfterWrite($itemtype, $id, $after ?? [], 'delete');
+      $operation = $this->tracker->recordCacheUpdate($operation, $cacheResult['success'], $cacheResult['error'] ?? null);
+
+      if ($verified && $cacheResult['success']) {
+        $operation = $this->tracker->transition($operation, 'completed');
+      } else {
+        $operation = $this->tracker->transition($operation, 'partial');
+      }
+
+      $this->tracker->audit($operation, 'delete_completed', [
+        'glpi_success' => true,
+        'readback_verified' => $verified,
+        'cache_updated' => $cacheResult['success'],
+      ]);
+
+      return $this->buildResult($operation, $verified, null, [
+        'before' => $before,
+        'after'  => $after,
+      ]);
+
+    } catch (\Throwable $e) {
+      $operation = $this->tracker->transition($operation, 'failed');
+      $operation = $this->tracker->recordGlpiResult($operation, false, null, $e->getMessage());
+      $this->tracker->audit($operation, 'delete_exception', ['error' => $e->getMessage()]);
+      return $this->buildResult($operation, false, $e->getMessage());
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
   // RESTORE
   // ══════════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Restaura um ativo definindo states_id para "Em uso".
-   *
-   * @return array Resultado padronizado da operação
-   */
   public function restore(string $itemtype, int $id): array
   {
     $this->assertSupportedOperation($itemtype, 'restore');
 
     $before = $this->readAsset($itemtype, $id);
     if ($before === null) {
-      return $this->operationResult($itemtype, $id, 'restore', [], false, "Ativo {$itemtype}:{$id} não encontrado.");
+      $operation = $this->tracker->prepare($itemtype, $id, 'restore', [], $this->userId);
+      $operation = $this->tracker->transition($operation, 'refused');
+      $this->tracker->audit($operation, 'asset_not_found');
+      return $this->buildResult($operation, false, "Ativo {$itemtype}:{$id} não encontrado.");
     }
 
     $activeStateId = $this->resolveStateId('Em uso');
     if ($activeStateId === null) {
-      return $this->operationResult($itemtype, $id, 'restore', [], false, 'Não foi possível resolver ID do estado "Em uso". Coleção State pode estar inacessível.');
+      $operation = $this->tracker->prepare($itemtype, $id, 'restore', [], $this->userId);
+      $operation = $this->tracker->transition($operation, 'refused');
+      $this->tracker->audit($operation, 'state_resolution_failed');
+      return $this->buildResult($operation, false, 'Não foi possível resolver ID do estado "Em uso". Coleção State pode estar inacessível.');
     }
 
     $payload = ['states_id' => $activeStateId];
-    $this->glpi->put("/{$itemtype}/{$id}", $this->session, [
-      'input' => $payload,
-    ]);
 
-    $after = $this->readAsset($itemtype, $id);
+    $operation = $this->tracker->prepare($itemtype, $id, 'restore', $payload, $this->userId);
+    $operation = $this->tracker->transition($operation, 'executing');
 
-    return $this->operationResult($itemtype, $id, 'restore', $payload, $after !== null, null, [
-      'before' => $before,
-      'after'  => $after,
-    ]);
+    try {
+      $this->glpi->put("/{$itemtype}/{$id}", $this->session, [
+        'input' => $payload,
+      ]);
+
+      $operation = $this->tracker->recordGlpiResult($operation, true);
+
+      // Releitura
+      $operation = $this->tracker->transition($operation, 'verifying');
+      $after = $this->readAsset($itemtype, $id);
+      $verified = $after !== null;
+      $operation = $this->tracker->recordReadback($operation, $verified, $after);
+
+      // Cache
+      $cacheResult = $this->updateCacheAfterWrite($itemtype, $id, $after ?? [], 'restore');
+      $operation = $this->tracker->recordCacheUpdate($operation, $cacheResult['success'], $cacheResult['error'] ?? null);
+
+      if ($verified && $cacheResult['success']) {
+        $operation = $this->tracker->transition($operation, 'completed');
+      } else {
+        $operation = $this->tracker->transition($operation, 'partial');
+      }
+
+      $this->tracker->audit($operation, 'restore_completed', [
+        'glpi_success' => true,
+        'readback_verified' => $verified,
+        'cache_updated' => $cacheResult['success'],
+      ]);
+
+      return $this->buildResult($operation, $verified, null, [
+        'before' => $before,
+        'after'  => $after,
+      ]);
+
+    } catch (\Throwable $e) {
+      $operation = $this->tracker->transition($operation, 'failed');
+      $operation = $this->tracker->recordGlpiResult($operation, false, null, $e->getMessage());
+      $this->tracker->audit($operation, 'restore_exception', ['error' => $e->getMessage()]);
+      return $this->buildResult($operation, false, $e->getMessage());
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════════
   // HELPERS
   // ══════════════════════════════════════════════════════════════════════════════
 
-  /**
-   * Retorna campos editáveis para um itemtype.
-   */
   public static function editableFields(string $itemtype): array
   {
     return self::EDITABLE_FIELDS[$itemtype] ?? [];
   }
 
-  /**
-   * Retorna campos que são dropdowns (requerem ID, não label).
-   */
   public static function dropdownFields(): array
   {
     return self::DROPDOWN_FIELDS;
   }
 
-  /**
-   * Retorna operações suportadas para um itemtype.
-   */
   public static function supportedOperations(string $itemtype): array
   {
     return self::SUPPORTED_OPERATIONS[$itemtype] ?? [];
   }
 
-  /**
-   * Verifica se um itemtype é suportado para operação.
-   */
   public static function isSupported(string $itemtype, string $operation): bool
   {
     return in_array($operation, self::SUPPORTED_OPERATIONS[$itemtype] ?? [], true);
   }
 
-  /**
-   * Resolve um nome de estado para seu ID.
-   * Busca na coleção State do GLPI.
-   */
   private function resolveStateId(string $stateName): ?int
   {
     try {
@@ -266,7 +456,6 @@ final class AssetWriteService
         }
       }
     } catch (\Throwable) {
-      // Fallback: tenta resolver por fixtures
       $fixtures = OptionsService::fixtures('State');
       foreach ($fixtures['items'] as $item) {
         if (mb_strtolower(trim($item['name'] ?? '')) === mb_strtolower($stateName)) {
@@ -303,7 +492,6 @@ final class AssetWriteService
         continue;
       }
 
-      // Campo dropdown: se valor é 0 ou string vazia, limpa
       if (in_array($key, self::DROPDOWN_FIELDS, true)) {
         if ($value === 0 || $value === '0' || $value === '') {
           $filtered[$key] = 0;
@@ -312,11 +500,9 @@ final class AssetWriteService
         } elseif (is_string($value) && ctype_digit($value)) {
           $filtered[$key] = (int) $value;
         }
-        // Se não for ID válido, ignora (não aceita label)
         continue;
       }
 
-      // Campo string: trim, preserva null para limpeza
       if ($value === null) {
         $filtered[$key] = '';
       } elseif (is_string($value)) {
@@ -395,32 +581,121 @@ final class AssetWriteService
     return trim((string) ($value ?? ''));
   }
 
-  private function operationResult(
-    string $itemtype,
-    ?int $id,
-    string $action,
-    array $requestedFields,
-    bool $verified,
-    ?string $error = null,
-    array $extra = []
-  ): array {
+  // ── Sprint 4: Validação de dropdowns ──────────────────────────────────────
+
+  private function validateDropdowns(array $input, array $before = []): array
+  {
+    $validator = new DropdownValidator($this->glpiConfig);
+    return $validator->validate($input, $before);
+  }
+
+  // ── Sprint 4: Controle de concorrência ────────────────────────────────────
+
+  private function checkConcurrency(array $before, array $input): array
+  {
+    // Verifica se o ativo foi modificado desde que foi lido
+    $beforeMod = $before['date_mod'] ?? null;
+    if ($beforeMod === null) {
+      return ['allowed' => true];
+    }
+
+    // Releitura para verificar concorrência
+    $current = $this->readAsset($before['itemtype'] ?? 'Computer', (int) $before['id']);
+    if ($current === null) {
+      return ['allowed' => true];
+    }
+
+    $currentMod = $current['date_mod'] ?? null;
+    if ($currentMod !== null && $currentMod !== $beforeMod) {
+      return [
+        'allowed' => false,
+        'reason'  => 'O ativo foi modificado por outro usuário desde a abertura do formulário.',
+        'before_date_mod' => $beforeMod,
+        'current_date_mod' => $currentMod,
+        'current_values' => $current,
+      ];
+    }
+
+    return ['allowed' => true];
+  }
+
+  // ── Sprint 4: Idempotência ───────────────────────────────────────────────
+
+  private function checkIdempotency(string $itemtype, int|string $id, string $action, array $fields, ?string $clientKey): array
+  {
+    $guard = new IdempotencyGuard($this->tracker);
+    $result = $guard->check($itemtype, $id, $action, $fields, $clientKey);
+
+    if (!$result['allowed'] && isset($result['existing'])) {
+      $existing = $result['existing'];
+      return [
+        'allowed'   => false,
+        'operation' => $existing,
+        'result'    => $this->buildResult($existing, $existing['state'] === 'completed', $result['reason']),
+      ];
+    }
+
+    $operation = $guard->registerPending($itemtype, $id, $action, $fields, $this->userId);
+
+    return [
+      'allowed'   => true,
+      'operation' => $operation,
+    ];
+  }
+
+  // ── Sprint 4: Cache ──────────────────────────────────────────────────────
+
+  private function updateCacheAfterWrite(string $itemtype, int $id, array $after, string $action, array $before = []): array
+  {
+    $updater = new CacheUpdater();
+
+    return match ($action) {
+      'create' => $updater->addAsset(array_merge($after, ['itemtype' => $itemtype])),
+      'delete' => $updater->removeAsset($itemtype, $id),
+      'restore' => $updater->restoreAsset($itemtype, $id),
+      default => $updater->updateAsset($itemtype, $id, $after),
+    };
+  }
+
+  // ── Resultado padronizado ─────────────────────────────────────────────────
+
+  private function buildResult(array $operation, bool $verified, ?string $error = null, array $extra = []): array
+  {
     $result = [
-      'operation_id' => uniqid('op_', true),
-      'itemtype'     => $itemtype,
-      'id'           => $id,
-      'action'       => $action,
-      'requested_fields' => $requestedFields,
-      'verified'     => $verified,
-      'timestamp'    => date('c'),
+      'operation_id'     => $operation['operation_id'],
+      'itemtype'         => $operation['itemtype'],
+      'id'               => $operation['id'],
+      'action'           => $operation['action'],
+      'requested_fields' => $operation['requested_fields'],
+      'user_id'          => $operation['user_id'],
+      'state'            => $operation['state'],
+      'verified'         => $verified,
+      'timestamp'        => date('c'),
+      'attempts'         => $operation['attempts'] ?? 0,
     ];
 
     if ($error !== null) {
       $result['status'] = 'failed';
       $result['error']  = $error;
-    } elseif ($verified) {
+    } elseif ($operation['state'] === 'completed') {
       $result['status'] = 'completed_verified';
+    } elseif ($operation['state'] === 'partial') {
+      $result['status'] = 'completed_partial';
     } else {
       $result['status'] = 'completed_unverified';
+    }
+
+    // Status do cache
+    if (isset($operation['cache_result'])) {
+      $result['cache_status'] = $operation['cache_result']['success'] ? 'updated' : 'pending';
+      if (!$operation['cache_result']['success']) {
+        $result['cache_error'] = $operation['cache_result']['error'] ?? 'Erro desconhecido';
+      }
+    }
+
+    // Concorrência
+    if (isset($operation['concurrent_write_detected']) && $operation['concurrent_write_detected']) {
+      $result['concurrent_warning'] = 'Modificação concorrente detectada após gravação.';
     }
 
     foreach ($extra as $key => $value) {

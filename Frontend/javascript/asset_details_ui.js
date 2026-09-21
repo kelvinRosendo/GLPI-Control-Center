@@ -22,6 +22,8 @@ window.AssetDetailsUI = (function () {
   let _capabilities = null;
   let _optionsCache = {};
   let _onSaveCallback = null;
+  let _pendingOperation = null;
+  let _idempotencyKey = null;
 
   // ══════════════════════════════════════════════════════════════════════════════
   // PUBLIC API
@@ -330,9 +332,13 @@ window.AssetDetailsUI = (function () {
       return;
     }
 
+    // Gerar chave de idempotência
+    _idempotencyKey = _generateIdempotencyKey('update', _currentItemtype, glpiId, input);
+
     btn.disabled = true;
     btn.textContent = 'Salvando...';
     _showFeedback(feedback, 'Enviando...', 'info');
+    _setFormEnabled(false);
 
     try {
       const endpoint = _currentItemtype === 'Printer'
@@ -340,27 +346,48 @@ window.AssetDetailsUI = (function () {
         : `/api/assets/computers/${glpiId}`;
       const response = await window.GlpiClient._fetch(endpoint, {
         method: 'POST',
-        body: { input },
+        body: { input, idempotency_key: _idempotencyKey },
       });
 
       const result = response?.data;
+      _pendingOperation = result;
+
       if (result?.status === 'completed_verified') {
-        _showFeedback(feedback, 'Salvo e verificado com sucesso!', 'success');
+        const cacheMsg = result.cache_status === 'updated'
+          ? ''
+          : ' Atualização do GCC pendente.';
+        _showFeedback(feedback, `Salvo e verificado!${cacheMsg} Operação: ${result.operation_id}`, 'success');
         _currentAsset = null;
         setTimeout(() => {
           close();
           if (_onSaveCallback) _onSaveCallback(result);
-        }, 1000);
+        }, 1200);
+      } else if (result?.status === 'completed_partial') {
+        const details = [];
+        if (!result.verified) details.push('releitura');
+        if (result.cache_status !== 'updated') details.push('cache');
+        _showFeedback(feedback, `Salvo parcialmente. Pendente: ${details.join(', ')}. Operação: ${result.operation_id}`, 'warning');
+        setTimeout(() => {
+          close();
+          if (_onSaveCallback) _onSaveCallback(result);
+        }, 2000);
       } else if (result?.status === 'completed_unverified') {
-        _showFeedback(feedback, 'Salvo, mas releitura não confirmou. Verifique manualmente.', 'warning');
+        _showFeedback(feedback, 'Salvo, mas releitura não confirmou. Operação: ' + (result.operation_id || 'N/A'), 'warning');
+      } else if (result?.status === 'failed' && result?.conflict) {
+        _showConflict(feedback, result.conflict);
       } else {
         _showFeedback(feedback, result?.error || 'Erro ao salvar.', 'error');
       }
     } catch (e) {
-      _showFeedback(feedback, `Erro: ${e.message}`, 'error');
+      if (e.message?.includes('Timeout')) {
+        _showFeedback(feedback, `Timeout: ${e.message}. Operação pode ter sido executada.`, 'warning');
+      } else {
+        _showFeedback(feedback, `Erro: ${e.message}`, 'error');
+      }
     } finally {
       btn.disabled = false;
       btn.textContent = 'Salvar';
+      _setFormEnabled(true);
     }
   }
 
@@ -380,9 +407,13 @@ window.AssetDetailsUI = (function () {
       }
     }
 
+    // Gerar chave de idempotência
+    _idempotencyKey = _generateIdempotencyKey('create', _currentItemtype, 0, input);
+
     btn.disabled = true;
     btn.textContent = 'Criando...';
     _showFeedback(feedback, 'Enviando...', 'info');
+    _setFormEnabled(false);
 
     try {
       const endpoint = _currentItemtype === 'Printer'
@@ -390,16 +421,27 @@ window.AssetDetailsUI = (function () {
         : '/api/assets/computers';
       const response = await window.GlpiClient._fetch(endpoint, {
         method: 'POST',
-        body: { input },
+        body: { input, idempotency_key: _idempotencyKey },
       });
 
       const result = response?.data;
+      _pendingOperation = result;
+
       if (result?.status === 'completed_verified' || result?.status === 'completed_unverified') {
-        _showFeedback(feedback, `Criado com sucesso! ID: ${result.id}`, 'success');
+        const cacheMsg = result.cache_status === 'updated'
+          ? ''
+          : ' Atualização do GCC pendente.';
+        _showFeedback(feedback, `Criado! ID: ${result.id}.${cacheMsg} Operação: ${result.operation_id}`, 'success');
         setTimeout(() => {
           close();
           if (_onSaveCallback) _onSaveCallback(result);
         }, 1500);
+      } else if (result?.status === 'completed_partial') {
+        _showFeedback(feedback, `Criado parcialmente. Operação: ${result.operation_id}`, 'warning');
+        setTimeout(() => {
+          close();
+          if (_onSaveCallback) _onSaveCallback(result);
+        }, 2000);
       } else {
         _showFeedback(feedback, result?.error || 'Erro ao criar.', 'error');
       }
@@ -408,6 +450,7 @@ window.AssetDetailsUI = (function () {
     } finally {
       btn.disabled = false;
       btn.textContent = 'Criar';
+      _setFormEnabled(true);
     }
   }
 
@@ -582,7 +625,58 @@ window.AssetDetailsUI = (function () {
       }
     }
 
+    _pendingOperation = null;
+    _idempotencyKey = null;
     close();
+  }
+
+  /**
+   * Gera chave de idempotência a partir dos parâmetros.
+   */
+  function _generateIdempotencyKey(action, itemtype, id, fields) {
+    const sorted = Object.keys(fields).sort().reduce((acc, key) => {
+      acc[key] = fields[key];
+      return acc;
+    }, {});
+    const hash = _simpleHash(JSON.stringify(sorted));
+    return `${action}:${itemtype}:${id}:${hash}`;
+  }
+
+  function _simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash |= 0;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  /**
+   * Exibe conflito de edição concorrente.
+   */
+  function _showConflict(feedback, conflict) {
+    if (!feedback) return;
+    const currentValues = conflict.current_values || {};
+    const changes = conflict.changes || [];
+
+    let html = '<div class="asset-conflict">';
+    html += '<strong>Conflito de edição concorrente</strong><br>';
+    html += '<small>O ativo foi modificado por outro usuário.</small><br>';
+    html += `<small>Modificado em: ${conflict.current_date_mod || 'N/A'}</small>`;
+    html += '</div>';
+
+    feedback.innerHTML = html;
+  }
+
+  /**
+   * Habilita/desabilita todos os campos do formulário.
+   */
+  function _setFormEnabled(enabled) {
+    const inputs = document.querySelectorAll('.asset-details-input[data-field]');
+    inputs.forEach(el => {
+      el.disabled = !enabled;
+    });
   }
 
   function _escHtml(str) {

@@ -58,6 +58,10 @@ require_once __DIR__ . '/services/AssetWriteService.php';
 require_once __DIR__ . '/services/OptionsService.php';
 require_once __DIR__ . '/services/CapabilitiesService.php';
 require_once __DIR__ . '/services/ReconcileService.php';
+require_once __DIR__ . '/services/OperationTracker.php';
+require_once __DIR__ . '/services/DropdownValidator.php';
+require_once __DIR__ . '/services/IdempotencyGuard.php';
+require_once __DIR__ . '/services/CacheUpdater.php';
 
 function isConfigValid(array $config): array
 {
@@ -312,9 +316,11 @@ final class Endpoints
   {
     $body = self::parseJsonBody();
     $input = is_array($body['input'] ?? null) ? $body['input'] : $body;
+    $idempotencyKey = $body['idempotency_key'] ?? null;
+    $userId = AuthService::currentUserId($config) ?? 'anonymous';
 
-    $service = new AssetWriteService($config['glpi'] ?? []);
-    $result = $service->create($itemtype, $input);
+    $service = new AssetWriteService($config['glpi'] ?? [], $userId);
+    $result = $service->create($itemtype, $input, $idempotencyKey);
 
     $status = $result['status'] === 'completed_verified' ? 201 : 200;
     Responde::ok(['data' => $result], $status);
@@ -324,16 +330,19 @@ final class Endpoints
   {
     $body = self::parseJsonBody();
     $input = is_array($body['input'] ?? null) ? $body['input'] : $body;
+    $idempotencyKey = $body['idempotency_key'] ?? null;
+    $userId = AuthService::currentUserId($config) ?? 'anonymous';
 
-    $service = new AssetWriteService($config['glpi'] ?? []);
-    $result = $service->update($itemtype, $id, $input);
+    $service = new AssetWriteService($config['glpi'] ?? [], $userId);
+    $result = $service->update($itemtype, $id, $input, $idempotencyKey);
 
     Responde::ok(['data' => $result]);
   }
 
   public static function deleteAsset(array $config, string $itemtype, int $id): void
   {
-    $service = new AssetWriteService($config['glpi'] ?? []);
+    $userId = AuthService::currentUserId($config) ?? 'anonymous';
+    $service = new AssetWriteService($config['glpi'] ?? [], $userId);
     $result = $service->delete($itemtype, $id);
 
     Responde::ok(['data' => $result]);
@@ -341,7 +350,8 @@ final class Endpoints
 
   public static function restoreAsset(array $config, string $itemtype, int $id): void
   {
-    $service = new AssetWriteService($config['glpi'] ?? []);
+    $userId = AuthService::currentUserId($config) ?? 'anonymous';
+    $service = new AssetWriteService($config['glpi'] ?? [], $userId);
     $result = $service->restore($itemtype, $id);
 
     Responde::ok(['data' => $result]);

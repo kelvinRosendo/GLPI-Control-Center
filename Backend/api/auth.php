@@ -71,6 +71,26 @@ final class AuthService
     return self::$context;
   }
 
+  /**
+   * Retorna o ID do usuário autenticado atual.
+   */
+  public static function currentUserId(?array $config = null): ?string
+  {
+    $ctx = self::$context;
+    if ($ctx === null && $config !== null) {
+      // Tenta restaurar contexto a partir do token na requisição
+      try {
+        $token = self::bearerToken();
+        if ($token !== null) {
+          $ctx = self::verifySessionToken($token, $config);
+          self::$context = $ctx;
+        }
+      } catch (\Throwable) {
+      }
+    }
+    return $ctx['sub'] ?? $ctx['email'] ?? null;
+  }
+
   private static function completeLogin(array $claims, array $config): void
   {
     error_log("[GCC Auth] completeLogin chamado: claims_keys=" . implode(',', array_keys($claims)));
