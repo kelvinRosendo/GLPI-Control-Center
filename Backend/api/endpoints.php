@@ -53,6 +53,10 @@ require_once __DIR__ . '/projetors.php';
 require_once __DIR__ . '/diagnostic.php';
 require_once __DIR__ . '/utils/mailer.php';
 require_once __DIR__ . '/utils/mail_templates.php';
+require_once __DIR__ . '/services/AssetService.php';
+require_once __DIR__ . '/services/OptionsService.php';
+require_once __DIR__ . '/services/CapabilitiesService.php';
+require_once __DIR__ . '/services/ReconcileService.php';
 
 function isConfigValid(array $config): array
 {
@@ -363,6 +367,9 @@ function authorizeRequest(string $path, string $method, array $config): void
     '#^/api/tickets#' => ['chamados', $method === 'GET' ? 'view' : 'create'],
     '#^/api/chat$#' => ['assistente', 'chat'],
     '#^/api/integration#' => ['integrations', $method === 'GET' ? 'view' : 'manage'],
+    '#^/api/capabilities$#' => ['settings', 'view'],
+    '#^/api/options#' => ['settings', 'view'],
+    '#^/api/reconcile#' => ['auditoria', 'view'],
   ];
 
   foreach ($rules as $pattern => [$module, $action]) {
@@ -394,6 +401,10 @@ try {
     '/api/auth/google' => $method === 'POST' ? AuthService::login($config) : Responde::erro('Método não permitido.', 405),
     '/api/auth/demo' => $method === 'POST' ? AuthService::demoLogin($config) : Responde::erro('Método não permitido.', 405),
     '/api/auth/logout' => $method === 'POST' ? AuthService::logout() : Responde::erro('Método não permitido.', 405),
+    '/api/capabilities' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET' => (function () use ($config) { require __DIR__ . '/capabilities.php'; })(),
+      default => Responde::erro('Método não permitido.', 405),
+    },
     '/api/assets/computers' => Endpoints::computers($config),
     '/api/assets/chromebooks-geekiees' => Endpoints::chromebooksGeekiees($config),
     '/api/assets/chromebooks-apoio' => Endpoints::chromebooksApoio($config),
@@ -549,6 +560,36 @@ try {
 
       if ($path === '/api/diagnostic/export') {
         DiagnosticEndpoint::export($config);
+        return;
+      }
+
+      if (preg_match('#^/api/options/([A-Za-z]+)$#', $path, $m)) {
+        $collection = $m[1];
+        if (!OptionsService::isAllowed($collection)) {
+          Responde::erro("Coleção '{$collection}' não é permitida.", 404, ['allowed' => OptionsService::allowedCollections()]);
+        }
+        $simulated = ($_GET['simulated'] ?? '') === '1';
+        if ($simulated) {
+          Responde::ok(['data' => OptionsService::fixtures($collection)]);
+        }
+        $service = new OptionsService($config['glpi'] ?? []);
+        Responde::ok(['data' => $service->fetch($collection)]);
+        return;
+      }
+
+      if ($path === '/api/reconcile/compare') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $category = $_GET['category'] ?? null;
+        if ($category !== null && $category !== '') {
+          $category = (string) $category;
+        } else {
+          $category = null;
+        }
+        $service = new ReconcileService($config['glpi'] ?? []);
+        $result = $service->compare($category);
+        Responde::ok(['data' => $result]);
         return;
       }
 
