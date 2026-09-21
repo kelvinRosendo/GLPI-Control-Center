@@ -79,7 +79,7 @@ echo "── CapabilitiesService ──\n\n";
 $contract = CapabilitiesService::getContract();
 
 TestSprint2::assertArrayHasKey('version', $contract, 'Contrato tem version');
-TestSprint2::assertEquals('0.2.0', $contract['version'], 'Versão do contrato = 0.2.0');
+TestSprint2::assertEquals('0.3.0', $contract['version'], 'Versão do contrato = 0.3.0');
 
 TestSprint2::assertArrayHasKey('catalog', $contract, 'Contrato tem catalog');
 TestSprint2::assertArrayHasKey('version', $contract['catalog'], 'Catalog tem version');
@@ -95,7 +95,9 @@ TestSprint2::assert($contract['assetTypes']['Printer']['queryable'] === true, 'P
 TestSprint2::assertArrayHasKey('editableFields', $contract, 'Contrato tem editableFields');
 TestSprint2::assertArrayHasKey('Computer', $contract['editableFields'], 'editableFields tem Computer');
 TestSprint2::assertArrayHasKey('Printer', $contract['editableFields'], 'editableFields tem Printer');
-TestSprint2::assertEquals(['name', 'serial', 'otherserial', 'contact', 'contact_num', 'comment'], $contract['editableFields']['Computer']['fields'], 'Campos editáveis do Computer');
+TestSprint2::assertArrayHasKey('strings', $contract['editableFields']['Computer'], 'Computer tem strings');
+TestSprint2::assertArrayHasKey('dropdowns', $contract['editableFields']['Computer'], 'Computer tem dropdowns');
+TestSprint2::assertEquals(['name', 'serial', 'otherserial', 'contact', 'contact_num', 'comment'], array_keys($contract['editableFields']['Computer']['strings']), 'Campos string do Computer');
 
 TestSprint2::assertArrayHasKey('auxiliaryCollections', $contract, 'Contrato tem auxiliaryCollections');
 TestSprint2::assert(is_array($contract['auxiliaryCollections']), 'auxiliaryCollections é array');

@@ -54,6 +54,7 @@ require_once __DIR__ . '/diagnostic.php';
 require_once __DIR__ . '/utils/mailer.php';
 require_once __DIR__ . '/utils/mail_templates.php';
 require_once __DIR__ . '/services/AssetService.php';
+require_once __DIR__ . '/services/AssetWriteService.php';
 require_once __DIR__ . '/services/OptionsService.php';
 require_once __DIR__ . '/services/CapabilitiesService.php';
 require_once __DIR__ . '/services/ReconcileService.php';
@@ -239,32 +240,6 @@ final class Endpoints
     }
   }
 
-  public static function updateComputer(array $config, int $id): void
-  {
-    $body = self::parseJsonBody();
-    $input = is_array($body['input'] ?? null) ? $body['input'] : $body;
-    $payload = Mappers::filterEditableComputerInput($input);
-
-    if ($payload === []) {
-      Responde::erro('Nenhum campo editável foi enviado para atualização.', 422);
-    }
-
-    $glpi = new GlpiClient($config['glpi'] ?? []);
-    $session = $glpi->initSession();
-    $glpi->put("/Computer/{$id}", $session, [
-      'input' => $payload,
-    ]);
-    $updated = $glpi->getWithParams("/Computer/{$id}", $session, [
-      'expand_dropdowns' => 'true',
-    ]);
-    $glpi->killSession($session);
-
-    Responde::ok([
-      'message' => 'Computador atualizado com sucesso no GLPI.',
-      'data' => Mappers::computerDetails($updated),
-    ]);
-  }
-
   public static function chromebooksGeekiees(array $config): void
   {
     $all = self::getAllComputers($config);
@@ -332,6 +307,45 @@ final class Endpoints
 
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
+
+  public static function createAsset(array $config, string $itemtype): void
+  {
+    $body = self::parseJsonBody();
+    $input = is_array($body['input'] ?? null) ? $body['input'] : $body;
+
+    $service = new AssetWriteService($config['glpi'] ?? []);
+    $result = $service->create($itemtype, $input);
+
+    $status = $result['status'] === 'completed_verified' ? 201 : 200;
+    Responde::ok(['data' => $result], $status);
+  }
+
+  public static function updateAsset(array $config, string $itemtype, int $id): void
+  {
+    $body = self::parseJsonBody();
+    $input = is_array($body['input'] ?? null) ? $body['input'] : $body;
+
+    $service = new AssetWriteService($config['glpi'] ?? []);
+    $result = $service->update($itemtype, $id, $input);
+
+    Responde::ok(['data' => $result]);
+  }
+
+  public static function deleteAsset(array $config, string $itemtype, int $id): void
+  {
+    $service = new AssetWriteService($config['glpi'] ?? []);
+    $result = $service->delete($itemtype, $id);
+
+    Responde::ok(['data' => $result]);
+  }
+
+  public static function restoreAsset(array $config, string $itemtype, int $id): void
+  {
+    $service = new AssetWriteService($config['glpi'] ?? []);
+    $result = $service->restore($itemtype, $id);
+
+    Responde::ok(['data' => $result]);
+  }
 }
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
@@ -353,7 +367,10 @@ function authorizeRequest(string $path, string $method, array $config): void
   }
 
   $rules = [
-    '#^/api/assets/computers#' => ['computadores', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/assets/computers(?:/\d+/delete|/\d+/restore)?$#' => ['computadores', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/assets/computers/\d+$#' => ['computadores', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/assets/printers(?:/\d+/delete|/\d+/restore)?$#' => ['impressoras', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/assets/printers/\d+$#' => ['impressoras', $method === 'GET' ? 'view' : 'edit'],
     '#^/api/assets/chromebooks#' => ['computadores', 'view'],
     '#^/api/assets/projetores#' => ['projetores', 'view'],
     '#^/api/assets/impressoras#' => ['impressoras', 'view'],
@@ -368,7 +385,7 @@ function authorizeRequest(string $path, string $method, array $config): void
     '#^/api/chat$#' => ['assistente', 'chat'],
     '#^/api/integration#' => ['integrations', $method === 'GET' ? 'view' : 'manage'],
     '#^/api/capabilities$#' => ['settings', 'view'],
-    '#^/api/options#' => ['settings', 'view'],
+    '#^/api/options#' => ['computadores', 'view'],
     '#^/api/reconcile#' => ['auditoria', 'view'],
   ];
 
@@ -405,12 +422,20 @@ try {
       'GET' => (function () use ($config) { require __DIR__ . '/capabilities.php'; })(),
       default => Responde::erro('Método não permitido.', 405),
     },
-    '/api/assets/computers' => Endpoints::computers($config),
+    '/api/assets/computers' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET'  => Endpoints::computers($config),
+      'POST' => Endpoints::createAsset($config, 'Computer'),
+      default => Responde::erro('Método não permitido.', 405),
+    },
     '/api/assets/chromebooks-geekiees' => Endpoints::chromebooksGeekiees($config),
     '/api/assets/chromebooks-apoio' => Endpoints::chromebooksApoio($config),
     '/api/assets/chromebooks-exibicao' => Endpoints::chromebooksExibicao($config),
     '/api/assets/projetores' => Endpoints::projetores($config),
-    '/api/assets/impressoras' => Endpoints::impressoras($config),
+    '/api/assets/impressoras' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET'  => Endpoints::impressoras($config),
+      'POST' => Endpoints::createAsset($config, 'Printer'),
+      default => Responde::erro('Método não permitido.', 405),
+    },
     '/api/assets/all' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
       'GET' => SyncEndpoint::assets($config),
       default => Responde::erro('Método não permitido.', 405),
@@ -500,10 +525,26 @@ try {
           return;
         }
         if ($method === 'POST' || $method === 'PUT') {
-          Endpoints::updateComputer($config, (int) $m[1]);
+          Endpoints::updateAsset($config, 'Computer', (int) $m[1]);
           return;
         }
         Responde::erro('Método não permitido.', 405);
+      }
+
+      if (preg_match('#^/api/assets/computers/(\d+)/delete$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        Endpoints::deleteAsset($config, 'Computer', (int) $m[1]);
+        return;
+      }
+
+      if (preg_match('#^/api/assets/computers/(\d+)/restore$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        Endpoints::restoreAsset($config, 'Computer', (int) $m[1]);
+        return;
       }
 
       if (preg_match('#^/api/assets/printers/(\d+)$#', $path, $m)) {
@@ -512,7 +553,27 @@ try {
           Endpoints::printerDetails($config, (int) $m[1]);
           return;
         }
+        if ($method === 'POST' || $method === 'PUT') {
+          Endpoints::updateAsset($config, 'Printer', (int) $m[1]);
+          return;
+        }
         Responde::erro('Método não permitido.', 405);
+      }
+
+      if (preg_match('#^/api/assets/printers/(\d+)/delete$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        Endpoints::deleteAsset($config, 'Printer', (int) $m[1]);
+        return;
+      }
+
+      if (preg_match('#^/api/assets/printers/(\d+)/restore$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        Endpoints::restoreAsset($config, 'Printer', (int) $m[1]);
+        return;
       }
 
       if (preg_match('#^/api/projetors/(\d+)$#', $path, $m)) {

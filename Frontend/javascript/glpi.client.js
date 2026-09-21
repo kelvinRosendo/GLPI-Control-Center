@@ -77,16 +77,52 @@ window.GlpiClient = {
   },
 
   /**
-   * Atualiza ativo (somente Computer suportado no backend).
+   * Atualiza ativo (Computer e Printer suportados).
    */
   async updateAsset(glpiId, itemtype, input) {
-    if (itemtype !== 'Computer') {
-      throw new Error('Edição suportada apenas para Computadores neste momento.');
-    }
-    const json = await this._fetch(`/api/assets/computers/${glpiId}`, {
+    const endpoint = itemtype === 'Printer'
+      ? `/api/assets/printers/${glpiId}`
+      : `/api/assets/computers/${glpiId}`;
+    const json = await this._fetch(endpoint, {
       method: 'POST',
       body: { input },
     });
+    return json.data ?? null;
+  },
+
+  /**
+   * Cria um novo ativo.
+   */
+  async createAsset(itemtype, input) {
+    const endpoint = itemtype === 'Printer'
+      ? '/api/assets/printers'
+      : '/api/assets/computers';
+    const json = await this._fetch(endpoint, {
+      method: 'POST',
+      body: { input },
+    });
+    return json.data ?? null;
+  },
+
+  /**
+   * Exclui logicamente um ativo.
+   */
+  async deleteAsset(glpiId, itemtype) {
+    const endpoint = itemtype === 'Printer'
+      ? `/api/assets/printers/${glpiId}/delete`
+      : `/api/assets/computers/${glpiId}/delete`;
+    const json = await this._fetch(endpoint, { method: 'POST' });
+    return json.data ?? null;
+  },
+
+  /**
+   * Restaura um ativo excluído logicamente.
+   */
+  async restoreAsset(glpiId, itemtype) {
+    const endpoint = itemtype === 'Printer'
+      ? `/api/assets/printers/${glpiId}/restore`
+      : `/api/assets/computers/${glpiId}/restore`;
+    const json = await this._fetch(endpoint, { method: 'POST' });
     return json.data ?? null;
   },
 
