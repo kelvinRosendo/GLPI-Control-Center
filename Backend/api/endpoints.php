@@ -62,6 +62,10 @@ require_once __DIR__ . '/services/OperationTracker.php';
 require_once __DIR__ . '/services/DropdownValidator.php';
 require_once __DIR__ . '/services/IdempotencyGuard.php';
 require_once __DIR__ . '/services/CacheUpdater.php';
+require_once __DIR__ . '/services/AIProvider.php';
+require_once __DIR__ . '/services/AgentTools.php';
+require_once __DIR__ . '/services/AgentProposal.php';
+require_once __DIR__ . '/services/AgentService.php';
 
 function isConfigValid(array $config): array
 {
@@ -661,6 +665,93 @@ try {
         $service = new ReconcileService($config['glpi'] ?? []);
         $result = $service->compare($category);
         Responde::ok(['data' => $result]);
+        return;
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // AGENTE DE IA (Sprint 06)
+      // ════════════════════════════════════════════════════════════════════
+
+      if ($path === '/api/agent/chat') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $message = trim($body['message'] ?? '');
+        $context = $body['context'] ?? [];
+
+        if ($message === '') {
+          Responde::erro('Mensagem é obrigatória.', 400);
+        }
+
+        $userId = Auth::currentUserId($config);
+        $agent = new AgentService($userId);
+        $result = $agent->processMessage($message, $context);
+        Responde::ok($result);
+        return;
+      }
+
+      if ($path === '/api/agent/status') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $userId = Auth::currentUserId($config);
+        $agent = new AgentService($userId);
+        Responde::ok(['data' => $agent->getStatus()]);
+        return;
+      }
+
+      if ($path === '/api/agent/history') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $userId = Auth::currentUserId($config);
+        $agent = new AgentService($userId);
+        Responde::ok(['data' => $agent->getHistory()]);
+        return;
+      }
+
+      if ($path === '/api/agent/clear') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $userId = Auth::currentUserId($config);
+        $agent = new AgentService($userId);
+        $agent->clearHistory();
+        Responde::ok(['message' => 'Histórico limpo']);
+        return;
+      }
+
+      if ($path === '/api/agent/proposal') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $proposalId = $_GET['id'] ?? '';
+        if ($proposalId === '') {
+          Responde::erro('ID da proposta é obrigatório.', 400);
+        }
+        $proposal = AgentProposal::get($proposalId);
+        if ($proposal === null) {
+          Responde::erro('Proposta não encontrada.', 404);
+        }
+        Responde::ok(['data' => $proposal]);
+        return;
+      }
+
+      if ($path === '/api/agent/proposal/cancel') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $proposalId = $body['proposal_id'] ?? '';
+        if ($proposalId === '') {
+          Responde::erro('ID da proposta é obrigatório.', 400);
+        }
+        $proposal = AgentProposal::cancel($proposalId);
+        if ($proposal === null) {
+          Responde::erro('Proposta não encontrada ou não pode ser cancelada.', 404);
+        }
+        Responde::ok(['data' => $proposal]);
         return;
       }
 

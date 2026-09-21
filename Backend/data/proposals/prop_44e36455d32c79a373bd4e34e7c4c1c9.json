@@ -1,0 +1,32 @@
+{
+    "proposal_id": "prop_44e36455d32c79a373bd4e34e7c4c1c9",
+    "status": "pending",
+    "created_at": "2026-09-21T23:26:36+02:00",
+    "expires_at": "2026-09-22T00:26:36+02:00",
+    "created_by": "user@test.com",
+    "action": "restore",
+    "itemtype": "Computer",
+    "id": 1,
+    "asset_name": "Novo ativo",
+    "current_values": null,
+    "proposed_values": {
+        "states_id": {
+            "id": null,
+            "name": "Em uso",
+            "note": "Restauração via states_id"
+        }
+    },
+    "field_sources": [],
+    "permissions": {
+        "can_read": true,
+        "can_write": true,
+        "can_create": true,
+        "can_delete": true,
+        "can_restore": true,
+        "supported_operation": false
+    },
+    "pending_validations": [],
+    "read_reference": null,
+    "glpi_version": null,
+    "disclaimer": "PRÉVIA — nenhuma alteração executada. Esta proposta expira em 1 hora."
+}

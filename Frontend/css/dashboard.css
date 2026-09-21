@@ -688,6 +688,118 @@
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVIDADE — Tablet (768px-1023px)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 1023px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .dash-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-chart-container {
+    min-height: 180px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVIDADE — Mobile (max-width: 767px)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 767px) {
+  .dash-container {
+    padding: 8px 12px 6px;
+    gap: 6px;
+  }
+
+  .dash-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .dash-header-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .dash-title {
+    font-size: 15px;
+  }
+
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .kpi-card {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .kpi-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .kpi-value {
+    font-size: 14px;
+  }
+
+  .kpi-label {
+    font-size: 9px;
+  }
+
+  .dash-main-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tickets-total-number {
+    font-size: 22px;
+  }
+
+  .dash-quickactions-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .dash-quick-btn {
+    padding: 10px 6px;
+    min-height: 60px;
+    font-size: 11px;
+  }
+
+  .dash-chart-container {
+    min-height: 150px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RESPONSIVIDADE — Mobile pequeno (max-width: 480px)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dash-quickactions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    ACESSIBILIDADE
    ══════════════════════════════════════════════════════════════════════════ */
 

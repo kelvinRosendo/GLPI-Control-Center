@@ -1,0 +1,30 @@
+{
+    "proposal_id": "prop_c28f28b089e47c65a93d1f764e01bfb0",
+    "status": "pending",
+    "created_at": "2026-09-21T23:26:36+02:00",
+    "expires_at": "2026-09-22T00:26:36+02:00",
+    "created_by": "user@test.com",
+    "action": "update",
+    "itemtype": "Computer",
+    "id": 1,
+    "asset_name": "Val",
+    "current_values": null,
+    "proposed_values": {
+        "name": "Val"
+    },
+    "field_sources": {
+        "name": "agent_proposed"
+    },
+    "permissions": {
+        "can_read": true,
+        "can_write": true,
+        "can_create": true,
+        "can_delete": true,
+        "can_restore": true,
+        "supported_operation": false
+    },
+    "pending_validations": [],
+    "read_reference": null,
+    "glpi_version": null,
+    "disclaimer": "PRÉVIA — nenhuma alteração executada. Esta proposta expira em 1 hora."
+}
