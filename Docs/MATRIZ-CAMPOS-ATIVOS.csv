@@ -1,0 +1,73 @@
+Tipo GLPI,Categoria GCC,Campo GLPI,Campo GCC,Tipo do Valor,Origem,Exibição Atual,Edição Atual no GCC,Suporte GLPI,Permissão Necessária,Validação,Evidência,Pendência
+Computer,computer_cs,id,glpiId,int,GLPI,readonly,readonly,Sim,computadores/view,Campo retornado por expand_dropdowns,mappers.php:23,--
+Computer,computer_cs,name,nome,string,GLPI,exibido,editável,Sim,computadores/edit,Filtro trim,editavel em mappers.php:10-17,--
+Computer,computer_cs,serial,serial,string,GLPI,exibido,editável,Sim,computadores/edit,Filtro trim,editavel em mappers.php:10-17,--
+Computer,computer_cs,otherserial,patrimonio,string,GLPI,exibido,editável,Sim,computadores/edit,Filtro trim,editavel em mappers.php:10-17,--
+Computer,computer_cs,contact,nome_alternativo_usuario,string,GLPI,exibido,editável,Sim,computadores/edit,Filtro trim,editavel em mappers.php:10-17,--
+Computer,computer_cs,contact_num,numero_nome_alternativo_usuario,string,GLPI,exibido,editável,Sim,computadores/edit,Filtro trim,editavel em mappers.php:10-17,--
+Computer,computer_cs,comment,comentario,textarea,GLPI,exibido,editável,Sim,computadores/edit,Filtro trim,editavel em mappers.php:10-17,--
+Computer,computer_cs,locations_id,reparticao,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:28,Coleção /Location não consultada para edição
+Computer,computer_cs,users_id,usuario,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:29,Coleção /User não consultada para edição
+Computer,computer_cs,computermodels_id,modelo,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:30,Coleção /ComputerModel não consultada para edição
+Computer,computer_cs,groups_id,grupo,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:31,Coleção /Group não consultada para edição
+Computer,computer_cs,states_id,status,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,status() mapeia por ID ou string,mappers.php:27-313,Coleção /State não consultada para edição
+Computer,computer_cs,entities_id,entity_name,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:224,--
+Computer,computer_cs,computertypes_id,type_name,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:229,--
+Computer,computer_cs,manufacturers_id,manufacturer_name,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:228,--
+Computer,computer_cs,operatingsystems_id,os_name,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:231,--
+Computer,computer_cs,uuid,uuid,string,GLPI,exibido,somente leitura,Sim,computadores/view,Campo direto,mappers.php:230,--
+Computer,computer_cs,date_creation,date_creation,datetime,GLPI,exibido,somente leitura,Sim,computadores/view,Campo direto,mappers.php:236,--
+Computer,computer_cs,date_mod,date_mod,datetime,GLPI,exibido,somente leitura,Sim,computadores/view,Campo direto,mappers.php:237,--
+Computer,computer_cs,template_name,template_name,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:238,--
+Computer,chromebook_student,id,glpiId,int,GLPI,readonly,readonly,Sim,computadores/view,Campo retornado por expand_dropdowns,mappers.php:23,--
+Computer,chromebook_student,name,nome,string,GLPI,exibido,somente leitura,Sim,computadores/view,Filtro trim,mappers.php:35-48,Endpoint chromebooks-geekiees não tem edição
+Computer,chromebook_student,serial,serial,string,GLPI,exibido,somente leitura,Sim,computadores/view,Filtro trim,mappers.php:35-48,Endpoint chromebooks-geekiees não tem edição
+Computer,chromebook_student,groups_id,grupo,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:44,--
+Computer,chromebook_student,users_id,usuario,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:45,--
+Computer,chromebook_support,id,glpiId,int,GLPI,readonly,readonly,Sim,computadores/view,Campo retornado por expand_dropdowns,mappers.php:23,--
+Computer,chromebook_support,name,nome,string,GLPI,exibido,somente leitura,Sim,computadores/view,Filtro trim,mappers.php:50-62,--
+Computer,chromebook_support,serial,serial,string,GLPI,exibido,somente leitura,Sim,computadores/view,Filtro trim,mappers.php:50-62,--
+Computer,chromebook_support,users_id,usuario,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:59,--
+Computer,chromebook_support,computermodels_id,modelo,string (label),GLPI,exibido,somente leitura,Sim,computadores/view,extractName converte para label,mappers.php:60,--
+Computer,chromebook_display,id,glpiId,int,GLPI,readonly,readonly,Sim,computadores/view,Campo retornado por expand_dropdowns,mappers.php:23,--
+Computer,chromebook_display,name,nome,string,GLPI,exibido,somente leitura,Sim,computadores/view,Filtro trim,mappers.php:35-48,Reutiliza mapper chromebookGeekiee
+Computer,chromebook_display,serial,serial,string,GLPI,exibido,somente leitura,Sim,computadores/view,Filtro trim,mappers.php:35-48,--
+Computer,projector,id,glpiId,int,GLPI,readonly,readonly,Sim,projetores/view,Campo retornado por expand_dropdowns,mappers.php:96-122,--
+Computer,projector,name,nome,string,GLPI,exibido,somente leitura,Sim,projetores/view,Filtro trim,mappers.php:96-122,Editável apenas via projetors.json
+Computer,projector,serial,serial,string,GLPI,exibido,somente leitura,Sim,projetores/view,Filtro trim,mappers.php:96-122,--
+Computer,projector,otherserial,patrimonio,string,GLPI,exibido,somente leitura,Sim,projetores/view,Filtro trim,mappers.php:96-122,--
+Computer,projector,contact,nome_alternativo_usuario,string,GLPI,exibido,somente leitura,Sim,projetores/view,rawString,mappers.php:98,--
+Computer,projector,contact_num,numero_nome_alternativo_usuario,string,GLPI,exibido,somente leitura,Sim,projetores/view,rawString,mappers.php:99,--
+Computer,projector,comment,comentario,string,GLPI,exibido,somente leitura,Sim,projetores/view,rawString,mappers.php:100,--
+Computer,projector,locations_id,reparticao,string (derivada),GLPI+GCC,derivada,somente leitura,Sim,projetores/view,projectorLocation() combina GLPI+comment+name,mappers.php:145-203,--
+Computer,projector,users_id,usuario,string (label),GLPI,exibido,somente leitura,Sim,projetores/view,extractName converte para label,mappers.php:116,--
+Computer,projector,computermodels_id,modelo,string (label),GLPI,exibido,somente leitura,Sim,projetores/view,extractName converte para label,mappers.php:117,--
+Computer,projector,states_id,status,string (label),GLPI,exibido,somente leitura,Sim,projetores/view,status() mapeia,mappers.php:108,--
+GCC-only,projector,horas_lampada,horas_lampada,int,projectors.json,exibido,editável,--,—,Valor não negativo,projetors.php:301-332,--
+GCC-only,projector,vida_util_estimada,vida_util_estimada,int,projectors.json,exibido,editável,--,—,Valor > 0,projetors.php:301-332,--
+GCC-only,projector,data_troca_lampada,data_troca_lampada,date,projectors.json,exibido,automático,--,—,Definido por maintenance tipo=lampada,projetors.php:390-393,--
+GCC-only,projector,ultima_manutencao,ultima_manutencao,date,projectors.json,exibido,automático,--,—,Definido por maintenance tipo≠lampada≠limpeza,projetors.php:396-398,--
+GCC-only,projector,ultima_limpeza,ultima_limpeza,date,projectors.json,exibido,automático,--,—,Definido por maintenance tipo=limpeza,projetors.php:395-396,--
+GCC-only,projector,horas_totais,horas_totais,int,projectors.json,exibido,somente leitura,--,—,Acumulado das manutenções,projetors.php:168-217,--
+GCC-only,projector,notas,notas,string,projectors.json,exibido,somente leitura,--,—,Campo livre,projetors.php:168-217,--
+GCC-only,projector,responsavel_atual,responsavel_atual,string,projectors.json,exibido,somente leitura,--,—,Campo livre,projetors.php:168-217,--
+GCC-only,projector,fabricante,fabricante,string,projectors.json,exibido,somente leitura,--,—,Campo livre,projetors.php:168-217,--
+GCC-only,projector,data_aquisicao,data_aquisicao,date,projectors.json,exibido,somente leitura,--,—,Campo livre,projetors.php:168-217,--
+GCC-derived,projector,percentual_uso,percentual_uso,float,calculado,exibido,readonly,--,—,horas_lampada/vida_util_estimada*100,projetors.php:196-200,--
+GCC-derived,projector,alertas,alertas,array,calculado,exibido,readonly,--,—,calculateAlerts,projetors.php:126-159,--
+GCC-derived,projector,status_calculado,status_calculado,string,calculado,exibido,readonly,--,—,calculateStatus,projetors.php:105-124,--
+Printer,printer,id,glpiId,int,GLPI,readonly,readonly,Sim,impressoras/view,Campo retornado por expand_dropdowns,mappers.php:125-143,--
+Printer,printer,name,nome,string,GLPI,exibido,somente leitura,Sim,impressoras/view,Campo direto,mappers.php:125-143,editableValues retorna []
+Printer,printer,serial,serial,string,GLPI,exibido,somente leitura,Sim,impressoras/view,Campo direto,mappers.php:125-143,--
+Printer,printer,otherserial,patrimonio,string,GLPI,exibido,somente leitura,Sim,impressoras/view,Campo direto,mappers.php:125-143,--
+Printer,printer,contact,nome_alternativo_usuario,string,GLPI,exibido,somente leitura,Sim,impressoras/view,Campo direto,mappers.php:125-143,--
+Printer,printer,contact_num,numero_nome_alternativo_usuario,string,GLPI,exibido,somente leitura,Sim,impressoras/view,Campo direto,mappers.php:125-143,--
+Printer,printer,comment,comentario,string,GLPI,exibido,somente leitura,Sim,impressoras/view,Campo direto,mappers.php:125-143,--
+Printer,printer,locations_id,reparticao,string (label),GLPI,exibido,somente leitura,Sim,impressoras/view,extractName converte para label,mappers.php:135,--
+Printer,printer,users_id,usuario,string (label),GLPI,exibido,somente leitura,Sim,impressoras/view,extractName converte para label,mappers.php:136,--
+Printer,printer,printermodels_id,modelo,string (label),GLPI,exibido,somente leitura,Sim,impressoras/view,extractName converte para label,mappers.php:137,--
+Printer,printer,manufacturers_id,fabricante,string (label),GLPI,exibido,somente leitura,Sim,impressoras/view,extractName converte para label,mappers.php:138,--
+Printer,printer,states_id,status,string (label),GLPI,exibido,somente leitura,Sim,impressoras/view,status() mapeia,mappers.php:133,--
+GLPI,computer_cs,Item_Ticket,tickets_por_ativo,array,GLPI,exibido,readonly,Sim,computadores/view,Via /Item_Ticket?itemtype=Computer,tickets.php:39-80,--
+GLPI,printer,Item_Ticket,tickets_por_ativo,array,GLPI,exibido,readonly,Sim,impressoras/view,Via /Item_Ticket?itemtype=Printer,tickets.php:62-77,--
+GLPI,all,Ticket,chamados,array,GLPI,exibido,criação,Sim,chamados/view|create,POST /Ticket + /Item_Ticket,tickets.php:85-148,--
