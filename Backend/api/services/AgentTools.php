@@ -47,6 +47,9 @@ class AgentTools {
       $this->defConsultarReconciliacao(),
       $this->defConsultarOperacao(),
       $this->defPrepararAlteracao(),
+      $this->defExecutarProposta(),
+      $this->defCancelarProposta(),
+      $this->defConsultarPoliticas(),
     ];
   }
 
@@ -292,6 +295,61 @@ class AgentTools {
     ];
   }
 
+  private function defExecutarProposta(): array {
+    return [
+      'type' => 'function',
+      'function' => [
+        'name' => 'executar_proposta',
+        'description' => 'Executa uma proposta PREVIAMENTE CONFIRMADA pelo usuário. Retorna o resultado da operação com status, antes/depois e erros. Requer confirmação explícita do usuário.',
+        'parameters' => [
+          'type' => 'object',
+          'properties' => [
+            'proposal_id' => [
+              'type' => 'string',
+              'description' => 'ID da proposta a executar (formato: prop_...)',
+            ],
+          ],
+          'required' => ['proposal_id'],
+        ],
+      ],
+    ];
+  }
+
+  private function defCancelarProposta(): array {
+    return [
+      'type' => 'function',
+      'function' => [
+        'name' => 'cancelar_proposta',
+        'description' => 'Cancela uma proposta pendente. Impede que ela seja executada.',
+        'parameters' => [
+          'type' => 'object',
+          'properties' => [
+            'proposal_id' => [
+              'type' => 'string',
+              'description' => 'ID da proposta a cancelar (formato: prop_...)',
+            ],
+          ],
+          'required' => ['proposal_id'],
+        ],
+      ],
+    ];
+  }
+
+  private function defConsultarPoliticas(): array {
+    return [
+      'type' => 'function',
+      'function' => [
+        'name' => 'consultar_politicas',
+        'description' => 'Retorna as políticas de autonomia do agente: modos disponíveis, operações permitidas, limites de lote e campos protegidos.',
+        'parameters' => [
+          'type' => 'object',
+          'properties' => [],
+          'required' => [],
+        ],
+      ],
+    ];
+  }
+
   // ══════════════════════════════════════════════════════════════════════════
   // VALIDAÇÃO
   // ══════════════════════════════════════════════════════════════════════════
@@ -338,6 +396,21 @@ class AgentTools {
         }
         if (in_array($args['action'], ['update', 'delete', 'restore']) && empty($args['id'])) {
           return ['valid' => false, 'error' => 'id é obrigatório para update, delete e restore'];
+        }
+        break;
+
+      case 'executar_proposta':
+        if (empty($args['proposal_id'])) {
+          return ['valid' => false, 'error' => 'proposal_id é obrigatório'];
+        }
+        if (!preg_match('/^prop_[a-f0-9]+$/', $args['proposal_id'])) {
+          return ['valid' => false, 'error' => 'Formato de proposal_id inválido'];
+        }
+        break;
+
+      case 'cancelar_proposta':
+        if (empty($args['proposal_id'])) {
+          return ['valid' => false, 'error' => 'proposal_id é obrigatório'];
         }
         break;
     }
@@ -584,6 +657,53 @@ class AgentTools {
       'data' => $proposal,
       'message' => 'Proposta preparada. NENHUMA alteração foi executada.',
       'warning' => 'PRÉVIA — nenhuma alteração executada. Use o ID da proposta para confirmar ou cancelar.',
+    ];
+  }
+
+  private function exec_executar_proposta(array $args): array {
+    $proposalId = $args['proposal_id'];
+
+    $execution = new AgentExecution($this->glpiConfig, $this->userId);
+    $result = $execution->executeProposal($proposalId);
+
+    return [
+      'success' => $result['success'],
+      'data' => $result,
+      'message' => $result['success']
+        ? 'Proposta executada com sucesso.'
+        : 'Falha ao executar proposta: ' . ($result['error'] ?? 'Erro desconhecido'),
+    ];
+  }
+
+  private function exec_cancelar_proposta(array $args): array {
+    $proposalId = $args['proposal_id'];
+
+    $proposal = AgentProposal::cancel($proposalId);
+
+    if ($proposal === null) {
+      return [
+        'success' => false,
+        'error' => 'Proposta não encontrada ou não pode ser cancelada',
+      ];
+    }
+
+    return [
+      'success' => true,
+      'data' => $proposal,
+      'message' => 'Proposta cancelada com sucesso.',
+    ];
+  }
+
+  private function exec_consultar_politicas(array $args): array {
+    $execution = new AgentExecution($this->glpiConfig, $this->userId);
+
+    return [
+      'success' => true,
+      'data' => [
+        'policies' => $execution->getPolicies(),
+        'user_mode' => $execution->getUserMode(),
+      ],
+      'source' => 'static',
     ];
   }
 }

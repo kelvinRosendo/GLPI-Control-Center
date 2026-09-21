@@ -265,22 +265,26 @@
 }
 
 /* Proposal card */
-.agent-proposal {
+.agent-msg--proposal {
+  max-width: 100%;
+}
+
+.agent-proposal-card {
   background: rgba(var(--color-green-rgb), 0.08);
   border: 1px solid rgba(var(--color-green-rgb), 0.2);
   border-radius: 10px;
   padding: 12px;
-  margin-top: 6px;
+  width: 100%;
 }
 
 .agent-proposal-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 8px;
 }
 
-.agent-proposal-badge {
+.agent-proposal-action {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
@@ -291,34 +295,56 @@
   border-radius: 4px;
 }
 
-.agent-proposal-cancel {
-  font-size: 11px;
-  color: var(--color-red);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-decoration: underline;
+.agent-proposal-asset {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 .agent-proposal-body {
   font-size: 12px;
   color: var(--color-text-secondary);
+  margin-bottom: 8px;
 }
 
-.agent-proposal-field {
+.agent-proposal-changes {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-proposal-change {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   padding: 4px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-.agent-proposal-field-label {
+.agent-proposal-field {
+  font-weight: 600;
   color: var(--color-text-muted);
+  min-width: 80px;
 }
 
-.agent-proposal-field-value {
-  color: var(--color-text);
+.agent-proposal-old {
+  color: var(--color-red);
+  text-decoration: line-through;
+}
+
+.agent-proposal-new {
+  color: var(--color-green);
   font-weight: 500;
+}
+
+.agent-proposal-warning {
+  color: var(--color-yellow);
+  font-size: 12px;
+}
+
+.agent-proposal-info {
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 
 .agent-proposal-disclaimer {
@@ -326,6 +352,74 @@
   font-size: 10px;
   color: var(--color-yellow);
   font-style: italic;
+}
+
+.agent-proposal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.agent-proposal-confirm-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-green);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.agent-proposal-confirm-btn:hover {
+  filter: brightness(1.1);
+}
+
+.agent-proposal-confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-proposal-cancel-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.agent-proposal-cancel-btn:hover {
+  border-color: var(--color-red);
+  color: var(--color-red);
+}
+
+.agent-proposal-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.agent-proposal--executed .agent-proposal-card {
+  border-color: var(--color-green);
+  background: rgba(var(--color-green-rgb), 0.15);
+}
+
+.agent-proposal--executed .agent-proposal-actions {
+  display: none;
+}
+
+.agent-proposal--cancelled .agent-proposal-card {
+  border-color: var(--color-border);
+  background: rgba(var(--color-text-muted), 0.05);
+  opacity: 0.6;
+}
+
+.agent-proposal--cancelled .agent-proposal-actions {
+  display: none;
 }
 
 /* ════════════════════════════════════════════════════════════════════════════

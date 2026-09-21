@@ -81,7 +81,12 @@ class AgentProposal {
     $proposal = self::get($proposalId);
     if ($proposal === null) return null;
 
-    if ($proposal['status'] !== 'pending') {
+    if (!in_array($proposal['status'], ['pending', 'executing'], true)) {
+      return null;
+    }
+
+    if ($proposal['status'] === 'executing') {
+      // Itens já em execução não podem ser cancelados
       return null;
     }
 
@@ -90,6 +95,70 @@ class AgentProposal {
     self::persist($proposal);
 
     return $proposal;
+  }
+
+  /**
+   * Atualiza o status de uma proposta.
+   */
+  public static function updateStatus(string $proposalId, string $newStatus, array $extra = []): ?array {
+    $proposal = self::get($proposalId);
+    if ($proposal === null) return null;
+
+    $validTransitions = [
+      'pending' => ['executing', 'cancelled', 'expired'],
+      'executing' => ['executed', 'failed', 'cancelled'],
+      'expired' => [],
+      'cancelled' => [],
+      'executed' => [],
+      'failed' => ['pending'],
+    ];
+
+    $currentStatus = $proposal['status'];
+    if (!in_array($newStatus, $validTransitions[$currentStatus] ?? [], true)) {
+      return null;
+    }
+
+    $proposal['status'] = $newStatus;
+    $proposal[$newStatus . '_at'] = date('c');
+
+    foreach ($extra as $key => $value) {
+      $proposal[$key] = $value;
+    }
+
+    self::persist($proposal);
+    return $proposal;
+  }
+
+  /**
+   * Lista propostas por usuário com filtros.
+   */
+  public static function listByUser(string $userId, array $filters = []): array {
+    $dir = self::$proposalsDir;
+    if (!is_dir($dir)) return [];
+
+    $results = [];
+    $files = glob($dir . '/*.json');
+    if ($files === false) return [];
+
+    foreach ($files as $file) {
+      $content = @file_get_contents($file);
+      if ($content === false) continue;
+
+      $proposal = json_decode($content, true);
+      if (!is_array($proposal)) continue;
+
+      if (($proposal['created_by'] ?? '') !== $userId) continue;
+
+      if (isset($filters['status']) && $proposal['status'] !== $filters['status']) continue;
+      if (isset($filters['action']) && $proposal['action'] !== $filters['action']) continue;
+      if (isset($filters['itemtype']) && $proposal['itemtype'] !== $filters['itemtype']) continue;
+
+      $results[] = $proposal;
+    }
+
+    usort($results, fn($a, $b) => strtotime($b['created_at'] ?? '') - strtotime($a['created_at'] ?? ''));
+
+    return $results;
   }
 
   /**

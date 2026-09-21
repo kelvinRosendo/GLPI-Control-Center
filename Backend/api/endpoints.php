@@ -65,6 +65,7 @@ require_once __DIR__ . '/services/CacheUpdater.php';
 require_once __DIR__ . '/services/AIProvider.php';
 require_once __DIR__ . '/services/AgentTools.php';
 require_once __DIR__ . '/services/AgentProposal.php';
+require_once __DIR__ . '/services/AgentExecution.php';
 require_once __DIR__ . '/services/AgentService.php';
 
 function isConfigValid(array $config): array
@@ -752,6 +753,70 @@ try {
           Responde::erro('Proposta não encontrada ou não pode ser cancelada.', 404);
         }
         Responde::ok(['data' => $proposal]);
+        return;
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // AGENTE DE IA — EXECUÇÃO (Sprint 07)
+      // ════════════════════════════════════════════════════════════════════
+
+      if ($path === '/api/agent/execute') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $proposalId = $body['proposal_id'] ?? '';
+        if ($proposalId === '') {
+          Responde::erro('ID da proposta é obrigatório.', 400);
+        }
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $execution = new AgentExecution($config['glpi'] ?? [], $userId);
+        $result = $execution->executeProposal($proposalId);
+        Responde::ok($result);
+        return;
+      }
+
+      if ($path === '/api/agent/execute/batch') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $proposalIds = $body['proposal_ids'] ?? [];
+        if (empty($proposalIds) || !is_array($proposalIds)) {
+          Responde::erro('proposal_ids é obrigatório e deve ser um array.', 400);
+        }
+        $maxBatch = 10;
+        if (count($proposalIds) > $maxBatch) {
+          Responde::erro("Lote máximo é {$maxBatch} itens.", 400);
+        }
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $execution = new AgentExecution($config['glpi'] ?? [], $userId);
+        $result = $execution->executeBatch($proposalIds);
+        Responde::ok($result);
+        return;
+      }
+
+      if ($path === '/api/agent/policies') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $execution = new AgentExecution($config['glpi'] ?? [], $userId);
+        Responde::ok(['data' => $execution->getPolicies()]);
+        return;
+      }
+
+      if ($path === '/api/agent/proposals') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $filters = [];
+        if (!empty($_GET['status'])) $filters['status'] = $_GET['status'];
+        if (!empty($_GET['action'])) $filters['action'] = $_GET['action'];
+        if (!empty($_GET['itemtype'])) $filters['itemtype'] = $_GET['itemtype'];
+        $proposals = AgentProposal::listByUser($userId, $filters);
+        Responde::ok(['data' => $proposals, 'count' => count($proposals)]);
         return;
       }
 

@@ -1,0 +1,31 @@
+{
+    "proposal_id": "prop_6d13e5e78517e0f69c00ffa5f4e49b6b",
+    "status": "cancelled",
+    "created_at": "2026-09-21T23:37:52+02:00",
+    "expires_at": "2026-09-22T00:37:52+02:00",
+    "created_by": "user@test.com",
+    "action": "update",
+    "itemtype": "Computer",
+    "id": 1,
+    "asset_name": "X",
+    "current_values": null,
+    "proposed_values": {
+        "name": "X"
+    },
+    "field_sources": {
+        "name": "agent_proposed"
+    },
+    "permissions": {
+        "can_read": true,
+        "can_write": true,
+        "can_create": true,
+        "can_delete": true,
+        "can_restore": true,
+        "supported_operation": false
+    },
+    "pending_validations": [],
+    "read_reference": null,
+    "glpi_version": null,
+    "disclaimer": "PRÉVIA — nenhuma alteração executada. Esta proposta expira em 1 hora.",
+    "cancelled_at": "2026-09-21T23:37:52+02:00"
+}

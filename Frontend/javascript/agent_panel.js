@@ -2,8 +2,9 @@
  * GLPI Control Center - agent_panel.js
  * -----------------------------------------------------------------------------
  * Painel do assistente de IA — interface lateral/desktop, tela inteira/mobile.
+ * Suporte a propostas com confirmação e execução (Sprint 07).
  *
- * Sprint 06: Agente de IA
+ * Sprint 06/07: Agente de IA
  */
 
 window.AgentPanel = (function () {
@@ -14,6 +15,7 @@ window.AgentPanel = (function () {
   let _isLoading = false;
   let _status = null;
   let _currentAsset = null;
+  let _pendingProposals = new Map();
 
   // ══════════════════════════════════════════════════════════════════════════
   // INICIALIZAÇÃO
@@ -227,9 +229,14 @@ window.AgentPanel = (function () {
     document.getElementById('agent-send').disabled = false;
   }
 
-  function _addMessage(role, content) {
+  function _addMessage(role, content, proposal = null) {
     const messages = document.getElementById('agent-messages');
     if (!messages) return;
+
+    if (proposal) {
+      _addProposalCard(proposal);
+      return;
+    }
 
     const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
@@ -271,6 +278,177 @@ window.AgentPanel = (function () {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // PROPOSTAS
+  // ══════════════════════════════════════════════════════════════════════════
+
+  function _addProposalCard(proposal) {
+    const messages = document.getElementById('agent-messages');
+    if (!messages) return;
+
+    const actionLabels = {
+      create: 'Criar',
+      update: 'Editar',
+      delete: 'Excluir',
+      restore: 'Restaurar',
+    };
+
+    const action = proposal.action || 'update';
+    const actionLabel = actionLabels[action] || action;
+    const assetName = proposal.asset_name || `${proposal.itemtype}:${proposal.id}`;
+    const proposalId = proposal.proposal_id;
+
+    _pendingProposals.set(proposalId, proposal);
+
+    const currentVals = proposal.current_values || {};
+    const proposedVals = proposal.proposed_values || {};
+
+    let changesHtml = '';
+    if (action === 'update') {
+      const fields = Object.keys(proposedVals);
+      if (fields.length > 0) {
+        changesHtml = '<div class="agent-proposal-changes">';
+        for (const field of fields) {
+          const oldVal = currentVals[field] || '(vazio)';
+          const newVal = proposedVals[field];
+          const oldDisplay = typeof oldVal === 'object' ? (oldVal?.name || JSON.stringify(oldVal)) : oldVal;
+          const newDisplay = typeof newVal === 'object' ? (newVal?.name || JSON.stringify(newVal)) : newVal;
+          changesHtml += `<div class="agent-proposal-change"><span class="agent-proposal-field">${_escapeHtml(field)}</span>: <span class="agent-proposal-old">${_escapeHtml(oldDisplay)}</span> → <span class="agent-proposal-new">${_escapeHtml(newDisplay)}</span></div>`;
+        }
+        changesHtml += '</div>';
+      }
+    } else if (action === 'delete') {
+      changesHtml = '<div class="agent-proposal-warning">Exclusão lógica: ativo será marcado como Inativo</div>';
+    } else if (action === 'restore') {
+      changesHtml = '<div class="agent-proposal-info">Ativo será restaurado para "Em uso"</div>';
+    } else if (action === 'create') {
+      changesHtml = '<div class="agent-proposal-info">Novo ativo será criado</div>';
+    }
+
+    const disclaimer = proposal.disclaimer || 'PRÉVIA — nenhuma alteração executada.';
+    const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    const card = document.createElement('div');
+    card.className = 'agent-msg agent-msg--proposal';
+    card.dataset.proposalId = proposalId;
+    card.innerHTML = `
+      <div class="agent-proposal-card">
+        <div class="agent-proposal-header">
+          <span class="agent-proposal-action">${actionLabel}</span>
+          <span class="agent-proposal-asset">${_escapeHtml(assetName)}</span>
+        </div>
+        <div class="agent-proposal-body">
+          ${changesHtml}
+        </div>
+        <div class="agent-proposal-disclaimer">${_escapeHtml(disclaimer)}</div>
+        <div class="agent-proposal-actions">
+          <button class="agent-proposal-confirm-btn" data-proposal-id="${proposalId}" aria-label="Confirmar ${actionLabel}">
+            Confirmar
+          </button>
+          <button class="agent-proposal-cancel-btn" data-proposal-id="${proposalId}" aria-label="Cancelar proposta">
+            Cancelar
+          </button>
+        </div>
+        <div class="agent-msg-time">${time}</div>
+      </div>
+    `;
+
+    const confirmBtn = card.querySelector('.agent-proposal-confirm-btn');
+    const cancelBtn = card.querySelector('.agent-proposal-cancel-btn');
+
+    confirmBtn?.addEventListener('click', () => _confirmProposal(proposalId));
+    cancelBtn?.addEventListener('click', () => _cancelProposal(proposalId));
+
+    messages.appendChild(card);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  async function _confirmProposal(proposalId) {
+    const card = document.querySelector(`[data-proposal-id="${proposalId}"]`);
+    const confirmBtn = card?.querySelector('.agent-proposal-confirm-btn');
+    const cancelBtn = card?.querySelector('.agent-proposal-cancel-btn');
+
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.textContent = 'Executando...';
+    }
+    if (cancelBtn) cancelBtn.disabled = true;
+
+    try {
+      const res = await fetch(API_BASE + '/execute', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposal_id: proposalId }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        _addMessage('system', data.message || 'Proposta executada com sucesso.');
+        card?.classList.add('agent-proposal--executed');
+        _pendingProposals.delete(proposalId);
+      } else {
+        _addMessage('system', 'Falha: ' + (data.error || 'Erro ao executar proposta'));
+        if (confirmBtn) {
+          confirmBtn.disabled = false;
+          confirmBtn.textContent = 'Confirmar';
+        }
+        if (cancelBtn) cancelBtn.disabled = false;
+      }
+    } catch (err) {
+      _addMessage('system', 'Erro de conexão ao executar proposta');
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Confirmar';
+      }
+      if (cancelBtn) cancelBtn.disabled = false;
+    }
+  }
+
+  async function _cancelProposal(proposalId) {
+    const card = document.querySelector(`[data-proposal-id="${proposalId}"]`);
+    const confirmBtn = card?.querySelector('.agent-proposal-confirm-btn');
+    const cancelBtn = card?.querySelector('.agent-proposal-cancel-btn');
+
+    if (cancelBtn) {
+      cancelBtn.disabled = true;
+      cancelBtn.textContent = 'Cancelando...';
+    }
+    if (confirmBtn) confirmBtn.disabled = true;
+
+    try {
+      const res = await fetch(API_BASE + '/proposal/cancel', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ proposal_id: proposalId }),
+      });
+
+      const data = await res.json();
+
+      if (data.success !== false) {
+        _addMessage('system', 'Proposta cancelada.');
+        card?.classList.add('agent-proposal--cancelled');
+        _pendingProposals.delete(proposalId);
+      } else {
+        _addMessage('system', 'Não foi possível cancelar: ' + (data.error || 'Erro'));
+        if (cancelBtn) {
+          cancelBtn.disabled = false;
+          cancelBtn.textContent = 'Cancelar';
+        }
+        if (confirmBtn) confirmBtn.disabled = false;
+      }
+    } catch (err) {
+      _addMessage('system', 'Erro de conexão ao cancelar proposta');
+      if (cancelBtn) {
+        cancelBtn.disabled = false;
+        cancelBtn.textContent = 'Cancelar';
+      }
+      if (confirmBtn) confirmBtn.disabled = false;
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // API PÚBLICA
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -280,5 +458,6 @@ window.AgentPanel = (function () {
     openPanel,
     closePanel,
     setContext,
+    getPendingProposals: () => Array.from(_pendingProposals.values()),
   };
 })();
