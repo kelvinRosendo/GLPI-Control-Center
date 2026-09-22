@@ -133,9 +133,10 @@ window.AssetDetailsUI = (function () {
       content.innerHTML = `
         <div class="asset-details-error">
           <p class="error-message">${_escHtml(message)}</p>
-          <button class="btn btn--secondary" onclick="AssetDetailsUI.close()">Fechar</button>
+          <button class="btn btn--secondary" data-action="close">Fechar</button>
         </div>
       `;
+      content.querySelector('[data-action="close"]')?.addEventListener('click', close);
     }
   }
 
@@ -173,7 +174,7 @@ window.AssetDetailsUI = (function () {
     content.innerHTML = `
       <div class="asset-details-header">
         <h2 class="asset-details-title">${_escHtml(title)}</h2>
-        <button class="asset-details-close" onclick="AssetDetailsUI._handleCloseAttempt()">✕</button>
+        <button class="asset-details-close" data-action="close-attempt">✕</button>
       </div>
 
       <div class="asset-details-body">
@@ -182,14 +183,18 @@ window.AssetDetailsUI = (function () {
 
       <div class="asset-details-footer">
         <div class="asset-details-actions">
-          ${canEdit ? `<button class="btn btn--primary" id="asset-save-btn" onclick="AssetDetailsUI._save()">Salvar</button>` : ''}
-          ${canDelete && isActive ? `<button class="btn btn--danger" onclick="AssetDetailsUI._delete()">Excluir</button>` : ''}
-          ${canRestore && !isActive ? `<button class="btn btn--success" onclick="AssetDetailsUI._restore()">Restaurar</button>` : ''}
-          <button class="btn btn--secondary" onclick="AssetDetailsUI._handleCloseAttempt()">Fechar</button>
+          ${canEdit ? `<button class="btn btn--primary" id="asset-save-btn" data-action="save">Salvar</button>` : ''}
+          ${canDelete && isActive ? `<button class="btn btn--danger" data-action="delete">Excluir</button>` : ''}
+          ${canRestore && !isActive ? `<button class="btn btn--success" data-action="restore">Restaurar</button>` : ''}
+          <button class="btn btn--secondary" data-action="close-attempt">Fechar</button>
         </div>
         <div id="asset-details-feedback" class="asset-details-feedback"></div>
       </div>
     `;
+    content.querySelector('[data-action="save"]')?.addEventListener('click', _save);
+    content.querySelector('[data-action="delete"]')?.addEventListener('click', _delete);
+    content.querySelector('[data-action="restore"]')?.addEventListener('click', _restore);
+    content.querySelectorAll('[data-action="close-attempt"]').forEach(el => el.addEventListener('click', _handleCloseAttempt));
   }
 
   function _renderSection(section, editableValues, canEdit) {
@@ -260,7 +265,7 @@ window.AssetDetailsUI = (function () {
     content.innerHTML = `
       <div class="asset-details-header">
         <h2 class="asset-details-title">Criar ${_escHtml(_currentItemtype)}</h2>
-        <button class="asset-details-close" onclick="AssetDetailsUI._handleCloseAttempt()">✕</button>
+        <button class="asset-details-close" data-action="close-attempt">✕</button>
       </div>
 
       <div class="asset-details-body">
@@ -283,12 +288,14 @@ window.AssetDetailsUI = (function () {
 
       <div class="asset-details-footer">
         <div class="asset-details-actions">
-          <button class="btn btn--primary" id="asset-save-btn" onclick="AssetDetailsUI._create()">Criar</button>
-          <button class="btn btn--secondary" onclick="AssetDetailsUI._handleCloseAttempt()">Cancelar</button>
+          <button class="btn btn--primary" id="asset-save-btn" data-action="create">Criar</button>
+          <button class="btn btn--secondary" data-action="close-attempt">Cancelar</button>
         </div>
         <div id="asset-details-feedback" class="asset-details-feedback"></div>
       </div>
     `;
+    content.querySelector('[data-action="create"]')?.addEventListener('click', _create);
+    content.querySelectorAll('[data-action="close-attempt"]').forEach(el => el.addEventListener('click', _handleCloseAttempt));
   }
 
   function _renderCreateField(fieldKey, required) {

@@ -379,6 +379,21 @@ function authorizeRequest(string $path, string $method, array $config): void
 
   if ($path === '/api/auth/logout') return;
 
+  // Agent routes: explicit, não caem no fallback ADMIN
+  if (str_starts_with($path, '/api/agent/')) {
+    $agentWrite = ['/api/agent/execute', '/api/agent/execute/batch'];
+    $isWrite = false;
+    foreach ($agentWrite as $p) { if ($path === $p || str_starts_with($path, $p)) { $isWrite = true; break; } }
+    // chat/history/status precisam assistente:chat ; propostas/execução precisam computadores:edit para write
+    if ($isWrite) {
+      // Requer computadores:edit ou impressoras:edit conforme alvo, mas checagem fina é no serviço; aqui exige ao menos assistente:chat
+      PermissionMiddleware::requireAction('assistente', 'chat');
+      return;
+    }
+    PermissionMiddleware::requireAction('assistente', $method === 'GET' && $path === '/api/agent/status' ? 'view' : 'chat');
+    return;
+  }
+
   if (in_array($path, ['/api/projetors/diagnostic', '/api/projetors/config', '/api/diagnostic/compare', '/api/diagnostic/export', '/api/sync/run', '/api/sync/incremental'], true)) {
     PermissionMiddleware::requireMinLevel('ADMIN');
     return;
@@ -690,7 +705,7 @@ try {
           Responde::erro('Mensagem é obrigatória.', 400);
         }
 
-        $userId = Auth::currentUserId($config);
+        $userId = AuthService::currentUserId($config);
         $agent = new AgentService($userId);
         $result = $agent->processMessage($message, $context);
         Responde::ok($result);
@@ -701,7 +716,7 @@ try {
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
           Responde::erro('Método não permitido.', 405);
         }
-        $userId = Auth::currentUserId($config);
+        $userId = AuthService::currentUserId($config);
         $agent = new AgentService($userId);
         Responde::ok(['data' => $agent->getStatus()]);
         return;
@@ -711,7 +726,7 @@ try {
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
           Responde::erro('Método não permitido.', 405);
         }
-        $userId = Auth::currentUserId($config);
+        $userId = AuthService::currentUserId($config);
         $agent = new AgentService($userId);
         Responde::ok(['data' => $agent->getHistory()]);
         return;
@@ -721,7 +736,7 @@ try {
         if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
           Responde::erro('Método não permitido.', 405);
         }
-        $userId = Auth::currentUserId($config);
+        $userId = AuthService::currentUserId($config);
         $agent = new AgentService($userId);
         $agent->clearHistory();
         Responde::ok(['message' => 'Histórico limpo']);

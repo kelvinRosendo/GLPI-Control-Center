@@ -38,6 +38,7 @@ window.App = {
     if (window.Mobile) window.Mobile.init();
     if (window.ApiClient) window.ApiClient.init();
     if (window.ApiInterceptors) window.ApiInterceptors.install();
+    if (window.AgentPanel) window.AgentPanel.init();
     if (window.Preload) window.Preload.init();
     if (window.PerfMonitor) window.PerfMonitor.init();
     if (window.Security) window.Security.init();
@@ -74,6 +75,8 @@ window.App = {
   },
 
   async onLoginSuccess(username) {
+    // Re-inicializar painel do agente após autenticação (limpa estado anterior)
+    if (window.AgentPanel?.init) window.AgentPanel.init();
     const user = window.UserContext?.getCurrentUser();
 
     // Atualizar avatar com foto do Google ou inicial
@@ -167,6 +170,8 @@ window.App = {
   },
 
   logout() {
+    // Limpar estado do agente ao sair
+    try { window.AgentPanel?.closePanel?.(); } catch {}
     if (window.Auth) {
       window.Auth.logout();
     } else {

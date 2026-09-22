@@ -443,10 +443,11 @@ class AgentTools {
     foreach ($items as $item) {
       if (count($results) >= $limit) break;
 
-      $name = strtolower($item['name'] ?? '');
-      $serial = strtolower($item['serial'] ?? '');
-      $otherserial = strtolower($item['otherserial'] ?? '');
-      $cat = $item['_classification']['category'] ?? '';
+      $name = strtolower((string)($item['name'] ?? ''));
+      $serial = strtolower((string)($item['serial'] ?? ''));
+      $otherserial = strtolower((string)($item['otherserial'] ?? ''));
+      // Contrato canônico: category é campo raiz, com fallback para _classification
+      $cat = $item['category'] ?? $item['_classification']['category'] ?? '';
 
       if ($category && $cat !== $category) continue;
 
@@ -456,13 +457,13 @@ class AgentTools {
         str_contains($otherserial, $query)
       ) {
         $results[] = [
-          'itemtype' => $item['itemtype'] ?? 'Unknown',
+          'itemtype' => $item['itemtype'] ?? 'Computer',
           'id' => $item['id'] ?? 0,
           'name' => $item['name'] ?? '',
           'serial' => $item['serial'] ?? '',
           'otherserial' => $item['otherserial'] ?? '',
           'category' => $cat,
-          'location' => is_array($item['locations_id'] ?? null) ? ($item['locations_id']['name'] ?? '') : ($item['locations_id'] ?? ''),
+          'location' => is_array($item['locations_id'] ?? null) ? ($item['locations_id']['name'] ?? '') : (string)($item['locations_id'] ?? $item['location'] ?? ''),
         ];
       }
     }
@@ -472,15 +473,23 @@ class AgentTools {
       'data' => $results,
       'total' => count($results),
       'source' => 'cache',
-      'cache_age' => $cache['_meta']['generated'] ?? 'desconhecido',
+      'cache_age' => $cache['generated'] ?? $cache['_meta']['generated'] ?? 'desconhecido',
     ];
   }
 
   private function exec_consultar_ativo(array $args): array {
     $itemtype = $args['itemtype'];
-    $id = (int)$args['id'];
+    $id = $args['id'];
+    // Preservar ID como string numérica quando recebido assim; validar
+    if (is_string($id) && ctype_digit($id)) $id = (int)$id;
+    elseif (!is_int($id)) $id = (int)$id;
 
-    $result = AssetService::get($itemtype, $id);
+    try {
+      $service = new AssetService($this->glpiConfig);
+      $result = $service->get($itemtype, (int)$id);
+    } catch (\Throwable $e) {
+      return ['success'=>false,'error'=>'Erro ao consultar ativo: '.$e->getMessage()];
+    }
 
     if ($result === null) {
       return [
@@ -573,27 +582,44 @@ class AgentTools {
   }
 
   private function exec_consultar_status_sincronizacao(array $args): array {
-    $cachePath = __DIR__ . '/../../data/classified_assets.json';
-    $exists = file_exists($cachePath);
-    $age = null;
-    $count = 0;
-
-    if ($exists) {
-      $stat = stat($cachePath);
-      $age = date('Y-m-d H:i:s', $stat['mtime']);
-      $data = json_decode(file_get_contents($cachePath), true);
-      $count = count($data['items'] ?? []);
+    try {
+      // Usar serviço/caminho correto via Sync (preserva mesmo lock)
+      $cachePath = __DIR__ . '/../../data/cache/classified_assets.json';
+      if (!file_exists($cachePath)) $cachePath = __DIR__ . '/../../data/classified_assets.json';
+      $exists = file_exists($cachePath);
+      $age = null;
+      $count = 0;
+      $generated = null;
+      if ($exists) {
+        $stat = stat($cachePath);
+        $age = date('Y-m-d H:i:s', $stat['mtime']);
+        $raw = @file_get_contents($cachePath);
+        $data = json_decode($raw ?: '', true);
+        if (is_array($data)) {
+          $count = count($data['items'] ?? $data ?? []);
+          $generated = $data['generated'] ?? $data['_meta']['generated'] ?? null;
+        }
+      }
+      // Tentar obter via AssetSync indicadores se GLPI configurado
+      $indicators = null;
+      try {
+        $catalog = Classifier::getCatalog();
+        $sync = new AssetSync($this->glpiConfig, $catalog);
+        $indicators = $sync->getIndicators();
+      } catch (\Throwable $e) {}
+      return [
+        'success' => true,
+        'data' => [
+          'cache_exists' => $exists,
+          'cache_last_update' => $generated ?? $age,
+          'total_items' => $count,
+          'source' => 'local cache',
+          'indicators' => $indicators,
+        ],
+      ];
+    } catch (\Throwable $e) {
+      return ['success'=>false,'error'=>$e->getMessage()];
     }
-
-    return [
-      'success' => true,
-      'data' => [
-        'cache_exists' => $exists,
-        'cache_last_update' => $age,
-        'total_items' => $count,
-        'source' => 'local cache',
-      ],
-    ];
   }
 
   private function exec_consultar_reconciliacao(array $args): array {

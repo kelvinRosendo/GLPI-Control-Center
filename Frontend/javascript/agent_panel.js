@@ -146,14 +146,24 @@ window.AgentPanel = (function () {
 
   async function _checkStatus() {
     try {
-      const res = await fetch(API_BASE + '/status', { credentials: 'include' });
-      const data = await res.json();
-      _status = data.data || data;
-
+      const api = window.ApiClient || window.GlpiClient;
+      let data;
+      if (window.ApiClient) {
+        data = await window.ApiClient.get('/' + API_BASE + '/status');
+        data = data.data || data;
+      } else {
+        const res = await fetch('/' + API_BASE + '/status', { credentials: 'include', signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        const j = await res.json();
+        if (j.ok === false) throw new Error(j.error || 'erro');
+        data = j.data || j;
+      }
+      _status = data;
       const statusEl = document.getElementById('agent-status-text');
       if (_status.configured) {
         if (statusEl) statusEl.textContent = `Modelo: ${_status.model}`;
-        document.getElementById('agent-send').disabled = false;
+        const send = document.getElementById('agent-send');
+        if (send) send.disabled = false;
       } else {
         if (statusEl) statusEl.textContent = 'Não configurado';
         _showNotConfigured();
@@ -204,25 +214,31 @@ window.AgentPanel = (function () {
       if (_currentAsset) {
         context.current_asset = _currentAsset;
       }
-
-      const res = await fetch(API_BASE + '/chat', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, context }),
-      });
-
-      const data = await res.json();
-      _hideLoading();
-
-      if (data.success) {
-        _addMessage('assistant', data.response);
+      let data;
+      if (window.ApiClient) {
+        data = await window.ApiClient.post('/' + API_BASE + '/chat', { message, context });
       } else {
-        _addMessage('system', data.error || 'Erro ao processar mensagem');
+        const res = await fetch('/' + API_BASE + '/chat', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message, context }),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        data = await res.json();
+        if (data.ok === false) throw new Error(data.error || 'erro');
+      }
+      _hideLoading();
+      // ApiClient retorna {ok:true, ...} ou {success:?}
+      if (data.success !== false && (data.ok !== false)) {
+        _addMessage('assistant', data.response || data.data?.response || '');
+      } else {
+        _addMessage('system', data.error || data.data?.error || 'Erro ao processar mensagem');
       }
     } catch (err) {
       _hideLoading();
-      _addMessage('system', 'Erro de conexão com o servidor');
+      _addMessage('system', err.message?.includes('Timeout') ? 'Timeout ao contatar agente' : 'Erro de conexão com o servidor');
     }
 
     _isLoading = false;
@@ -374,20 +390,27 @@ window.AgentPanel = (function () {
     if (cancelBtn) cancelBtn.disabled = true;
 
     try {
-      const res = await fetch(API_BASE + '/execute', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proposal_id: proposalId }),
-      });
-
-      const data = await res.json();
-      // Backend retorna {success, data: result} ou direto; extrair
+      let data;
+      if (window.ApiClient) {
+        data = await window.ApiClient.post('/' + API_BASE + '/execute', { proposal_id: proposalId });
+      } else {
+        const res = await fetch('/' + API_BASE + '/execute', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ proposal_id: proposalId }),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        data = await res.json();
+        if (data.ok === false) throw new Error(data.error || 'erro');
+      }
+      // ApiClient retorna {ok,data} ; GlpiClient retorna mesma
       const payload = data.data || data;
       const opId = payload.operation_id || payload.operation?.operation_id || null;
       const verif = payload.verification || null;
-
-      if (data.success !== false && (payload.success !== false)) {
+      const isSuccess = (data.ok !== false) && (payload.success !== false);
+      if (isSuccess) {
         _addMessage('system', data.message || 'Proposta executada com sucesso.');
         card?.classList.add('agent-proposal--executed');
         _pendingProposals.delete(proposalId);
@@ -405,7 +428,7 @@ window.AgentPanel = (function () {
         if (cancelBtn) cancelBtn.disabled = false;
       }
     } catch (err) {
-      _addMessage('system', 'Erro de conexão ao executar proposta');
+      _addMessage('system', 'Erro de conexão ao executar proposta: ' + (err.message||''));
       if (confirmBtn) {
         confirmBtn.disabled = false;
         confirmBtn.textContent = 'Confirmar';
@@ -464,9 +487,15 @@ window.AgentPanel = (function () {
 
   async function _reverify(operationId) {
     try {
-      const res = await fetch(`/api/operations/${operationId}/verify`, { method: 'POST', credentials: 'include' });
-      const data = await res.json();
-      if (data.data) _addMessage('system', 'Reverificação: ' + (data.data.overall || JSON.stringify(data.data.layers)));
+      let data;
+      if (window.ApiClient) data = await window.ApiClient.post(`/api/operations/${operationId}/verify`, {});
+      else {
+        const res = await fetch(`/api/operations/${operationId}/verify`, { method: 'POST', credentials: 'include', signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        data = await res.json();
+      }
+      const payload = data.data || data;
+      if (payload) _addMessage('system', 'Reverificação: ' + (payload.overall || JSON.stringify(payload.layers)));
       else _addMessage('system', 'Reverificação concluída');
     } catch { _addMessage('system', 'Falha na reverificação'); }
   }
@@ -474,9 +503,11 @@ window.AgentPanel = (function () {
   async function _frontendConfirm(operationId) {
     try {
       const version = localStorage.getItem('gcc_last_verified_' + operationId) || new Date().toISOString();
-      await fetch(`/api/operations/${operationId}/frontend-confirm`, {
+      if (window.ApiClient) await window.ApiClient.post(`/api/operations/${operationId}/frontend-confirm`, { api_version: version });
+      else await fetch(`/api/operations/${operationId}/frontend-confirm`, {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_version: version })
+        body: JSON.stringify({ api_version: version }),
+        signal: AbortSignal.timeout(8000),
       });
     } catch {}
   }
@@ -493,16 +524,20 @@ window.AgentPanel = (function () {
     if (confirmBtn) confirmBtn.disabled = true;
 
     try {
-      const res = await fetch(API_BASE + '/proposal/cancel', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ proposal_id: proposalId }),
-      });
-
-      const data = await res.json();
-
-      if (data.success !== false) {
+      let data;
+      if (window.ApiClient) data = await window.ApiClient.post('/' + API_BASE + '/proposal/cancel', { proposal_id: proposalId });
+      else {
+        const res = await fetch('/' + API_BASE + '/proposal/cancel', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ proposal_id: proposalId }),
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        data = await res.json();
+      }
+      if (data.ok !== false && data.success !== false) {
         _addMessage('system', 'Proposta cancelada.');
         card?.classList.add('agent-proposal--cancelled');
         _pendingProposals.delete(proposalId);
@@ -515,7 +550,7 @@ window.AgentPanel = (function () {
         if (confirmBtn) confirmBtn.disabled = false;
       }
     } catch (err) {
-      _addMessage('system', 'Erro de conexão ao cancelar proposta');
+      _addMessage('system', 'Erro de conexão ao cancelar proposta: ' + (err.message||''));
       if (cancelBtn) {
         cancelBtn.disabled = false;
         cancelBtn.textContent = 'Cancelar';
