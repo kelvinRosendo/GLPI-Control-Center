@@ -47,27 +47,45 @@ window.State = {
     window.STATE.reparticao = value || 'todas';
   },
 
-  setExpandedComputer(id) {
+  // Novo: suporte a itemtype:id para evitar colisão Computer:7 vs Printer:7
+  setExpandedComputer(id, itemtype = null) {
     window.STATE.expandedComputerId = id ?? null;
+    // Chave composta canônica
+    if (id !== null && itemtype) {
+      window.STATE.expandedAssetKey = `${itemtype}:${id}`;
+    } else if (id !== null) {
+      window.STATE.expandedAssetKey = `Computer:${id}`;
+    } else {
+      window.STATE.expandedAssetKey = null;
+    }
   },
 
-  updateComputerDetails(id, patch) {
-    const current = window.STATE.computerDetailsById[id] || {};
-    window.STATE.computerDetailsById[id] = {
+  // Helper canônico: itemtype:id
+  assetKey(itemtype, id) { return `${itemtype}:${id}`; },
+
+  updateComputerDetails(id, patch, itemtype = null) {
+    // Suporta chave composta quando itemtype informado
+    const key = itemtype ? `${itemtype}:${id}` : String(id);
+    const current = window.STATE.computerDetailsById[key] || window.STATE.computerDetailsById[id] || {};
+    window.STATE.computerDetailsById[key] = {
       ...current,
       ...patch,
     };
+    // Espelhar para compatibilidade legada
+    if (key !== String(id)) window.STATE.computerDetailsById[id] = window.STATE.computerDetailsById[key];
   },
 
-  setComputerDraftValue(id, key, value) {
-    const current = window.STATE.computerDetailsById[id] || {};
-    window.STATE.computerDetailsById[id] = {
+  setComputerDraftValue(id, key, value, itemtype = null) {
+    const k = itemtype ? `${itemtype}:${id}` : String(id);
+    const current = window.STATE.computerDetailsById[k] || window.STATE.computerDetailsById[id] || {};
+    window.STATE.computerDetailsById[k] = {
       ...current,
       draft: {
         ...(current.draft || {}),
         [key]: value,
       },
     };
+    if (k !== String(id)) window.STATE.computerDetailsById[id] = window.STATE.computerDetailsById[k];
   },
 
   setTickets(list) {

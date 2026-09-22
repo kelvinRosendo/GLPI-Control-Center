@@ -170,7 +170,8 @@ window.App = {
   },
 
   logout() {
-    // Limpar estado do agente ao sair
+    // Limpar estado do agente ao sair: mensagens, propostas, contexto, pendentes
+    try { window.AgentPanel?.clearState?.(); } catch {}
     try { window.AgentPanel?.closePanel?.(); } catch {}
     if (window.Auth) {
       window.Auth.logout();

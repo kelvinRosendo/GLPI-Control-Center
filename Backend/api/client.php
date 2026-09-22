@@ -41,7 +41,7 @@ final class GlpiClient
     ]);
 
     if (!isset($res['session_token'])) {
-      Responde::erro('GLPI não retornou session_token no initSession.', 502, ['glpi' => $res]);
+      throw new \RuntimeException('GLPI não retornou session_token no initSession: ' . json_encode($res));
     }
 
     return (string) $res['session_token'];
@@ -313,23 +313,21 @@ final class GlpiClient
     $ch = null;
 
     if ($raw === false) {
-      Responde::erro('Erro de rede ao chamar GLPI.', 502, ['curl_error' => $err]);
+      throw new \RuntimeException('Erro de rede ao chamar GLPI: ' . $err, 502);
     }
 
     $json = json_decode((string) $raw, true);
 
     if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
-      Responde::erro('Resposta do GLPI não veio em JSON.', 502, [
-        'http_code'   => $code,
-        'raw_preview' => substr((string) $raw, 0, 350),
-      ]);
+      throw new \RuntimeException('Resposta do GLPI não veio em JSON (HTTP ' . $code . '): ' . substr((string) $raw, 0, 350), 502);
     }
 
     if ($code >= 400) {
-      Responde::erro('GLPI retornou erro HTTP.', 502, [
-        'http_code' => $code,
-        'response'  => $json,
-      ]);
+      $ex = new \RuntimeException('GLPI retornou erro HTTP ' . $code . ': ' . json_encode($json), 502);
+      // Preservar código para diferenciação 401/403/404/timeout
+      $ex->http_code = $code;
+      $ex->glpi_response = $json;
+      throw $ex;
     }
 
     return $json;
@@ -372,23 +370,20 @@ final class GlpiClient
     $ch = null;
 
     if ($raw === false) {
-      Responde::erro("Erro de rede ao chamar GLPI ({$method}).", 502, ['curl_error' => $err]);
+      throw new \RuntimeException("Erro de rede ao chamar GLPI ({$method}): " . $err, 502);
     }
 
     $json = json_decode((string) $raw, true);
 
     if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
-      Responde::erro("Resposta do GLPI não veio em JSON ({$method}).", 502, [
-        'http_code'   => $code,
-        'raw_preview' => substr((string) $raw, 0, 350),
-      ]);
+      throw new \RuntimeException("Resposta do GLPI não veio em JSON ({$method}) HTTP {$code}: " . substr((string) $raw, 0, 350), 502);
     }
 
     if ($code >= 400) {
-      Responde::erro("GLPI retornou erro HTTP ({$method}).", 502, [
-        'http_code' => $code,
-        'response'  => $json,
-      ]);
+      $ex = new \RuntimeException("GLPI retornou erro HTTP ({$method}) {$code}: " . json_encode($json), 502);
+      $ex->http_code = $code;
+      $ex->glpi_response = $json;
+      throw $ex;
     }
 
     return $json;

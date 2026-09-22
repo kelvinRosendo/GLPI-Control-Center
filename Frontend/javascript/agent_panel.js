@@ -21,10 +21,33 @@ window.AgentPanel = (function () {
   // INICIALIZAÇÃO
   // ══════════════════════════════════════════════════════════════════════════
 
+  let _initialized = false;
+  let _abortControllers = new Set();
   function init() {
+    if (_initialized) {
+      // Idempotente: apenas re-verifica status, não duplica listeners/DOM
+      _checkStatus();
+      return;
+    }
+    _initialized = true;
     _createDOM();
     _bindEvents();
     _checkStatus();
+  }
+  function clearState() {
+    // Chamado no logout: limpa mensagens, propostas, contexto e aborta pendentes
+    _pendingProposals.clear();
+    _currentAsset = null;
+    _isOpen = false;
+    document.getElementById('agent-panel')?.classList.remove('agent-panel--open');
+    document.getElementById('agent-toggle')?.classList.remove('agent-toggle--active');
+    const msgs = document.getElementById('agent-messages');
+    if (msgs) msgs.innerHTML = '<div class="agent-msg agent-msg--system"><div class="agent-msg-bubble">Olá! Sou o assistente de TI do GCC. Como posso ajudar?</div></div>';
+    // Abortar requisições pendentes
+    for (const c of _abortControllers) { try { c.abort(); } catch {} }
+    _abortControllers.clear();
+    const ctx = document.getElementById('agent-context');
+    ctx?.classList.remove('agent-context--active');
   }
 
   function _createDOM() {
@@ -565,6 +588,7 @@ window.AgentPanel = (function () {
 
   return {
     init,
+    clearState,
     togglePanel,
     openPanel,
     closePanel,

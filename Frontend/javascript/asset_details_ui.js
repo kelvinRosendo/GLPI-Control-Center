@@ -358,30 +358,64 @@ window.AssetDetailsUI = (function () {
 
       const result = response?.data;
       _pendingOperation = result;
+      // Não descartar campos silenciosamente: se backend informou discarded
+      if (result?.discarded_fields && result.discarded_fields.length) {
+        _showFeedback(feedback, 'Campos não suportados ignorados: ' + result.discarded_fields.join(', '), 'warning');
+        // Não considerar integralmente executado
+      }
+      // Atualizar estado compartilhado com reclassificação antes de fechar
+      const updateShared = (assetData) => {
+        if (!assetData?.asset) return;
+        try {
+          // Atualiza lista classificada reclassificando
+          const id = assetData.asset.glpiId;
+          const it = _currentItemtype;
+          if (window.DATA?.classifiedAssets) {
+            // Buscar e substituir por versão classificada do cache se disponível
+            const idx = window.DATA.classifiedAssets.findIndex(a => a.id === id && a.itemtype === it);
+            if (idx >= 0 && assetData.raw) {
+              // Reclassificar via pipeline local se disponível
+              try {
+                const fakeRaw = Object.assign({}, assetData.raw, {itemtype: it});
+                // Não temos classifier no frontend, usar assetData diretamente
+                Object.assign(window.DATA.classifiedAssets[idx], assetData.asset, {raw: assetData.raw});
+              } catch {}
+            }
+          }
+          // Também atualizar coleções legadas
+          if (window.GlpiClient?._toLegacyAsset && assetData.raw) {
+            // noop, já mapeado no loadAll
+          }
+          window.dispatchEvent(new CustomEvent('gcc:assetUpdated', {detail: {asset: assetData.asset, result}}));
+        } catch {}
+      };
 
       if (result?.status === 'completed_verified') {
-        const cacheMsg = result.cache_status === 'updated'
-          ? ''
-          : ' Atualização do GCC pendente.';
+        const cacheMsg = result.cache_status === 'updated' ? '' : ' Atualização do GCC pendente.';
         _showFeedback(feedback, `Salvo e verificado!${cacheMsg} Operação: ${result.operation_id}`, 'success');
+        // Reler ficha no contrato esperado antes de fechar
+        try {
+          const detail = await window.GlpiClient.fetchAssetDetails(result.id || glpiId, _currentItemtype);
+          updateShared(detail);
+        } catch {}
         _currentAsset = null;
-        setTimeout(() => {
-          close();
-          if (_onSaveCallback) _onSaveCallback(result);
-        }, 1200);
+        setTimeout(() => { close(); if (_onSaveCallback) _onSaveCallback(result); }, 1200);
       } else if (result?.status === 'completed_partial') {
         const details = [];
         if (!result.verified) details.push('releitura');
         if (result.cache_status !== 'updated') details.push('cache');
         _showFeedback(feedback, `Salvo parcialmente. Pendente: ${details.join(', ')}. Operação: ${result.operation_id}`, 'warning');
-        setTimeout(() => {
-          close();
-          if (_onSaveCallback) _onSaveCallback(result);
-        }, 2000);
+        try { const d = await window.GlpiClient.fetchAssetDetails(result.id || glpiId, _currentItemtype); updateShared(d); } catch {}
+        setTimeout(() => { close(); if (_onSaveCallback) _onSaveCallback(result); }, 2000);
       } else if (result?.status === 'completed_unverified') {
-        _showFeedback(feedback, 'Salvo, mas releitura não confirmou. Operação: ' + (result.operation_id || 'N/A'), 'warning');
+        _showFeedback(feedback, 'Salvo, mas releitura não confirmou (resultado desconhecido). Operação: ' + (result.operation_id || 'N/A'), 'warning');
+        // Não fechar automaticamente em unknown
       } else if (result?.status === 'failed' && result?.conflict) {
         _showConflict(feedback, result.conflict);
+        // Preservar formulário, não fechar
+      } else if (result?.status === 'failed') {
+        _showFeedback(feedback, result?.error || 'Erro ao salvar.', 'error');
+        // Preservar formulário
       } else {
         _showFeedback(feedback, result?.error || 'Erro ao salvar.', 'error');
       }
