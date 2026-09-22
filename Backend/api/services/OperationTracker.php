@@ -260,6 +260,14 @@ final class OperationTracker
   }
 
   /**
+   * Atualiza metadados de verificação sem apagar evidências.
+   */
+  public function updateVerificationMeta(array $operation): void
+  {
+    $this->persist($operation);
+  }
+
+  /**
    * Persiste operação em arquivo.
    */
   private function persist(array $operation): void

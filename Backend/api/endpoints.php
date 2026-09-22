@@ -67,6 +67,9 @@ require_once __DIR__ . '/services/AgentTools.php';
 require_once __DIR__ . '/services/AgentProposal.php';
 require_once __DIR__ . '/services/AgentExecution.php';
 require_once __DIR__ . '/services/AgentService.php';
+require_once __DIR__ . '/services/FieldNormalizer.php';
+require_once __DIR__ . '/services/VerificationService.php';
+require_once __DIR__ . '/services/BatchStore.php';
 
 function isConfigValid(array $config): array
 {
@@ -382,6 +385,8 @@ function authorizeRequest(string $path, string $method, array $config): void
   }
 
   $rules = [
+    '#^/api/operations/.+$#' => ['computadores', 'view'],
+    '#^/api/batches(?:/.+)?$#' => ['computadores', 'view'],
     '#^/api/assets/computers(?:/\d+/delete|/\d+/restore)?$#' => ['computadores', $method === 'GET' ? 'view' : 'edit'],
     '#^/api/assets/computers/\d+$#' => ['computadores', $method === 'GET' ? 'view' : 'edit'],
     '#^/api/assets/printers(?:/\d+/delete|/\d+/restore)?$#' => ['impressoras', $method === 'GET' ? 'view' : 'edit'],
@@ -820,6 +825,126 @@ try {
         return;
       }
 
+      // ── SPRINT 08: Verificação e comprovantes ───────────────────────────────
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/receipt$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') Responde::erro('Método não permitido.', 405);
+        $opId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $tracker = new OperationTracker();
+        $op = $tracker->find($opId);
+        if ($op === null) Responde::erro('Operação não encontrada.', 404);
+        if (($op['user_id'] ?? '') !== $userId) Responde::erro('Acesso negado.', 403);
+        $vs = new VerificationService(null, $tracker);
+        $receipt = $vs->verify($opId, $config['glpi'] ?? []);
+        // Selecionar campos para comprovante ao usuário
+        $comprovante = [
+          'operation_id' => $receipt['operation_id'],
+          'proposal_id' => $receipt['proposal_id'] ?? null,
+          'asset' => ($receipt['itemtype'] ?? '') . ':' . ($receipt['id'] ?? ''),
+          'itemtype' => $receipt['itemtype'],
+          'id' => $receipt['id'],
+          'action' => $receipt['action'],
+          'fields_before' => $op['requested_fields'] ?? null,
+          'overall' => $receipt['overall'],
+          'layers' => $receipt['layers'],
+          'divergences' => $receipt['divergences'],
+          'cache_version' => $receipt['cache_version'],
+          'verified_at' => $receipt['verified_at'],
+          'link' => "/api/operations/{$opId}/receipt",
+        ];
+        // Mensagem humana
+        $msgMap = [
+          'verified' => 'operação concluída e verificada',
+          'verified_glpi' => 'GLPI: valor confirmado após nova consulta',
+          'verified_local' => 'operação local verificada',
+          'partial_cache_pending' => 'GLPI confirmado, cache/API pendente — recuperação disponível',
+          'partial_local' => 'operação local pendente',
+          'divergent' => 'divergência observada entre esperado e GLPI',
+          'unknown' => 'resultado desconhecido — verificar novamente',
+          'failed' => 'falha de gravação',
+        ];
+        $comprovante['human_result'] = $msgMap[$receipt['overall']] ?? $receipt['overall'];
+        Responde::ok(['data' => $comprovante]);
+        return;
+      }
+
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/verify$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') Responde::erro('Método não permitido.', 405);
+        $opId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $tracker = new OperationTracker();
+        $op = $tracker->find($opId);
+        if ($op === null) Responde::erro('Operação não encontrada.', 404);
+        if (($op['user_id'] ?? '') !== $userId) Responde::erro('Acesso negado.', 403);
+        $vs = new VerificationService(null, $tracker);
+        $result = $vs->reverify($opId, $config['glpi'] ?? []);
+        Responde::ok(['data' => $result]);
+        return;
+      }
+
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/recover-cache$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') Responde::erro('Método não permitido.', 405);
+        $opId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $tracker = new OperationTracker();
+        $op = $tracker->find($opId);
+        if ($op === null) Responde::erro('Operação não encontrada.', 404);
+        if (($op['user_id'] ?? '') !== $userId) Responde::erro('Acesso negado.', 403);
+        $vs = new VerificationService(null, $tracker);
+        $result = $vs->recoverCache($opId, $config['glpi'] ?? []);
+        Responde::ok(['data' => $result]);
+        return;
+      }
+
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/frontend-confirm$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') Responde::erro('Método não permitido.', 405);
+        $opId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $version = $body['api_version'] ?? $body['version'] ?? 'unknown';
+        $vs = new VerificationService();
+        $result = $vs->frontendConfirm($opId, $userId, (string)$version);
+        if (!($result['success'] ?? false)) Responde::erro($result['error'] ?? 'Erro', 400);
+        Responde::ok(['data' => $result]);
+        return;
+      }
+
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/history$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') Responde::erro('Método não permitido.', 405);
+        $opId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $tracker = new OperationTracker();
+        $op = $tracker->find($opId);
+        if ($op === null) Responde::erro('Operação não encontrada.', 404);
+        if (($op['user_id'] ?? '') !== $userId) Responde::erro('Acesso negado.', 403);
+        $vs = new VerificationService(null, $tracker);
+        $hist = $vs->verificationHistory($opId);
+        Responde::ok(['data' => $hist, 'count' => count($hist)]);
+        return;
+      }
+
+      if (preg_match('#^/api/batches/([a-zA-Z0-9_\-]+)$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') Responde::erro('Método não permitido.', 405);
+        $batchId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $store = new BatchStore();
+        $batch = $store->find($batchId);
+        if ($batch === null) Responde::erro('Lote não encontrado.', 404);
+        if (($batch['user_id'] ?? '') !== $userId) Responde::erro('Acesso negado.', 403);
+        Responde::ok(['data' => $batch]);
+        return;
+      }
+
+      if ($path === '/api/batches') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') Responde::erro('Método não permitido.', 405);
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $store = new BatchStore();
+        $list = $store->findByUser($userId);
+        Responde::ok(['data' => $list, 'count' => count($list)]);
+        return;
+      }
+
+      // ── autorização para novas rotas ───────────────────────────────────────
       Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]);
     })(),
   };

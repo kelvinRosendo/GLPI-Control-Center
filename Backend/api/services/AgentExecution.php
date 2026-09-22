@@ -133,9 +133,26 @@ class AgentExecution {
     // 12. Auditar
     $this->auditProposalDecision($proposal, $result['success'] ? 'executed' : 'execution_failed', $result);
 
+    // 13. Verificação por camadas (sem repetir gravação) — Sprint 08
+    $verification = null;
+    $opId = $result['operation_id'] ?? null;
+    if ($opId) {
+      try {
+        require_once __DIR__ . '/VerificationService.php';
+        require_once __DIR__ . '/FieldNormalizer.php';
+        $vs = new VerificationService(null, $this->tracker);
+        $isLocal = $this->isLocalProposal($proposalId);
+        $verification = $vs->verify($opId, $this->glpiConfig, $isLocal);
+      } catch (\Throwable $e) {
+        $verification = ['error' => $e->getMessage(), 'state' => 'unknown'];
+      }
+    }
+
     $duration = round((microtime(true) - $startTime) * 1000);
 
-    return array_merge($result, ['duration_ms' => $duration]);
+    $out = array_merge($result, ['duration_ms' => $duration]);
+    if ($verification !== null) $out['verification'] = $verification;
+    return $out;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -144,10 +161,15 @@ class AgentExecution {
 
   /**
    * Executa múltiplas propostas em lote.
-   * Cada item tem estado e resultado próprios.
+   * Cada item tem estado e resultado próprios. Persiste lote para sobreviver ao fechamento da aba.
    */
   public function executeBatch(array $proposalIds): array {
-    $batchId = 'batch_' . bin2hex(random_bytes(8));
+    require_once __DIR__ . '/BatchStore.php';
+    require_once __DIR__ . '/VerificationService.php';
+    $store = new BatchStore();
+    $batch = $store->create($proposalIds, $this->userId ?? 'anonymous');
+    $batchId = $batch['batch_id'];
+
     $items = [];
     $totalSuccess = 0;
     $totalFailed = 0;
@@ -155,7 +177,19 @@ class AgentExecution {
 
     foreach ($proposalIds as $proposalId) {
       $result = $this->executeProposal($proposalId);
-      $items[] = array_merge(['proposal_id' => $proposalId], $result);
+      // Enriquecer com verificação
+      $opId = $result['operation_id'] ?? null;
+      $verif = null;
+      if ($opId) {
+        try {
+          $vs = new VerificationService(null, $this->tracker);
+          $verif = $vs->verify($opId, $this->glpiConfig, $this->isLocalProposal($proposalId));
+        } catch (\Throwable $e) { $verif = ['error' => $e->getMessage()]; }
+      }
+      $item = array_merge(['proposal_id' => $proposalId], $result);
+      if ($verif) $item['verification'] = $verif;
+      $items[] = $item;
+      $store->updateItem($batchId, $item);
 
       if ($result['success'] === true) {
         $totalSuccess++;
@@ -166,6 +200,7 @@ class AgentExecution {
       }
     }
 
+    $batch = $store->find($batchId);
     return [
       'batch_id' => $batchId,
       'total' => count($proposalIds),
@@ -174,7 +209,19 @@ class AgentExecution {
       'skipped' => $totalSkipped,
       'items' => $items,
       'partial' => $totalFailed > 0 && $totalSuccess > 0,
+      'totals' => $batch['totals'] ?? null,
+      'persisted' => true,
     ];
+  }
+
+  private function isLocalProposal(string $proposalId): bool
+  {
+    $p = AgentProposal::get($proposalId);
+    if ($p === null) return false;
+    $fields = $p['proposed_values'] ?? [];
+    $localFields = ['lamp_hours','last_maintenance','next_maintenance','horas','manutencao'];
+    foreach (array_keys($fields) as $f) if (in_array($f, $localFields, true)) return true;
+    return false;
   }
 
   // ══════════════════════════════════════════════════════════════════════════

@@ -382,13 +382,22 @@ window.AgentPanel = (function () {
       });
 
       const data = await res.json();
+      // Backend retorna {success, data: result} ou direto; extrair
+      const payload = data.data || data;
+      const opId = payload.operation_id || payload.operation?.operation_id || null;
+      const verif = payload.verification || null;
 
-      if (data.success) {
+      if (data.success !== false && (payload.success !== false)) {
         _addMessage('system', data.message || 'Proposta executada com sucesso.');
         card?.classList.add('agent-proposal--executed');
         _pendingProposals.delete(proposalId);
+        if (opId) {
+          _renderReceipt(opId, verif);
+          _frontendConfirm(opId);
+        }
       } else {
-        _addMessage('system', 'Falha: ' + (data.error || 'Erro ao executar proposta'));
+        _addMessage('system', 'Falha: ' + (payload.error || data.error || 'Erro ao executar proposta'));
+        if (opId) _renderReceipt(opId, verif);
         if (confirmBtn) {
           confirmBtn.disabled = false;
           confirmBtn.textContent = 'Confirmar';
@@ -403,6 +412,73 @@ window.AgentPanel = (function () {
       }
       if (cancelBtn) cancelBtn.disabled = false;
     }
+  }
+
+  function _renderReceipt(operationId, verification) {
+    const messages = document.getElementById('agent-messages');
+    if (!messages) return;
+    const layers = verification?.layers || {};
+    const overall = verification?.overall || 'unknown';
+    const human = {
+      verified: 'operação concluída e verificada',
+      verified_glpi: 'GLPI: valor confirmado após nova consulta',
+      verified_local: 'operação local verificada (GLPI não aplicável)',
+      partial_cache_pending: 'GLPI confirmado, cache/API pendente',
+      divergent: 'divergência entre esperado e GLPI',
+      unknown: 'resultado desconhecido',
+      failed: 'falha de gravação'
+    }[overall] || overall;
+
+    const card = document.createElement('div');
+    card.className = 'agent-msg agent-msg--receipt';
+    card.dataset.operationId = operationId;
+    const glpiSt = layers.glpi?.state || 'pending';
+    const cacheSt = layers.cache?.state || 'pending';
+    const apiSt = layers.api?.state || 'pending';
+    const frontSt = layers.frontend?.state || 'pending';
+    card.innerHTML = `
+      <div class="agent-receipt-card">
+        <div class="agent-receipt-header">Comprovante — OP:${String(operationId).slice(0,8)}</div>
+        <div class="agent-receipt-overall">Resultado: <strong>${_escapeHtml(human)}</strong></div>
+        <div class="agent-receipt-layers">
+          <div>Execução: ${layers.execution?.state || '?'} | GLPI: ${glpiSt} | Cache: ${cacheSt} | API: ${apiSt} | Frontend: ${frontSt}</div>
+        </div>
+        ${verification?.divergences?.length ? `<div class="agent-receipt-div">Divergências: ${verification.divergences.map(d=>_escapeHtml(d.field + ': ' + JSON.stringify(d.expected)+'→'+JSON.stringify(d.observed))).join('<br>')}</div>` : ''}
+        <div class="agent-receipt-actions">
+          <button class="agent-receipt-verify" data-op="${operationId}">Verificar novamente</button>
+          <a href="/api/operations/${operationId}/receipt" target="_blank">Detalhes</a>
+        </div>
+      </div>`;
+    const btn = card.querySelector('.agent-receipt-verify');
+    btn?.addEventListener('click', ()=> _reverify(operationId));
+    messages.appendChild(card);
+    messages.scrollTop = messages.scrollHeight;
+    // Atualizar estado compartilhado e armazenar versão
+    try {
+      const v = verification?.cache_version || new Date().toISOString();
+      localStorage.setItem('gcc_last_verified_' + operationId, v);
+      // Disparar evento para listas/cards consumirem nova representação
+      window.dispatchEvent(new CustomEvent('gcc:assetUpdated', { detail: { operationId, verification } }));
+    } catch {}
+  }
+
+  async function _reverify(operationId) {
+    try {
+      const res = await fetch(`/api/operations/${operationId}/verify`, { method: 'POST', credentials: 'include' });
+      const data = await res.json();
+      if (data.data) _addMessage('system', 'Reverificação: ' + (data.data.overall || JSON.stringify(data.data.layers)));
+      else _addMessage('system', 'Reverificação concluída');
+    } catch { _addMessage('system', 'Falha na reverificação'); }
+  }
+
+  async function _frontendConfirm(operationId) {
+    try {
+      const version = localStorage.getItem('gcc_last_verified_' + operationId) || new Date().toISOString();
+      await fetch(`/api/operations/${operationId}/frontend-confirm`, {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_version: version })
+      });
+    } catch {}
   }
 
   async function _cancelProposal(proposalId) {
