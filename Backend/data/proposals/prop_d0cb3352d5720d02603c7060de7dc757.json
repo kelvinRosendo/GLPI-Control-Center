@@ -1,0 +1,31 @@
+{
+    "proposal_id": "prop_d0cb3352d5720d02603c7060de7dc757",
+    "status": "cancelled",
+    "created_at": "2026-09-22T22:54:13+02:00",
+    "expires_at": "2026-09-22T23:54:13+02:00",
+    "created_by": "filter_test_user",
+    "action": "update",
+    "itemtype": "Computer",
+    "id": 995,
+    "asset_name": "Filter Test",
+    "current_values": null,
+    "proposed_values": {
+        "name": "Filter Test"
+    },
+    "field_sources": {
+        "name": "agent_proposed"
+    },
+    "permissions": {
+        "can_read": true,
+        "can_write": true,
+        "can_create": true,
+        "can_delete": true,
+        "can_restore": true,
+        "supported_operation": false
+    },
+    "pending_validations": [],
+    "read_reference": null,
+    "glpi_version": null,
+    "disclaimer": "PRÉVIA — nenhuma alteração executada. Esta proposta expira em 1 hora.",
+    "cancelled_at": "2026-09-22T22:54:13+02:00"
+}

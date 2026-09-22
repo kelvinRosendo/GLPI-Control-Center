@@ -1,0 +1,30 @@
+{
+    "proposal_id": "prop_eab52d41f2da1beaf02628b1690b83b2",
+    "status": "pending",
+    "created_at": "2026-09-22T22:54:13+02:00",
+    "expires_at": "2026-09-22T23:54:13+02:00",
+    "created_by": "user@test.com",
+    "action": "create",
+    "itemtype": "Printer",
+    "id": null,
+    "asset_name": "Impressora",
+    "current_values": null,
+    "proposed_values": {
+        "name": "Impressora"
+    },
+    "field_sources": {
+        "name": "agent_proposed"
+    },
+    "permissions": {
+        "can_read": true,
+        "can_write": true,
+        "can_create": true,
+        "can_delete": true,
+        "can_restore": true,
+        "supported_operation": true
+    },
+    "pending_validations": [],
+    "read_reference": null,
+    "glpi_version": null,
+    "disclaimer": "PRÉVIA — nenhuma alteração executada. Esta proposta expira em 1 hora."
+}

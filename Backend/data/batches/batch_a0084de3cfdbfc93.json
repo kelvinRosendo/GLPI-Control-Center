@@ -1,0 +1,36 @@
+{
+    "batch_id": "batch_a0084de3cfdbfc93",
+    "user_id": "batch_user",
+    "created_at": "2026-09-22T22:54:13+02:00",
+    "proposal_ids": [
+        "prop_c86eaa4916a903012cdd0e1e14a31ee8",
+        "prop_25b4c6634639c33c9ffaf025e59efbfa"
+    ],
+    "items": [
+        {
+            "proposal_id": "prop_c86eaa4916a903012cdd0e1e14a31ee8",
+            "success": false,
+            "error": "Ativo não encontrado mais no GLPI",
+            "status": "stale",
+            "updated_at": "2026-09-22T22:54:13+02:00"
+        },
+        {
+            "proposal_id": "prop_25b4c6634639c33c9ffaf025e59efbfa",
+            "success": false,
+            "error": "Ativo não encontrado mais no GLPI",
+            "status": "stale",
+            "updated_at": "2026-09-22T22:54:13+02:00"
+        }
+    ],
+    "totals": {
+        "total": 2,
+        "verified": 0,
+        "pending_verification": 0,
+        "partial": 0,
+        "failed": 0,
+        "cancelled": 0,
+        "unknown": 2
+    },
+    "status": "partial",
+    "updated_at": "2026-09-22T22:54:13+02:00"
+}

@@ -1,0 +1,36 @@
+{
+    "batch_id": "batch_317fa54b32c997d0",
+    "user_id": "batch_missing_user",
+    "created_at": "2026-09-22T22:54:13+02:00",
+    "proposal_ids": [
+        "prop_8f251a8b56ad615372e024f1eeb71e4a",
+        "prop_nonexistent"
+    ],
+    "items": [
+        {
+            "proposal_id": "prop_8f251a8b56ad615372e024f1eeb71e4a",
+            "success": false,
+            "error": "Ativo não encontrado mais no GLPI",
+            "status": "stale",
+            "updated_at": "2026-09-22T22:54:13+02:00"
+        },
+        {
+            "proposal_id": "prop_nonexistent",
+            "success": false,
+            "error": "Proposta não encontrada",
+            "status": "not_found",
+            "updated_at": "2026-09-22T22:54:13+02:00"
+        }
+    ],
+    "totals": {
+        "total": 2,
+        "verified": 0,
+        "pending_verification": 0,
+        "partial": 0,
+        "failed": 1,
+        "cancelled": 0,
+        "unknown": 1
+    },
+    "status": "partial",
+    "updated_at": "2026-09-22T22:54:13+02:00"
+}

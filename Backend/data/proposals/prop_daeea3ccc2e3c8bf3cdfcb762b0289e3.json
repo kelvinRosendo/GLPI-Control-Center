@@ -1,0 +1,31 @@
+{
+    "proposal_id": "prop_daeea3ccc2e3c8bf3cdfcb762b0289e3",
+    "status": "cancelled",
+    "created_at": "2026-09-22T22:54:13+02:00",
+    "expires_at": "2026-09-22T23:54:13+02:00",
+    "created_by": "list_test_user",
+    "action": "update",
+    "itemtype": "Computer",
+    "id": 996,
+    "asset_name": "List Test 2",
+    "current_values": null,
+    "proposed_values": {
+        "name": "List Test 2"
+    },
+    "field_sources": {
+        "name": "agent_proposed"
+    },
+    "permissions": {
+        "can_read": true,
+        "can_write": true,
+        "can_create": true,
+        "can_delete": true,
+        "can_restore": true,
+        "supported_operation": false
+    },
+    "pending_validations": [],
+    "read_reference": null,
+    "glpi_version": null,
+    "disclaimer": "PRÉVIA — nenhuma alteração executada. Esta proposta expira em 1 hora.",
+    "cancelled_at": "2026-09-22T22:54:13+02:00"
+}
