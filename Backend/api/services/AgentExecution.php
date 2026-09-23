@@ -36,7 +36,18 @@ class AgentExecution {
   /**
    * Executa uma proposta confirmada pelo usuário.
    */
-  public function executeProposal(string $proposalId): array {
+  public function executeProposal(string $proposalId, ?string $confirmedHash = null): array {
+    if (!$confirmedHash) return ['success' => false, 'status' => 'confirmation_required', 'error' => 'Confirme a prévia pelo botão do painel.'];
+    $lock = AgentProposal::lock($proposalId);
+    if ($lock === null) return ['success' => false, 'status' => 'in_progress', 'error' => 'Proposta indisponível ou em execução.'];
+    try {
+      return $this->executeConfirmedProposal($proposalId, $confirmedHash);
+    } catch (\Throwable $e) {
+      return ['success' => false, 'status' => 'unknown', 'error' => 'Não foi possível concluir: ' . $e->getMessage() . '. Consulte a operação antes de tentar novamente.'];
+    } finally { flock($lock, LOCK_UN); fclose($lock); }
+  }
+
+  private function executeConfirmedProposal(string $proposalId, string $confirmedHash): array {
     $startTime = microtime(true);
 
     // 1. Carregar proposta
@@ -49,6 +60,16 @@ class AgentExecution {
     if ($proposal['created_by'] !== $this->userId) {
       $this->auditProposalDecision($proposal, 'rejected_owner_mismatch');
       return ['success' => false, 'error' => 'Proposta pertence a outro usuário', 'status' => 'unauthorized'];
+    }
+
+    if (!AgentProposal::canWrite($proposal['itemtype'])) {
+      return ['success' => false, 'status' => 'no_permission', 'error' => 'Sem permissão de edição para este ativo.'];
+    }
+    if (!isset($proposal['content_hash']) || !hash_equals($proposal['content_hash'], $confirmedHash) || !hash_equals(AgentProposal::contentHash($proposal), $confirmedHash)) {
+      return ['success' => false, 'status' => 'confirmation_mismatch', 'error' => 'A prévia mudou ou é antiga. Prepare uma nova proposta.'];
+    }
+    if (in_array($proposal['status'], ['executed', 'failed'], true) && isset($proposal['result'])) {
+      return array_merge($proposal['result'], ['replayed' => true]);
     }
 
     // 3. Validar estado
@@ -110,25 +131,12 @@ class AgentExecution {
     }
 
     // 9. Marcar proposta como executing
-    AgentProposal::updateStatus($proposalId, 'executing');
+    if (AgentProposal::updateStatus($proposalId, 'executing', [
+      'confirmed_by' => $this->userId, 'confirmed_at' => date('c'), 'confirmed_hash' => $confirmedHash,
+    ]) === null) return ['success' => false, 'error' => 'A proposta não pode mais executar.'];
 
     // 10. Executar via AssetWriteService
     $result = $this->executeAssetOperation($proposal, $idempotencyKey);
-
-    // 11. Atualizar estado da proposta
-    if ($result['success']) {
-      AgentProposal::updateStatus($proposalId, 'executed', [
-        'operation_id' => $result['operation_id'] ?? null,
-        'executed_at' => date('c'),
-        'result' => $result,
-      ]);
-    } else {
-      AgentProposal::updateStatus($proposalId, 'failed', [
-        'operation_id' => $result['operation_id'] ?? null,
-        'failed_at' => date('c'),
-        'error' => $result['error'] ?? 'Erro desconhecido',
-      ]);
-    }
 
     // 12. Auditar
     $this->auditProposalDecision($proposal, $result['success'] ? 'executed' : 'execution_failed', $result);
@@ -151,7 +159,17 @@ class AgentExecution {
     $duration = round((microtime(true) - $startTime) * 1000);
 
     $out = array_merge($result, ['duration_ms' => $duration]);
-    if ($verification !== null) $out['verification'] = $verification;
+    if ($verification !== null) {
+      $out['verification'] = $verification;
+      $overall = $verification['overall'] ?? 'unknown';
+      $out['verified'] = in_array($overall, ['verified', 'verified_glpi', 'partial_cache_pending'], true);
+      $out['success'] = $result['success'] && $out['verified'];
+      $out['status'] = $overall;
+      if (!$out['success']) $out['error'] = $result['error'] ?? 'Gravação sem confirmação do valor solicitado. Consulte o comprovante; não repita a escrita.';
+    }
+    AgentProposal::updateStatus($proposalId, $out['success'] ? 'executed' : 'failed', [
+      'operation_id' => $opId, 'result' => $out,
+    ]);
     return $out;
   }
 
@@ -163,7 +181,10 @@ class AgentExecution {
    * Executa múltiplas propostas em lote.
    * Cada item tem estado e resultado próprios. Persiste lote para sobreviver ao fechamento da aba.
    */
-  public function executeBatch(array $proposalIds): array {
+  public function executeBatch(array $proposalIds, array $confirmations = []): array {
+    foreach ($proposalIds as $id) {
+      if (!is_string($id) || !isset($confirmations[$id]) || !is_string($confirmations[$id])) return ['success' => false, 'error' => 'Confirme a prévia de cada item do lote.'];
+    }
     require_once __DIR__ . '/BatchStore.php';
     require_once __DIR__ . '/VerificationService.php';
     $store = new BatchStore();
@@ -176,7 +197,7 @@ class AgentExecution {
     $totalSkipped = 0;
 
     foreach ($proposalIds as $proposalId) {
-      $result = $this->executeProposal($proposalId);
+      $result = $this->executeProposal($proposalId, $confirmations[$proposalId]);
       // Enriquecer com verificação
       $opId = $result['operation_id'] ?? null;
       $verif = null;

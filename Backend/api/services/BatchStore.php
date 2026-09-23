@@ -56,6 +56,7 @@ final class BatchStore
       $batch['items'][] = $itemResult;
     }
     $batch['totals'] = $this->computeTotals($batch['items']);
+    $batch['totals']['total'] = count($batch['proposal_ids']);
     $batch['updated_at'] = date('c');
     $batch['status'] = $this->deriveStatus($batch['totals']);
     $this->persist($batch);
@@ -67,6 +68,7 @@ final class BatchStore
     if ($batch === null) return;
     $batch['items'] = $items;
     $batch['totals'] = $this->computeTotals($items);
+    $batch['totals']['total'] = count($batch['proposal_ids']);
     $batch['updated_at'] = date('c');
     $batch['status'] = $this->deriveStatus($batch['totals']);
     $this->persist($batch);

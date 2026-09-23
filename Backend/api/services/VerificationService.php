@@ -92,6 +92,7 @@ final class VerificationService
 
     // ── 4) API (representação via cache, pois API serve cache classificado) ──
     $layers['api'] = $this->verifyApi($itemtype, (int)$id, $action, $observed, $divergences);
+    if ($layers['cache']['state'] !== 'confirmed') $layers['api'] = ['state' => 'pending', 'verified' => false, 'detail' => 'Representação depende do cache conferido'];
 
     // ── 5) Frontend (se houver confirmação persistida) ───────────────────
     $layers['frontend'] = $this->frontendState($operationId);
@@ -195,6 +196,10 @@ final class VerificationService
     $op = $this->tracker->find($operationId);
     if ($op === null) return ['success' => false, 'error' => 'Operação não encontrada'];
     if (($op['user_id'] ?? '') !== $userId) return ['success' => false, 'error' => 'Operação pertence a outro usuário'];
+    $snapshot = $this->representation($operationId, $userId);
+    if (!($snapshot['success'] ?? false) || !hash_equals($snapshot['api_version'], $apiVersion)) {
+      return ['success' => false, 'error' => 'A representação mudou. Atualize os dados antes de confirmar a tela.'];
+    }
 
     $file = $this->verifDir . '/' . $operationId . '.frontend.json';
     $payload = [
@@ -275,6 +280,7 @@ final class VerificationService
         $observed['glpi_fresh_read_at'] = date('c');
       } else {
         $limitations[] = 'glpi_read_timeout_after_retries';
+        $glpiData = null;
       }
     }
 
@@ -364,7 +370,16 @@ final class VerificationService
 
     $observed['glpi'] = $data;
 
-    // Verificar states_id / is_deleted
+    // Conferir o ID efetivamente solicitado; não inferir sucesso de rótulo vazio.
+    $expectedState = $op['requested_fields']['states_id'] ?? null;
+    $comparison = FieldNormalizer::compare('states_id', $expectedState, $data['states_id'] ?? null);
+    if ($expectedState !== null && ($comparison['verifiable'] ?? true)) {
+      if ($comparison['equal']) return ['state' => 'confirmed', 'verified' => true, 'checked_at' => date('c')];
+      $divergences[] = ['field' => 'states_id', 'expected' => $expectedState, 'observed' => $data['states_id'] ?? null, 'layer' => 'glpi'];
+      return ['state' => 'divergent', 'verified' => false, 'checked_at' => date('c')];
+    }
+
+    // Compatibilidade com respostas GLPI que expandem apenas rótulos.
     $state = $data['states_id'] ?? null;
     $isDeleted = $data['is_deleted'] ?? null;
     $stateName = is_array($state) ? ($state['name'] ?? '') : (string)($state ?? '');
@@ -381,7 +396,7 @@ final class VerificationService
       $divergences[] = ['field' => 'states_id', 'expected' => 'Inativo', 'observed' => $stateName, 'layer' => 'glpi'];
       return ['state' => 'divergent', 'verified' => false, 'checked_at' => date('c')];
     } else { // restore
-      $isActive = str_contains($stateNameLower, 'em uso') || str_contains($stateNameLower, 'em_uso') || $stateNameLower === '' || str_contains($stateNameLower, 'active') || str_contains($stateNameLower, 'in_use');
+      $isActive = in_array(trim($stateNameLower), ['em uso', 'em_uso', 'active', 'in_use'], true);
       $notDeleted = $isDeleted === 0 || $isDeleted === false || $isDeleted === '0' || $isDeleted === null;
       if ($isActive && $notDeleted) {
         return ['state' => 'confirmed', 'verified' => true, 'checked_at' => date('c'), 'detail' => 'Restauração confirmada — registro presente em visões apropriadas'];
@@ -423,7 +438,7 @@ final class VerificationService
     if ($action === 'restore') {
       if ($found === null) return ['state' => 'pending', 'verified' => false, 'checked_at' => date('c')];
       $state = $found['stateSummary'] ?? '';
-      $isActive = $state !== 'Inativo';
+      $isActive = in_array(mb_strtolower((string)$state), ['em uso', 'ativo', 'active'], true);
       $observed['cache'] = $found;
       if ($isActive && !($found['_inactive'] ?? false)) return ['state' => 'confirmed', 'verified' => true, 'checked_at' => date('c')];
       return ['state' => 'pending', 'verified' => false, 'checked_at' => date('c')];
@@ -442,7 +457,10 @@ final class VerificationService
     if ($glpiObs !== null) {
       foreach ($glpiObs as $field => $glpiVal) {
         if (FieldNormalizer::isDerived($field)) continue;
-        if (!array_key_exists($field, $raw)) continue;
+        if (!array_key_exists($field, $raw)) {
+          $divergences[] = ['field' => $field, 'expected' => $glpiVal, 'observed' => null, 'layer' => 'cache'];
+          return ['state' => 'outdated', 'verified' => false, 'detail' => 'Campo ausente no cache'];
+        }
         $cacheVal = $raw[$field] ?? null;
         $cmp = FieldNormalizer::compare($field, $glpiVal, $cacheVal);
         if (($cmp['skipped'] ?? false) || !($cmp['verifiable'] ?? true)) continue;
@@ -459,7 +477,7 @@ final class VerificationService
       return ['state' => 'outdated', 'verified' => false, 'checked_at' => date('c'), 'detail' => 'Cache desatualizado — GCC diverge do GLPI confirmado'];
     }
 
-    return ['state' => 'confirmed', 'verified' => true, 'checked_at' => date('c')];
+    return ['state' => $glpiObs !== null ? 'confirmed' : 'unknown', 'verified' => $glpiObs !== null, 'checked_at' => date('c')];
   }
 
   private function verifyApi(string $itemtype, int $id, string $action, array &$observed, array &$divergences): array
@@ -496,7 +514,12 @@ final class VerificationService
     if (file_exists($file)) {
       $c = @file_get_contents($file);
       $j = json_decode($c ?: '', true);
-      if (is_array($j)) return ['state' => 'confirmed', 'verified' => true, 'checked_at' => $j['confirmed_at'] ?? date('c'), 'detail' => 'Frontend confirmou versão ' . ($j['api_version'] ?? '?')];
+      if (is_array($j)) {
+        $snapshot = $this->representation($operationId, $j['user_id'] ?? '');
+        if (($snapshot['success'] ?? false) && hash_equals($snapshot['api_version'], $j['api_version'] ?? '')) {
+          return ['state' => 'confirmed', 'verified' => true, 'checked_at' => $j['confirmed_at'], 'detail' => 'Tela aplicou a representação conferida'];
+        }
+      }
     }
     return ['state' => 'pending', 'verified' => null, 'checked_at' => date('c'), 'detail' => 'Aguardando confirmação do frontend (aba pode estar fechada)'];
   }
@@ -508,7 +531,9 @@ final class VerificationService
     $api = $layers['api']['state'] ?? 'unknown';
 
     // GLPI confirmado = operação concluída e verificada mesmo se cache/api pendentes
-    if ($glpi === 'confirmed' && $cache === 'confirmed' && $api === 'confirmed') return 'verified';
+    if ($glpi === 'confirmed' && $cache === 'confirmed' && $api === 'confirmed') {
+      return ($layers['frontend']['state'] ?? '') === 'confirmed' ? 'verified' : 'verified_glpi';
+    }
     if ($glpi === 'confirmed' && ($cache === 'pending' || $cache === 'outdated' || $api === 'pending' || $api === 'outdated')) return 'partial_cache_pending';
     if ($glpi === 'confirmed') return 'verified_glpi';
     if ($glpi === 'divergent') return 'divergent';
@@ -528,6 +553,22 @@ final class VerificationService
     $j = json_decode($c ?: '', true);
     if (!is_array($j)) return null;
     return $j['generated'] ?? $j['last_write']['updated_at'] ?? date('c', @filemtime($this->cacheFile) ?: time());
+  }
+
+  /** Representação efetivamente entregue ao painel, com versão por conteúdo. */
+  public function representation(string $operationId, string $userId): array
+  {
+    $op = $this->tracker->find($operationId);
+    if (!$op || ($op['user_id'] ?? '') !== $userId) return ['success' => false, 'error' => 'Operação não encontrada ou sem acesso.'];
+    $cache = json_decode(@file_get_contents($this->cacheFile) ?: '', true);
+    if (!is_array($cache)) return ['success' => false, 'error' => 'Cache indisponível.'];
+    foreach ($cache['items'] ?? $cache as $asset) {
+      if (($asset['itemtype'] ?? '') === $op['itemtype'] && (int)($asset['id'] ?? 0) === (int)$op['id']) {
+        $version = hash('sha256', json_encode([$operationId, $asset], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+        return ['success' => true, 'asset' => $asset, 'api_version' => $version];
+      }
+    }
+    return ['success' => false, 'error' => 'Ativo ainda ausente no cache.'];
   }
 
   private function readGlpiWithRetry(string $itemtype, int $id, array $glpiConfig, bool $allow404 = false): ?array

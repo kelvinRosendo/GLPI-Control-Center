@@ -46,10 +46,21 @@ final class IdempotencyGuard
     int|string $id,
     string $action,
     array $fields,
-    ?string $clientKey = null
+    ?string $clientKey = null,
+    ?string $userId = null
   ): array {
     // Busca operações existentes para o mesmo alvo
-    $existing = $this->tracker->findEquivalent($itemtype, $id, $action, $fields);
+    $existing = null;
+    if ($clientKey !== null) {
+      foreach ($this->tracker->findByCriteria(['user_id' => $userId]) as $candidate) {
+        if (($candidate['idempotency_key'] ?? null) !== $clientKey) continue;
+        if ($candidate['itemtype'] !== $itemtype || $candidate['action'] !== $action || ($action !== 'create' && (string)$candidate['id'] !== (string)$id) || $candidate['requested_fields'] != $fields) {
+          return ['allowed' => false, 'existing' => $candidate, 'reason' => 'Conflito: chave reutilizada com conteúdo diferente.'];
+        }
+        $existing = $candidate;
+        break;
+      }
+    }
 
     if ($existing === null) {
       return ['allowed' => true];
@@ -112,9 +123,10 @@ final class IdempotencyGuard
     int|string $id,
     string $action,
     array $fields,
-    string $userId
+    string $userId,
+    ?string $clientKey = null
   ): array {
-    $operation = $this->tracker->prepare($itemtype, $id, $action, $fields, $userId);
+    $operation = $this->tracker->prepare($itemtype, $id, $action, $fields, $userId, $clientKey);
     $this->tracker->audit($operation, 'operation_registered', [
       'fields_count' => count($fields),
     ]);

@@ -239,7 +239,7 @@ window.AgentPanel = (function () {
       }
       let data;
       if (window.ApiClient) {
-        data = await window.ApiClient.post('/' + API_BASE + '/chat', { message, context });
+        data = await window.ApiClient.post('/' + API_BASE + '/chat', { message, context }, { retries: 0, timeout: 120000 });
       } else {
         const res = await fetch('/' + API_BASE + '/chat', {
           method: 'POST',
@@ -255,7 +255,13 @@ window.AgentPanel = (function () {
       _hideLoading();
       // ApiClient retorna {ok:true, ...} ou {success:?}
       if (data.success !== false && (data.ok !== false)) {
-        _addMessage('assistant', data.response || data.data?.response || '');
+        const payload = data.data || data;
+        _addMessage('assistant', payload.response || '');
+        for (const proposal of payload.proposals || []) _addMessage('assistant', '', proposal);
+        for (const entry of payload.evidence || []) {
+          const source = entry.source === 'cache' ? `cache GCC (gerado em ${entry.cache_generated_at || 'data desconhecida'})` : (entry.source || 'GCC');
+          _addMessage('system', `${entry.tool}: ${entry.success ? source : (entry.error || 'consulta falhou')} · ${entry.checked_at || ''}`);
+        }
       } else {
         _addMessage('system', data.error || data.data?.error || 'Erro ao processar mensagem');
       }
@@ -321,6 +327,7 @@ window.AgentPanel = (function () {
   // ══════════════════════════════════════════════════════════════════════════
 
   function _addProposalCard(proposal) {
+    if (_pendingProposals.has(proposal.proposal_id)) return;
     const messages = document.getElementById('agent-messages');
     if (!messages) return;
 
@@ -347,7 +354,7 @@ window.AgentPanel = (function () {
       if (fields.length > 0) {
         changesHtml = '<div class="agent-proposal-changes">';
         for (const field of fields) {
-          const oldVal = currentVals[field] || '(vazio)';
+          const oldVal = currentVals[field] ?? '(vazio)';
           const newVal = proposedVals[field];
           const oldDisplay = typeof oldVal === 'object' ? (oldVal?.name || JSON.stringify(oldVal)) : oldVal;
           const newDisplay = typeof newVal === 'object' ? (newVal?.name || JSON.stringify(newVal)) : newVal;
@@ -360,7 +367,7 @@ window.AgentPanel = (function () {
     } else if (action === 'restore') {
       changesHtml = '<div class="agent-proposal-info">Ativo será restaurado para "Em uso"</div>';
     } else if (action === 'create') {
-      changesHtml = '<div class="agent-proposal-info">Novo ativo será criado</div>';
+      changesHtml = '<div class="agent-proposal-info">Novo ativo será criado</div>' + Object.entries(proposedVals).map(([field, value]) => `<div>${_escapeHtml(field)}: ${_escapeHtml(String(value))}</div>`).join('');
     }
 
     const disclaimer = proposal.disclaimer || 'PRÉVIA — nenhuma alteração executada.';
@@ -402,6 +409,12 @@ window.AgentPanel = (function () {
   }
 
   async function _confirmProposal(proposalId) {
+    const proposal = _pendingProposals.get(proposalId);
+    if (!proposal?.content_hash) {
+      _addMessage('system', 'Prévia antiga ou incompleta. Prepare uma nova proposta.');
+      return;
+    }
+    const confirmation = { proposal_id: proposalId, confirmed_hash: proposal.content_hash };
     const card = document.querySelector(`[data-proposal-id="${proposalId}"]`);
     const confirmBtn = card?.querySelector('.agent-proposal-confirm-btn');
     const cancelBtn = card?.querySelector('.agent-proposal-cancel-btn');
@@ -415,14 +428,14 @@ window.AgentPanel = (function () {
     try {
       let data;
       if (window.ApiClient) {
-        data = await window.ApiClient.post('/' + API_BASE + '/execute', { proposal_id: proposalId });
+        data = await window.ApiClient.post('/' + API_BASE + '/execute', confirmation, { retries: 0, timeout: 120000 });
       } else {
         const res = await fetch('/' + API_BASE + '/execute', {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ proposal_id: proposalId }),
-          signal: AbortSignal.timeout(30000),
+          body: JSON.stringify(confirmation),
+          signal: AbortSignal.timeout(120000),
         });
         if (!res.ok) throw new Error('HTTP '+res.status);
         data = await res.json();
@@ -434,21 +447,25 @@ window.AgentPanel = (function () {
       const verif = payload.verification || null;
       const isSuccess = (data.ok !== false) && (payload.success !== false);
       if (isSuccess) {
-        _addMessage('system', data.message || 'Proposta executada com sucesso.');
+        _addMessage('system', payload.status === 'verified' ? 'Alteração conferida.' : 'GLPI conferido. Atualizando a representação no GCC...');
         card?.classList.add('agent-proposal--executed');
         _pendingProposals.delete(proposalId);
         if (opId) {
           _renderReceipt(opId, verif);
-          _frontendConfirm(opId);
+          await _applyOperation(opId);
         }
       } else {
         _addMessage('system', 'Falha: ' + (payload.error || data.error || 'Erro ao executar proposta'));
-        if (opId) _renderReceipt(opId, verif);
-        if (confirmBtn) {
+        if (opId) {
+          _renderReceipt(opId, verif);
+          if (confirmBtn) confirmBtn.textContent = 'Operação registrada';
+          await _applyOperation(opId);
+        }
+        if (confirmBtn && !opId) {
           confirmBtn.disabled = false;
           confirmBtn.textContent = 'Confirmar';
         }
-        if (cancelBtn) cancelBtn.disabled = false;
+        if (cancelBtn && !opId) cancelBtn.disabled = false;
       }
     } catch (err) {
       _addMessage('system', 'Erro de conexão ao executar proposta: ' + (err.message||''));
@@ -461,6 +478,7 @@ window.AgentPanel = (function () {
   }
 
   function _renderReceipt(operationId, verification) {
+    document.querySelector(`[data-operation-id="${operationId}"]`)?.remove();
     const messages = document.getElementById('agent-messages');
     if (!messages) return;
     const layers = verification?.layers || {};
@@ -487,7 +505,7 @@ window.AgentPanel = (function () {
         <div class="agent-receipt-header">Comprovante — OP:${String(operationId).slice(0,8)}</div>
         <div class="agent-receipt-overall">Resultado: <strong>${_escapeHtml(human)}</strong></div>
         <div class="agent-receipt-layers">
-          <div>Execução: ${layers.execution?.state || '?'} | GLPI: ${glpiSt} | Cache: ${cacheSt} | API: ${apiSt} | Frontend: ${frontSt}</div>
+          <div>Execução: ${layers.execution?.state || '?'} | GLPI: ${glpiSt} | Cache: ${cacheSt} | Representação GCC: ${apiSt} | Tela: ${frontSt}</div>
         </div>
         ${verification?.divergences?.length ? `<div class="agent-receipt-div">Divergências: ${verification.divergences.map(d=>_escapeHtml(d.field + ': ' + JSON.stringify(d.expected)+'→'+JSON.stringify(d.observed))).join('<br>')}</div>` : ''}
         <div class="agent-receipt-actions">
@@ -496,16 +514,31 @@ window.AgentPanel = (function () {
         </div>
       </div>`;
     const btn = card.querySelector('.agent-receipt-verify');
-    btn?.addEventListener('click', ()=> _reverify(operationId));
+    btn?.addEventListener('click', async () => { await _applyOperation(operationId); await _reverify(operationId); });
     messages.appendChild(card);
     messages.scrollTop = messages.scrollHeight;
-    // Atualizar estado compartilhado e armazenar versão
+  }
+
+  async function _applyOperation(operationId) {
     try {
-      const v = verification?.cache_version || new Date().toISOString();
-      localStorage.setItem('gcc_last_verified_' + operationId, v);
-      // Disparar evento para listas/cards consumirem nova representação
-      window.dispatchEvent(new CustomEvent('gcc:assetUpdated', { detail: { operationId, verification } }));
-    } catch {}
+      const response = await window.ApiClient.get(`/api/operations/${operationId}/representation`, { cache: false });
+      const snapshot = response.data;
+      if (!snapshot?.success || !snapshot.asset || !window.GlpiClient?._mapClassifiedToLegacy || !window.App?.render) throw new Error('Representação indisponível');
+      const asset = snapshot.asset;
+      const items = [...(window.DATA?.classifiedAssets || [])];
+      const index = items.findIndex(a => a.itemtype === asset.itemtype && Number(a.id) === Number(asset.id));
+      if (index < 0) items.push(asset); else items[index] = asset;
+      window.DATA = { ...window.DATA, ...window.GlpiClient._mapClassifiedToLegacy(items), classifiedAssets: items };
+      if (window.STATE?.computerDetailsById) {
+        delete window.STATE.computerDetailsById[`${asset.itemtype}:${asset.id}`];
+        delete window.STATE.computerDetailsById[asset.id];
+      }
+      window.App.render();
+      await _frontendConfirm(operationId, snapshot.api_version);
+      await _reverify(operationId);
+    } catch (error) {
+      _addMessage('system', 'A gravação não será repetida. Atualização da tela pendente: ' + error.message);
+    }
   }
 
   async function _reverify(operationId) {
@@ -518,21 +551,13 @@ window.AgentPanel = (function () {
         data = await res.json();
       }
       const payload = data.data || data;
-      if (payload) _addMessage('system', 'Reverificação: ' + (payload.overall || JSON.stringify(payload.layers)));
+      if (payload) _renderReceipt(operationId, payload);
       else _addMessage('system', 'Reverificação concluída');
     } catch { _addMessage('system', 'Falha na reverificação'); }
   }
 
-  async function _frontendConfirm(operationId) {
-    try {
-      const version = localStorage.getItem('gcc_last_verified_' + operationId) || new Date().toISOString();
-      if (window.ApiClient) await window.ApiClient.post(`/api/operations/${operationId}/frontend-confirm`, { api_version: version });
-      else await fetch(`/api/operations/${operationId}/frontend-confirm`, {
-        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_version: version }),
-        signal: AbortSignal.timeout(8000),
-      });
-    } catch {}
+  async function _frontendConfirm(operationId, version) {
+    await window.ApiClient.post(`/api/operations/${operationId}/frontend-confirm`, { api_version: version }, { retries: 0 });
   }
 
   async function _cancelProposal(proposalId) {

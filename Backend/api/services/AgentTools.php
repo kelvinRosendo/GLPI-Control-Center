@@ -37,7 +37,7 @@ class AgentTools {
    * Retorna definição de todas as ferramentas no formato OpenAI.
    */
   public function getDefinitions(): array {
-    return [
+    $definitions = [
       $this->defBuscarAtivos(),
       $this->defConsultarAtivo(),
       $this->defConsultarCapacidades(),
@@ -47,10 +47,14 @@ class AgentTools {
       $this->defConsultarReconciliacao(),
       $this->defConsultarOperacao(),
       $this->defPrepararAlteracao(),
-      $this->defExecutarProposta(),
       $this->defCancelarProposta(),
       $this->defConsultarPoliticas(),
     ];
+    foreach ($definitions as &$definition) {
+      if ($definition['function']['parameters']['properties'] === []) $definition['function']['parameters']['properties'] = new \stdClass();
+    }
+    unset($definition);
+    return $definitions;
   }
 
   /**
@@ -58,6 +62,11 @@ class AgentTools {
    */
   public function execute(string $toolName, array $args): array {
     $startTime = microtime(true);
+
+    $allowed = array_column(array_column($this->getDefinitions(), 'function'), 'name');
+    if (!in_array($toolName, $allowed, true)) {
+      return ['success' => false, 'error' => 'Ferramenta não permitida. Confirme alterações pelo cartão do painel.'];
+    }
 
     $method = 'exec_' . str_replace('-', '_', $toolName);
     if (!method_exists($this, $method)) {
@@ -77,7 +86,7 @@ class AgentTools {
 
     try {
       $result = $this->$method($args);
-    } catch (\Exception $e) {
+    } catch (\Throwable $e) {
       $result = [
         'success' => false,
         'error' => 'Erro interno: ' . $e->getMessage(),
@@ -246,7 +255,6 @@ class AgentTools {
         'name' => 'consultar_operacao',
         'description' => 'Consulta status de uma operação de escrita pelo ID da operação.',
         'parameters' => [
-          [
             'type' => 'object',
             'properties' => [
               'operation_id' => [
@@ -255,7 +263,6 @@ class AgentTools {
               ],
             ],
             'required' => ['operation_id'],
-          ],
         ],
       ],
     ];
@@ -496,14 +503,15 @@ class AgentTools {
         'success' => true,
         'data' => null,
         'message' => "Ativo não encontrado: {$itemtype}:{$id}",
-        'source' => 'glpi+cache',
+        'source' => 'glpi',
       ];
     }
 
     return [
       'success' => true,
       'data' => $result,
-      'source' => 'glpi+cache',
+      'source' => 'glpi',
+      'checked_at' => date('c'),
     ];
   }
 
@@ -549,22 +557,27 @@ class AgentTools {
   private function exec_consultar_horas_projetor(array $args): array {
     $name = strtolower(trim($args['name']));
     $projectors = [];
-    $cachePath = __DIR__ . '/../../data/projectors.json';
+    $cachePath = __DIR__ . '/../data/projectors.json';
 
     if (file_exists($cachePath)) {
       $raw = file_get_contents($cachePath);
-      $projectors = json_decode($raw, true) ?? [];
+      $projectors = (json_decode($raw, true) ?? [])['projectors'] ?? [];
     }
 
     $results = [];
-    foreach ($projectors as $p) {
-      $pName = strtolower($p['name'] ?? '');
+    $names = [];
+    foreach ((AssetService::fromCache()['items'] ?? []) as $asset) {
+      if (($asset['category'] ?? '') === 'projector') $names[(string)$asset['id']] = $asset['name'];
+    }
+    foreach ($projectors as $key => $p) {
+      $displayName = $names[(string)$key] ?? $p['nome'] ?? $p['name'] ?? (string)$key;
+      $pName = strtolower($displayName);
       if (str_contains($pName, $name)) {
         $results[] = [
-          'name' => $p['name'] ?? '',
-          'lamp_hours' => $p['lamp_hours'] ?? null,
-          'last_maintenance' => $p['last_maintenance'] ?? null,
-          'next_maintenance' => $p['next_maintenance'] ?? null,
+          'name' => $displayName,
+          'id' => $key,
+          'lamp_hours' => $p['horas_lampada'] ?? null,
+          'last_maintenance' => $p['ultima_manutencao'] ?? null,
           'location' => $p['location'] ?? '',
           'source' => 'projectors.json (GCC)',
           'note' => 'Dados do GCC, não confirmados no GLPI',
@@ -664,6 +677,8 @@ class AgentTools {
       ];
     }
 
+    if (($operation['user_id'] ?? null) !== $this->userId) return ['success' => false, 'error' => 'Operação pertence a outro usuário.'];
+
     return [
       'success' => true,
       'data' => $operation,
@@ -704,7 +719,7 @@ class AgentTools {
   private function exec_cancelar_proposta(array $args): array {
     $proposalId = $args['proposal_id'];
 
-    $proposal = AgentProposal::cancel($proposalId);
+    $proposal = AgentProposal::cancel($proposalId, $this->userId);
 
     if ($proposal === null) {
       return [

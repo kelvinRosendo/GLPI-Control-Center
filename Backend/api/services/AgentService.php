@@ -21,8 +21,8 @@ class AgentService {
 
   private static string $historyDir = __DIR__ . '/../../data/agent_history';
 
-  public function __construct(?string $userId = null) {
-    $this->provider = new AIProvider();
+  public function __construct(?string $userId = null, ?AIProvider $provider = null) {
+    $this->provider = $provider ?? new AIProvider();
     $this->tools = new AgentTools($this->provider, $userId);
     $this->userId = $userId;
     $this->history = [];
@@ -63,6 +63,8 @@ class AgentService {
 
     $tools = $this->tools->getDefinitions();
     $totalToolCalls = 0;
+    $proposals = [];
+    $evidence = [];
     $maxIterations = 3;
     $iteration = 0;
 
@@ -75,8 +77,11 @@ class AgentService {
 
       if (!$response['success']) {
         return [
-          'success' => false,
+          'success' => !empty($proposals),
           'error' => 'Erro ao comunicar com o provedor: ' . ($response['error'] ?? 'Erro desconhecido'),
+          'response' => $proposals ? 'A prévia foi preparada, mas a resposta final da IA falhou. Confira o cartão; nada foi executado.' : '',
+          'proposals' => array_values($proposals),
+          'evidence' => $evidence,
           'status' => 'provider_error',
         ];
       }
@@ -84,8 +89,11 @@ class AgentService {
       $choice = $response['data']['choices'][0] ?? null;
       if ($choice === null) {
         return [
-          'success' => false,
+          'success' => !empty($proposals),
           'error' => 'Resposta vazia do provedor',
+          'response' => $proposals ? 'Confira a prévia preparada abaixo. Nada foi executado.' : '',
+          'proposals' => array_values($proposals),
+          'evidence' => $evidence,
           'status' => 'empty_response',
         ];
       }
@@ -107,6 +115,8 @@ class AgentService {
           'duration_ms' => $duration,
           'model' => $response['model'] ?? 'unknown',
           'status' => 'completed',
+          'proposals' => array_values($proposals),
+          'evidence' => $evidence,
         ];
       }
 
@@ -125,8 +135,16 @@ class AgentService {
 
         $toolName = $tc['function']['name'] ?? '';
         $toolArgs = json_decode($tc['function']['arguments'] ?? '{}', true) ?? [];
+        if (!is_array($toolArgs)) $toolArgs = [];
 
         $toolResult = $this->tools->execute($toolName, $toolArgs);
+        if ($toolName === 'preparar_alteracao' && ($toolResult['success'] ?? false) && isset($toolResult['data']['proposal_id'])) {
+          $proposals[$toolResult['data']['proposal_id']] = $toolResult['data'];
+        }
+        $evidence[] = ['tool' => $toolName, 'success' => $toolResult['success'] ?? false,
+          'source' => $toolResult['source'] ?? null, 'checked_at' => $toolResult['checked_at'] ?? date('c'),
+          'cache_generated_at' => $toolResult['cache_age'] ?? null,
+          'error' => $toolResult['error'] ?? null];
         $totalToolCalls++;
 
         $messages[] = [
@@ -137,7 +155,7 @@ class AgentService {
       }
     }
 
-    $finalText = $messages[count($messages) - 1]['content'] ?? 'Não foi possível gerar uma resposta final.';
+    $finalText = $proposals ? 'Preparei a prévia abaixo. Confira os valores e use Confirmar para executar.' : 'O limite de consultas desta mensagem foi atingido. Veja as fontes consultadas e refine o pedido.';
     if (is_array($finalText)) {
       $finalText = json_encode($finalText);
     }
@@ -154,6 +172,8 @@ class AgentService {
       'duration_ms' => $duration,
       'model' => $this->provider->getModel(),
       'status' => 'completed',
+      'proposals' => array_values($proposals),
+      'evidence' => $evidence,
     ];
   }
 
@@ -213,7 +233,9 @@ Você é o assistente de TI do GLPI Control Center (GCC). Seu papel é ajudar t�
 - Não envie credenciais, tokens ou dados sensíveis ao modelo.
 
 ## LIMITAÇÕES
-- NÃO execute escritas nesta sprint — apenas prepare propostas.
+- Você prepara propostas. A execução só acontece pelo botão Confirmar do painel; mensagens como "sim" não executam alterações.
+- Ao localizar um ativo por nome, consulte seu tipo e ID no GLPI antes de apresentar seus dados como atuais. Se houver mais de um candidato, peça que o usuário escolha.
+- Patrimônio é otherserial e deve ser texto, preservando zeros à esquerda.
 - Indique claramente quando uma proposta é apenas uma prévia.
 - Se o cache estiver antigo, informe ao usuário.
 

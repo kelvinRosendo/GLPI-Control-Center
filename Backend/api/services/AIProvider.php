@@ -110,10 +110,9 @@ class AIProvider {
   /**
    * Valida se o modelo suporta tool calling.
    */
-  public function supportsToolCalling(): bool {
-    $model = $this->model;
-    $noTools = ['deepseek-flash', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'];
-    return !in_array($model, $noTools);
+  public function supportsToolCalling(): ?bool {
+    // A configuração não comprova capacidade. A chamada real ao provedor a valida.
+    return null;
   }
 
   /**

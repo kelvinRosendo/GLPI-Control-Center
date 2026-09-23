@@ -61,8 +61,8 @@ final class FieldNormalizer
     // Dropdown: sempre ID numérico
     if (self::isDropdown($field)) {
       if (is_array($value)) {
-        $id = $value['id'] ?? $value['name'] ?? 0;
-        if (is_array($id)) return 0;
+        $id = $value['id'] ?? null;
+        if ($id === null || is_array($id)) return null;
         // Se veio como string com ID embutido "Group:1" não: extrair id
         if (is_string($id) && ctype_digit(trim($id))) return (int) trim($id);
         return (int) $id;

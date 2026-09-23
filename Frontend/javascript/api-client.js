@@ -81,7 +81,7 @@ window.ApiClient = (function () {
     requestConfig = await _runInterceptors('request', requestConfig);
 
     // Promise com retry
-    const promise = _fetchWithRetry(url, requestConfig, options.retries ?? _config.retries);
+    const promise = _fetchWithRetry(url, requestConfig, options.retries ?? (method === 'GET' ? _config.retries : 0));
 
     if (cacheKey) {
       _pendingRequests.set(cacheKey, promise);

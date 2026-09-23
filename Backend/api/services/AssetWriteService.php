@@ -128,7 +128,7 @@ final class AssetWriteService
       // Releitura
       $operation = $this->tracker->transition($operation, 'verifying');
       $readBack = $this->readAsset($itemtype, (int) $newId);
-      $verified = $readBack !== null;
+      $verified = $this->matchesRequested($filtered, $readBack);
       $operation = $this->tracker->recordReadback($operation, $verified, $readBack);
 
       // Cache
@@ -229,7 +229,7 @@ final class AssetWriteService
       // Releitura
       $operation = $this->tracker->transition($operation, 'verifying');
       $after = $this->readAsset($itemtype, $id);
-      $verified = $after !== null;
+      $verified = $this->matchesRequested($filtered, $after);
       $changed = $this->computeChanges($before, $after, array_keys($filtered));
       $operation = $this->tracker->recordReadback($operation, $verified, $after);
 
@@ -315,11 +315,11 @@ final class AssetWriteService
       // Releitura
       $operation = $this->tracker->transition($operation, 'verifying');
       $after = $this->readAsset($itemtype, $id);
-      $verified = $after !== null;
+      $verified = $this->matchesRequested($payload, $after);
       $operation = $this->tracker->recordReadback($operation, $verified, $after);
 
       // Cache
-      $cacheResult = $this->updateCacheAfterWrite($itemtype, $id, $after ?? [], 'delete');
+      $cacheResult = $this->updateCacheAfterWrite($itemtype, $id, $after ?? [], $verified ? 'delete' : 'update');
       $operation = $this->tracker->recordCacheUpdate($operation, $cacheResult['success'], $cacheResult['error'] ?? null);
 
       if ($verified && $cacheResult['success']) {
@@ -386,11 +386,11 @@ final class AssetWriteService
       // Releitura
       $operation = $this->tracker->transition($operation, 'verifying');
       $after = $this->readAsset($itemtype, $id);
-      $verified = $after !== null;
+      $verified = $this->matchesRequested($payload, $after);
       $operation = $this->tracker->recordReadback($operation, $verified, $after);
 
       // Cache
-      $cacheResult = $this->updateCacheAfterWrite($itemtype, $id, $after ?? [], 'restore');
+      $cacheResult = $this->updateCacheAfterWrite($itemtype, $id, $after ?? [], $verified ? 'restore' : 'update');
       $operation = $this->tracker->recordCacheUpdate($operation, $cacheResult['success'], $cacheResult['error'] ?? null);
 
       if ($verified && $cacheResult['success']) {
@@ -455,14 +455,7 @@ final class AssetWriteService
           return (int) $item['id'];
         }
       }
-    } catch (\Throwable) {
-      $fixtures = OptionsService::fixtures('State');
-      foreach ($fixtures['items'] as $item) {
-        if (mb_strtolower(trim($item['name'] ?? '')) === mb_strtolower($stateName)) {
-          return (int) $item['id'];
-        }
-      }
-    }
+    } catch (\Throwable) { return null; }
 
     return null;
   }
@@ -476,6 +469,7 @@ final class AssetWriteService
       if (!is_array($raw) || !isset($raw['id'])) {
         return null;
       }
+      $raw['itemtype'] = $itemtype;
       return $raw;
     } catch (\Throwable) {
       return null;
@@ -549,7 +543,7 @@ final class AssetWriteService
     }
   }
 
-  private function computeChanges(array $before, array $after, array $fields): array
+  private function computeChanges(array $before, ?array $after, array $fields): array
   {
     if ($after === null) return [];
 
@@ -624,7 +618,7 @@ final class AssetWriteService
   private function checkIdempotency(string $itemtype, int|string $id, string $action, array $fields, ?string $clientKey): array
   {
     $guard = new IdempotencyGuard($this->tracker);
-    $result = $guard->check($itemtype, $id, $action, $fields, $clientKey);
+    $result = $guard->check($itemtype, $id, $action, $fields, $clientKey, $this->userId);
 
     if (!$result['allowed'] && isset($result['existing'])) {
       $existing = $result['existing'];
@@ -635,7 +629,7 @@ final class AssetWriteService
       ];
     }
 
-    $operation = $guard->registerPending($itemtype, $id, $action, $fields, $this->userId);
+    $operation = $guard->registerPending($itemtype, $id, $action, $fields, $this->userId, $clientKey);
 
     return [
       'allowed'   => true,
@@ -647,12 +641,13 @@ final class AssetWriteService
 
   private function updateCacheAfterWrite(string $itemtype, int $id, array $after, string $action, array $before = []): array
   {
+    if (!$after) return ['success' => false, 'error' => 'Sem releitura: cache preservado.'];
     $updater = new CacheUpdater();
 
     return match ($action) {
       'create' => $updater->addAsset(array_merge($after, ['itemtype' => $itemtype])),
-      'delete' => $updater->removeAsset($itemtype, $id),
-      'restore' => $updater->restoreAsset($itemtype, $id),
+      'delete' => $updater->updateAsset($itemtype, $id, $after, [], true),
+      'restore' => $updater->updateAsset($itemtype, $id, $after, [], false),
       default => $updater->updateAsset($itemtype, $id, $after),
     };
   }
@@ -703,5 +698,15 @@ final class AssetWriteService
     }
 
     return $result;
+  }
+
+  private function matchesRequested(array $fields, ?array $observed): bool
+  {
+    if ($observed === null) return false;
+    require_once __DIR__ . '/FieldNormalizer.php';
+    foreach ($fields as $field => $expected) {
+      if (!array_key_exists($field, $observed) || !FieldNormalizer::compare($field, $expected, $observed[$field])['equal']) return false;
+    }
+    return true;
   }
 }

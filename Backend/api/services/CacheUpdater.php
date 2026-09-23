@@ -47,7 +47,7 @@ final class CacheUpdater
    * @param array $classifiedItem Ativo classificado (para preservar metadados)
    * @return array{success: bool, error?: string, cache_partial?: bool}
    */
-  public function updateAsset(string $itemtype, int $id, array $after, array $classifiedItem = []): array
+  public function updateAsset(string $itemtype, int $id, array $after, array $classifiedItem = [], ?bool $inactive = null): array
   {
     $lockHandle = $this->acquireLockWait(10);
     if ($lockHandle === null) {
@@ -74,6 +74,12 @@ final class CacheUpdater
 
       foreach ($items as &$item) {
         if (($item['itemtype'] ?? '') === $itemtype && (int)($item['id'] ?? 0) === $id) {
+          $cachedMod = $item['raw']['date_mod'] ?? null;
+          $afterMod = $after['date_mod'] ?? null;
+          if ($cachedMod && $afterMod && strtotime((string)$cachedMod) > strtotime((string)$afterMod)) {
+            return ['success' => false, 'error' => 'Cache contém uma versão posterior à releitura.', 'cache_partial' => true];
+          }
+          if ($inactive !== null) $item['_inactive'] = $inactive;
           // Se reclassificou, substituir campos derivados completamente
           if (is_array($reclassified)) {
             // Preservar dados locais de projetores se existirem
@@ -265,6 +271,13 @@ final class CacheUpdater
    */
   private function atomicSave(string $path, mixed $data): bool
   {
+    // Preservar o contrato consumido pela busca e pelas rotas do GCC.
+    $previous = json_decode(@file_get_contents($path) ?: '', true);
+    $envelope = is_array($previous) && isset($previous['items']) ? $previous : [];
+    $envelope['items'] = $data;
+    $envelope['generated'] = date('c');
+    $envelope['last_write'] = ['updated_at' => date('c')];
+    $data = $envelope;
     $json = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     if ($json === false) return false;
 
@@ -276,21 +289,8 @@ final class CacheUpdater
       return false;
     }
 
-    if (PHP_OS_FAMILY === 'Windows') {
-      @unlink($path);
-      $renamed = @rename($tempFile, $path);
-      if (!$renamed) {
-        @copy($tempFile, $path);
-        @unlink($tempFile);
-      }
-    } else {
-      $renamed = @rename($tempFile, $path);
-      if (!$renamed) {
-        @copy($tempFile, $path);
-        @unlink($tempFile);
-      }
-    }
-
-    return true;
+    $renamed = @rename($tempFile, $path);
+    if (!$renamed) @unlink($tempFile);
+    return $renamed;
   }
 }

@@ -107,9 +107,11 @@ final class AssetService
       if (!is_array($raw) || !isset($raw['id'])) {
         return null;
       }
+      $raw['itemtype'] = $itemtype;
       return Classifier::classifyAsset($raw);
-    } catch (\Throwable) {
-      return null;
+    } catch (\Throwable $e) {
+      if ($e->getCode() === 404 || str_contains($e->getMessage(), 'HTTP 404')) return null;
+      throw $e;
     }
   }
 

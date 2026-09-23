@@ -755,6 +755,7 @@ try {
         if ($proposal === null) {
           Responde::erro('Proposta não encontrada.', 404);
         }
+        if (($proposal['created_by'] ?? null) !== AuthService::currentUserId($config)) Responde::erro('Acesso negado.', 403);
         Responde::ok(['data' => $proposal]);
         return;
       }
@@ -768,7 +769,7 @@ try {
         if ($proposalId === '') {
           Responde::erro('ID da proposta é obrigatório.', 400);
         }
-        $proposal = AgentProposal::cancel($proposalId);
+        $proposal = AgentProposal::cancel($proposalId, AuthService::currentUserId($config));
         if ($proposal === null) {
           Responde::erro('Proposta não encontrada ou não pode ser cancelada.', 404);
         }
@@ -791,7 +792,9 @@ try {
         }
         $userId = AuthService::currentUserId($config) ?? 'anonymous';
         $execution = new AgentExecution($config['glpi'] ?? [], $userId);
-        $result = $execution->executeProposal($proposalId);
+        $confirmedHash = $body['confirmed_hash'] ?? null;
+        if (!is_string($confirmedHash) || !preg_match('/^[a-f0-9]{64}$/D', $confirmedHash)) Responde::erro('Confirme a prévia atual pelo painel.', 422);
+        $result = $execution->executeProposal($proposalId, $confirmedHash);
         Responde::ok($result);
         return;
       }
@@ -811,7 +814,7 @@ try {
         }
         $userId = AuthService::currentUserId($config) ?? 'anonymous';
         $execution = new AgentExecution($config['glpi'] ?? [], $userId);
-        $result = $execution->executeBatch($proposalIds);
+        $result = $execution->executeBatch($proposalIds, is_array($body['confirmations'] ?? null) ? $body['confirmations'] : []);
         Responde::ok($result);
         return;
       }
@@ -909,6 +912,14 @@ try {
         $result = $vs->recoverCache($opId, $config['glpi'] ?? []);
         Responde::ok(['data' => $result]);
         return;
+      }
+
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/representation$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') Responde::erro('Método não permitido.', 405);
+        $vs = new VerificationService();
+        $result = $vs->representation($m[1], AuthService::currentUserId($config) ?? 'anonymous');
+        if (!$result['success']) Responde::erro($result['error'], 409);
+        Responde::ok(['data' => $result]);
       }
 
       if (preg_match('#^/api/operations/([a-f0-9\-]+)/frontend-confirm$#', $path, $m)) {

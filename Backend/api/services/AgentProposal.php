@@ -24,6 +24,24 @@ class AgentProposal {
     array $fields,
     ?string $userId
   ): array {
+    if (!in_array($itemtype, ['Computer', 'Printer'], true) || !in_array($action, ['create', 'update', 'delete', 'restore'], true)) {
+      throw new InvalidArgumentException('Tipo ou operação não suportado.');
+    }
+    if (!self::canWrite($itemtype)) throw new RuntimeException('Sem permissão para editar este tipo de ativo.');
+    $unknown = array_diff(array_keys($fields), self::getEditableFields($itemtype));
+    if ($unknown) throw new InvalidArgumentException('Campos não editáveis: ' . implode(', ', $unknown));
+    foreach ($fields as $field => &$value) {
+      if (in_array($field, AssetWriteService::dropdownFields(), true)) {
+        if (!(is_int($value) || (is_string($value) && ctype_digit($value))) || (int)$value < 0) throw new InvalidArgumentException('Informe um ID válido para ' . $field);
+        $value = (int)$value;
+      } else {
+        if (!is_scalar($value) && $value !== null) throw new InvalidArgumentException('Valor inválido para ' . $field);
+        $value = trim((string)$value);
+      }
+    }
+    unset($value);
+    if (in_array($action, ['create', 'update'], true) && !$fields) throw new InvalidArgumentException('Informe os campos da alteração.');
+    if ($action === 'create' && trim((string)($fields['name'] ?? '')) === '') throw new InvalidArgumentException('Nome obrigatório.');
     $proposalId = self::generateId();
     $now = date('c');
 
@@ -31,6 +49,7 @@ class AgentProposal {
     if (in_array($action, ['update', 'delete', 'restore']) && $id) {
       $current = self::fetchAsset($itemtype, $id);
     }
+    if ($action !== 'create' && !$current) throw new RuntimeException('Ativo não encontrado no GLPI.');
 
     $proposal = [
       'proposal_id' => $proposalId,
@@ -43,15 +62,16 @@ class AgentProposal {
       'id' => $id,
       'asset_name' => $current['name'] ?? $fields['name'] ?? 'Novo ativo',
       'current_values' => $current ? self::extractCurrentValues($action, $current) : null,
-      'proposed_values' => self::extractProposedValues($action, $fields, $current),
+      'proposed_values' => self::extractProposedValues($action, $fields, $current, $itemtype),
       'field_sources' => self::mapFieldSources($action, $fields, $current),
       'permissions' => self::checkPermissions($action, $itemtype),
       'pending_validations' => self::identifyPending($action, $itemtype, $fields, $current),
       'read_reference' => $current ? ($current['_classification']['confidence'] ?? null) : null,
-      'glpi_version' => $current['date_mod'] ?? null,
+      'glpi_version' => $current['raw']['date_mod'] ?? $current['date_mod'] ?? null,
       'disclaimer' => 'PRÉVIA — nenhuma alteração executada. Esta proposta expira em 1 hora.',
     ];
 
+    $proposal['content_hash'] = self::contentHash($proposal);
     self::persist($proposal);
 
     return $proposal;
@@ -61,13 +81,14 @@ class AgentProposal {
    * Recupera uma proposta pelo ID.
    */
   public static function get(string $proposalId): ?array {
+    if (!preg_match('/^prop_[a-f0-9]+$/D', $proposalId)) return null;
     $path = self::$proposalsDir . '/' . $proposalId . '.json';
     if (!file_exists($path)) return null;
 
     $data = json_decode(file_get_contents($path), true);
     if ($data === null) return null;
 
-    if (strtotime($data['expires_at'] ?? '') < time()) {
+    if ($data['status'] === 'pending' && strtotime($data['expires_at'] ?? '') < time()) {
       $data['status'] = 'expired';
     }
 
@@ -77,9 +98,13 @@ class AgentProposal {
   /**
    * Cancela uma proposta.
    */
-  public static function cancel(string $proposalId): ?array {
+  public static function cancel(string $proposalId, ?string $userId = null): ?array {
+    $lock = self::lock($proposalId);
+    if ($lock === null) return null;
+    try {
     $proposal = self::get($proposalId);
     if ($proposal === null) return null;
+    if (!$userId || ($proposal['created_by'] ?? null) !== $userId) return null;
 
     if (!in_array($proposal['status'], ['pending', 'executing'], true)) {
       return null;
@@ -95,6 +120,7 @@ class AgentProposal {
     self::persist($proposal);
 
     return $proposal;
+    } finally { flock($lock, LOCK_UN); fclose($lock); }
   }
 
   /**
@@ -188,16 +214,15 @@ class AgentProposal {
       return ['valid' => false, 'error' => 'Ativo não encontrado mais no GLPI'];
     }
 
-    if ($proposal['action'] === 'update' && $current) {
-      $currentMod = $current['date_mod'] ?? null;
+    if ($current) {
+      $currentMod = $current['raw']['date_mod'] ?? $current['date_mod'] ?? null;
       $refMod = $proposal['glpi_version'] ?? null;
-      if ($currentMod && $refMod && $currentMod !== $refMod) {
+      if (!$currentMod || !$refMod || $currentMod !== $refMod) {
         return ['valid' => false, 'error' => 'Ativo foi modificado desde a leitura original'];
       }
     }
 
-    $perms = $proposal['permissions'] ?? [];
-    if (!($perms['can_write'] ?? false)) {
+    if (!self::canWrite($proposal['itemtype'])) {
       return ['valid' => false, 'error' => 'Sem permissão de escrita'];
     }
 
@@ -216,6 +241,7 @@ class AgentProposal {
     if ($action === 'create') return [];
 
     $itemtype = $current['itemtype'] ?? 'Computer';
+    $current = $current['raw'] ?? $current;
     $editable = self::getEditableFields($itemtype);
     $values = [];
 
@@ -231,7 +257,7 @@ class AgentProposal {
     return $values;
   }
 
-  private static function extractProposedValues(string $action, array $fields, ?array $current): array {
+  private static function extractProposedValues(string $action, array $fields, ?array $current, string $itemtype = 'Computer'): array {
     if ($action === 'delete') {
       return ['states_id' => ['id' => null, 'name' => 'Inativo', 'note' => 'Exclusão lógica via states_id']];
     }
@@ -240,7 +266,6 @@ class AgentProposal {
       return ['states_id' => ['id' => null, 'name' => 'Em uso', 'note' => 'Restauração via states_id']];
     }
 
-    $itemtype = $fields['itemtype'] ?? 'Computer';
     $editable = self::getEditableFields($itemtype);
     $proposed = [];
 
@@ -296,11 +321,11 @@ class AgentProposal {
 
     return [
       'can_read' => true,
-      'can_write' => $typeInfo['updatable'] ?? false,
+      'can_write' => self::canWrite($itemtype) && ($typeInfo['updatable'] ?? false),
       'can_create' => $typeInfo['creatable'] ?? false,
       'can_delete' => $typeInfo['deletable'] ?? false,
       'can_restore' => $typeInfo['restorable'] ?? false,
-      'supported_operation' => ($typeInfo[$action . 'able'] ?? false) || ($action === 'create' && ($typeInfo['creatable'] ?? false)),
+      'supported_operation' => $typeInfo[['create' => 'creatable', 'update' => 'updatable', 'delete' => 'deletable', 'restore' => 'restorable'][$action]] ?? false,
     ];
   }
 
@@ -312,12 +337,8 @@ class AgentProposal {
       'ssl_insecure' => (getenv('GLPI_SSL_INSECURE') ?: '0') === '1',
     ];
 
-    try {
-      $service = new AssetService($glpiConfig);
-      return $service->get($itemtype, $id);
-    } catch (\Exception $e) {
-      return null;
-    }
+    $service = new AssetService($glpiConfig);
+    return $service->get($itemtype, $id);
   }
 
   private static function identifyPending(string $action, string $itemtype, array $fields, ?array $current): array {
@@ -346,6 +367,31 @@ class AgentProposal {
     }
 
     $path = $dir . '/' . $proposal['proposal_id'] . '.json';
-    file_put_contents($path, json_encode($proposal, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    if (file_put_contents($path, json_encode($proposal, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE), LOCK_EX) === false) {
+      throw new RuntimeException('Não foi possível persistir a proposta.');
+    }
+  }
+
+  public static function canWrite(string $itemtype): bool {
+    return class_exists('PermissionMiddleware') && PermissionMiddleware::can($itemtype === 'Printer' ? 'impressoras' : 'computadores', 'edit');
+  }
+
+  public static function contentHash(array $proposal): string {
+    $fields = $proposal['proposed_values'] ?? [];
+    ksort($fields);
+    return hash('sha256', json_encode([
+      $proposal['proposal_id'], $proposal['created_by'], $proposal['action'],
+      $proposal['itemtype'], $proposal['id'], $fields, $proposal['current_values'],
+      $proposal['glpi_version'], $proposal['expires_at'],
+    ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR));
+  }
+
+  /** Trava a proposta durante confirmação/execução ou cancelamento. */
+  public static function lock(string $proposalId) {
+    if (!preg_match('/^prop_[a-f0-9]+$/D', $proposalId) || !is_dir(self::$proposalsDir)) return null;
+    $handle = fopen(self::$proposalsDir . '/' . $proposalId . '.lock', 'c');
+    if (!$handle) return null;
+    if (!flock($handle, LOCK_EX | LOCK_NB)) { fclose($handle); return null; }
+    return $handle;
   }
 }
