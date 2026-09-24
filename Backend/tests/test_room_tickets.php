@@ -98,4 +98,16 @@ rejects(fn()=>RoomTicketsReader::collect(fn()=>['items'=>[],'total'=>3]), 'Pági
 rejects(fn()=>RoomTicketsReader::collect(fn()=>['items'=>[],'total'=>10001]), 'Limite falha explicitamente');
 rejects(fn()=>RoomTicketsReader::collect(fn($offset)=>['items'=>[['id'=>$offset+1]],'total'=>$offset===0?2:3]), 'Mudança de total falha');
 rejects(fn()=>RoomTicketsReader::collect(fn()=>['items'=>[]]), 'Total ausente falha');
+
+$peripheral = RoomTicketsService::normalize([
+    array_replace($base, ['id'=>40,'name'=>'Não funciona','itilcategories_id'=>2])
+], $locations, $categories, [['tickets_id'=>40,'items_id'=>8,'itemtype'=>'Computer']],
+    [['id'=>8,'itemtype'=>'Computer','name'=>'CS-008','category'=>'computer_cs']]);
+check($peripheral['items'][0]['types'] === ['mouse'], 'Categoria Mouse não é substituída pelo PC vinculado');
+check($peripheral['items'][0]['assets'][0]['key'] === 'Computer:8', 'Vínculo original preservado');
+$reported = RoomTicketsService::normalize([
+    array_replace($base, ['id'=>41,'name'=>'Não funciona','itilcategories_id'=>2,'content'=>'Equipamento: Teclado'])
+], $locations, $categories, [], []);
+check($reported['items'][0]['types'] === ['keyboard'], 'Campo explícito prevalece sobre categoria genérica');
+
 echo "OK: {$count} verificações de chamados por sala.\n";
