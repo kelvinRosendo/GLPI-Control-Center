@@ -30,14 +30,15 @@ final class AssetService
   }
 
   /**
-   * Retorna todos os ativos classificados (Computer + Printer).
+   * Retorna os ativos das coleções configuradas, sem descartar tipos desconhecidos.
    */
   public function all(): array
   {
-    $computers = $this->fetchCollection('/Computer');
-    $printers = $this->fetchCollection('/Printer');
-
-    $all = array_merge($computers, $printers);
+    $catalog = Classifier::getCatalog();
+    $all = [];
+    foreach ($catalog['sync']['collections'] ?? ['Computer', 'Printer', 'Monitor', 'Peripheral', 'NetworkEquipment', 'Phone'] as $type) {
+      $all = array_merge($all, $this->fetchCollection('/' . $type));
+    }
 
     $result = Classifier::classifyBatch($all);
 
@@ -143,6 +144,12 @@ final class AssetService
       'expand_dropdowns' => 'true',
     ], 500);
 
-    return array_values(array_filter($result['items'], 'is_array'));
+    if (($result['complete'] ?? false) !== true) {
+      throw new RuntimeException('Consulta de ativos incompleta. Tente sincronizar novamente.', 502);
+    }
+    return array_map(static function (array $item) use ($path): array {
+      $item['itemtype'] = ltrim($path, '/');
+      return $item;
+    }, $result['items']);
   }
 }
