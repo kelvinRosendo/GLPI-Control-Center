@@ -160,6 +160,7 @@ final class Endpoints
       $result = $glpi->getAllWithParams('/Computer', $session, [
         'expand_dropdowns' => 'true',
       ], 500);
+      if (($result['complete'] ?? false) !== true) throw new RuntimeException('Consulta GLPI incompleta.', 502);
       $items = $result['items'];
       $glpi->killSession($session);
       return array_filter($items, 'is_array');
@@ -177,6 +178,7 @@ final class Endpoints
       $result = $glpi->getAllWithParams('/Printer', $session, [
         'expand_dropdowns' => 'true',
       ], 500);
+      if (($result['complete'] ?? false) !== true) throw new RuntimeException('Consulta GLPI incompleta.', 502);
       $items = $result['items'];
       $glpi->killSession($session);
       return array_filter($items, 'is_array');
