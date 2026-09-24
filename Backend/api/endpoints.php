@@ -43,6 +43,7 @@ require_once __DIR__ . '/classification_pipeline.php';
 require_once __DIR__ . '/sync.php';
 require_once __DIR__ . '/sync_status.php';
 require_once __DIR__ . '/tickets.php';
+require_once __DIR__ . '/room_tickets.php';
 require_once __DIR__ . '/workflow.php';
 require_once __DIR__ . '/assistance_action.php';
 require_once __DIR__ . '/integration_audit.php';
@@ -518,6 +519,9 @@ try {
     },
     '/api/chat' => ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
       ? ChatEndpoint::handle()
+      : Responde::erro('Método não permitido.', 405),
+    '/api/tickets/salas' => $method === 'GET'
+      ? RoomTicketsEndpoint::list($config)
       : Responde::erro('Método não permitido.', 405),
     '/api/tickets' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
       'POST' => TicketsEndpoint::create($config),
