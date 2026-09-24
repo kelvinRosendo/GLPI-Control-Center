@@ -223,7 +223,9 @@ window.GlpiClient = {
   },
 
   async fetchClassifiedAssets() {
+    this._assetSource = null;
     const json = await this._fetch('/api/assets/all');
+    this._assetSource = json.source;
     return json.data ?? [];
   },
 
@@ -355,7 +357,7 @@ window.GlpiClient = {
     const allErrors = [...classifiedErrors, ...legacyErrors];
 
     if (classifiedErrors.length === 0 && useClassified) {
-      if (!cacheState || !['valid', 'empty'].includes(cacheState.state)) {
+      if (this._assetSource !== 'glpi' && (!cacheState || !['valid', 'empty'].includes(cacheState.state))) {
         return { ok: false, partial: true, errors: [cacheState?.message || 'Inventário ainda não verificado.'] };
       }
       return { ok: true, errors: [] };
