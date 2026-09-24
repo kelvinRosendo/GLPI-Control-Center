@@ -12,6 +12,7 @@ on:
       - 'Backend/tests/test_inventory_sync.php'
       - 'Backend/tests/sandbox.php'
       - 'Frontend/javascript/*sync.js'
+      - 'Frontend/javascript/asset_details_ui.js'
       - 'Frontend/javascript/asset_classifier.js'
       - 'Frontend/javascript/glpi.client.js'
       - 'Frontend/test-inventory-sync.cjs'
@@ -45,6 +46,9 @@ jobs:
       - name: PHP syntax
         run: |
           php -v
+          php -l Backend/tests/test_classifier.php
+          php -l Backend/tests/test_sprint2_services.php
+          php -l Backend/tests/test_sprint4_execution.php
           php -l Backend/api/sync.php
           php -l Backend/api/sync_status.php
           php -l Backend/api/services/GlpiCollectionReader.php
@@ -65,6 +69,7 @@ jobs:
         run: |
           node --check Frontend/javascript/room-tickets.js
           node --check Frontend/javascript/app.js
+          node --check Frontend/javascript/asset_details_ui.js
           node --check Frontend/javascript/admin_sync.js
           node --check Frontend/javascript/asset_classifier.js
           node --check Frontend/javascript/glpi.client.js
