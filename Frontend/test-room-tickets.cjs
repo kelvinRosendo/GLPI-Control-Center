@@ -5,7 +5,7 @@ const vm = require('node:vm');
 const source = fs.readFileSync(__dirname + '/javascript/room-tickets.js', 'utf8');
 function fixture() {
   const node = () => ({ addEventListener(name, fn) { this[name] = fn; } });
-  const elements = Object.fromEntries(['period','from','to','room','type','status','q'].map(k => [k, { value: k === 'period' ? '30d' : '' }]));
+  const elements = Object.fromEntries(['period','from','to','room','type','status','q'].map(k => [k, { ...node(), value: k === 'period' ? '30d' : '' }]));
   const form = { ...node(), elements }, page = node(), auto = node();
   const detailBody = { innerHTML: '' };
   const dialog = { querySelector: () => detailBody, showModal() { this.open = true; }, close() { this.open = false; } };
