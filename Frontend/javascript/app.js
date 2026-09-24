@@ -162,6 +162,7 @@ window.App = {
   },
 
   showLoginScreen() {
+    window.RoomTickets?.reset();
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
     window.State?.resetFilters();
@@ -170,6 +171,7 @@ window.App = {
   },
 
   logout() {
+    window.RoomTickets?.reset();
     // Limpar estado do agente ao sair: mensagens, propostas, contexto, pendentes
     try { window.AgentPanel?.clearState?.(); } catch {}
     try { window.AgentPanel?.closePanel?.(); } catch {}
@@ -187,6 +189,7 @@ window.App = {
       return;
     }
 
+    if (tabId !== 'chamados-salas') window.RoomTickets?.unmount();
     window.State.setTab(tabId);
 
     // Aplicar filtros opcionais (navegação via cards/dashboard)
@@ -298,6 +301,9 @@ window.App = {
           return window.UI.renderSectionLoading('Carregando impressoras...');
         }
         return window.UI.renderAssetList(window.DATA.impressoras, 'Buscar impressora por nome ou serial...', 'impressora');
+      case 'chamados-salas':
+        window.RoomTickets.mount();
+        return '';
       case 'chamados':
         if (!window.STATE.ticketsLoaded && !window.STATE.ticketsLoading) {
           this._preloadTickets();
