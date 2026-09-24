@@ -17,6 +17,7 @@ on:
       - 'Frontend/css/room-tickets.css'
       - 'Frontend/index.html'
       - 'Frontend/test-room-tickets.cjs'
+      - 'Frontend/test-room-tickets-browser.cjs'
       - '.github/workflows/room-tickets.yml'
 permissions:
   contents: read
@@ -50,3 +51,5 @@ jobs:
           node --check Frontend/javascript/permissions.js
       - name: UI behavior with simulated DOM and API
         run: node --test Frontend/test-room-tickets.cjs
+      - name: Browser smoke test (isolated data, desktop and narrow screen)
+        run: node Frontend/test-room-tickets-browser.cjs
