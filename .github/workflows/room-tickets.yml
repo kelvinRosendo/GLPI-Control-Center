@@ -5,6 +5,16 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'Backend/api/sync*.php'
+      - 'Backend/api/services/GlpiCollectionReader.php'
+      - 'Backend/api/services/AssetService.php'
+      - 'Backend/config/asset-catalog.php'
+      - 'Backend/tests/test_inventory_sync.php'
+      - 'Backend/tests/sandbox.php'
+      - 'Frontend/javascript/*sync.js'
+      - 'Frontend/javascript/asset_classifier.js'
+      - 'Frontend/javascript/glpi.client.js'
+      - 'Frontend/test-inventory-sync.cjs'
       - 'Backend/api/room_tickets.php'
       - 'Backend/api/services/RoomTickets*.php'
       - 'Backend/api/client.php'
@@ -35,6 +45,10 @@ jobs:
       - name: PHP syntax
         run: |
           php -v
+          php -l Backend/api/sync.php
+          php -l Backend/api/sync_status.php
+          php -l Backend/api/services/GlpiCollectionReader.php
+          php -l Backend/api/services/AssetService.php
           php -l Backend/api/room_tickets.php
           php -l Backend/api/services/RoomTicketsService.php
           php -l Backend/api/services/RoomTicketsReader.php
@@ -43,10 +57,17 @@ jobs:
           php -l Backend/scripts/sync-cron.php
       - name: Room aggregation and pagination tests (no network or credentials)
         run: php Backend/tests/test_room_tickets.php
+      - name: Inventory regression tests (isolated data, no network)
+        run: |
+          php Backend/tests/test_inventory_sync.php
+          node --test Frontend/test-inventory-sync.cjs
       - name: JavaScript syntax
         run: |
           node --check Frontend/javascript/room-tickets.js
           node --check Frontend/javascript/app.js
+          node --check Frontend/javascript/admin_sync.js
+          node --check Frontend/javascript/asset_classifier.js
+          node --check Frontend/javascript/glpi.client.js
           node --check Frontend/javascript/sidebar.js
           node --check Frontend/javascript/permissions.js
       - name: UI behavior with simulated DOM and API
