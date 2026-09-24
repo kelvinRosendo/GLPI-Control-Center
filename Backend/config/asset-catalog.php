@@ -28,6 +28,8 @@ return [
 
   // ── Configuração de sincronização ───────────────────────────────────────────
   'sync' => [
+    // Physical inventory collections; extend explicitly for local/custom GLPI types.
+    'collections' => ['Computer', 'Printer', 'Monitor', 'Peripheral', 'NetworkEquipment', 'Phone'],
     'batch_size'       => 500,
     'cache_ttl'        => 300,
     'api_timeout'      => 30,
