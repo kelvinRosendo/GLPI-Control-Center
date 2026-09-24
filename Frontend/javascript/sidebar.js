@@ -36,6 +36,7 @@ window.Sidebar = (function () {
       items: [
         { id: 'computadores', label: 'Inventário', icon: 'computer', module: 'computadores' },
         { id: 'chamados', label: 'Chamados', icon: 'tickets', module: 'chamados' },
+        { id: 'chamados-salas', label: 'Chamados das salas', icon: 'tickets', module: 'chamados-salas' },
         { id: 'projetores', label: 'Projetores', icon: 'projector', module: 'projetores' },
         { id: 'assistente', label: 'Assistências', icon: 'assistance', module: 'assistente' },
       ],
