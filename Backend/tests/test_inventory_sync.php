@@ -88,4 +88,24 @@ flock($lock, LOCK_UN); fclose($lock);
 unlink($path); mkdir($path);
 $result = $sync->fullSync();
 check($result['syncInfo']['status'] === 'failed', 'cache write failure must not succeed');
+// Read endpoint must ignore unverified fixture and must not write the live-read result.
+rmdir($path);
+@unlink(GCC_TEST_BACKEND . '/data/sync_report.json');
+@unlink(GCC_TEST_BACKEND . '/data/cache/sync_status.json');
+file_put_contents($path, json_encode([['id' => 99, 'name' => 'FIXTURE', 'itemtype' => 'Computer']]));
+$fixtureBefore = file_get_contents($path);
+GlpiClient::$data = ['/Peripheral' => [['id' => 88, 'name' => 'Real mouse']]];
+final class Responde {
+    public static array $response = [];
+    public static function ok(array $data): void { self::$response = $data; }
+    public static function erro(string $message, int $status): void { self::$response = ['error' => $message, 'status' => $status]; }
+}
+require_once GCC_TEST_BACKEND . '/api/sync_status.php';
+SyncEndpoint::assets(['glpi' => []]);
+check(Responde::$response['source'] === 'glpi', 'unverified cache uses live authorized read');
+check(Responde::$response['data'][0]['itemtype'] === 'Peripheral' && Responde::$response['data'][0]['id'] === 88, 'live read returns real asset identity instead of fixture');
+check(file_get_contents($path) === $fixtureBefore, 'read-only fallback does not overwrite cache');
+GlpiClient::$fail = '/Peripheral';
+SyncEndpoint::assets(['glpi' => []]);
+check(Responde::$response['status'] === 502, 'live fallback failure does not return fixture as inventory');
 echo "OK: $count inventory regression checks; isolated data, no GLPI connection.\n";
