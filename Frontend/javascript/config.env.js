@@ -71,13 +71,13 @@
 
       // Backend API
       backend: {
-        url: 'https://gcc.colegiosatelite.com.br',
+        url: 'https://gcc.colegiosatelite.cloud',
         timeout: 15000,
       },
 
       // GLPI
       glpi: {
-        url: 'https://glpi.colegiosatelite.com.br',
+        url: 'https://glpi.colegiosatelite.cloud',
       },
 
       // Google OAuth
