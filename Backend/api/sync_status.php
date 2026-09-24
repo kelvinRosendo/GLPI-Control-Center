@@ -40,6 +40,14 @@ final class SyncEndpoint
     $sync = new AssetSync($config['glpi'] ?? [], $catalog);
 
     $result = $sync->fullSync();
+    $status = $result['syncInfo']['status'] ?? 'failed';
+    if ($status !== 'success') {
+      Responde::erro($status === 'locked'
+        ? 'Sincronização em execução ou diretório sem permissão de escrita.'
+        : 'Sincronização falhou. Inventário anterior preservado; consulte o relatório.',
+        $status === 'locked' ? 409 : 502);
+      return;
+    }
 
     Responde::ok([
       'message' => 'Sincronização completa executada.',
@@ -63,6 +71,14 @@ final class SyncEndpoint
     $sync = new AssetSync($config['glpi'] ?? [], $catalog);
 
     $result = $sync->incrementalSync();
+    $status = $result['syncInfo']['status'] ?? 'failed';
+    if ($status !== 'success') {
+      Responde::erro($status === 'locked'
+        ? 'Sincronização em execução ou diretório sem permissão de escrita.'
+        : 'Sincronização falhou. Inventário anterior preservado; consulte o relatório.',
+        $status === 'locked' ? 409 : 502);
+      return;
+    }
 
     Responde::ok([
       'message' => 'Sincronização incremental executada.',
@@ -98,6 +114,7 @@ final class SyncEndpoint
     $sync = new AssetSync($config['glpi'] ?? [], $catalog);
     $items = $sync->loadClassifiedData();
 
+    header('Cache-Control: no-store');
     Responde::ok([
       'data'  => $items,
       'count' => count($items),
