@@ -11,18 +11,19 @@
  */
 
 declare(strict_types=1);
+require_once __DIR__ . '/sandbox.php';
 
-require_once __DIR__ . '/../api/classifier.php';
-require_once __DIR__ . '/../api/classification_pipeline.php';
-require_once __DIR__ . '/../config/asset-catalog.php';
-require_once __DIR__ . '/../api/mappers.php';
-require_once __DIR__ . '/../api/services/OptionsService.php';
-require_once __DIR__ . '/../api/services/CapabilitiesService.php';
-require_once __DIR__ . '/../api/services/OperationTracker.php';
-require_once __DIR__ . '/../api/services/DropdownValidator.php';
-require_once __DIR__ . '/../api/services/IdempotencyGuard.php';
-require_once __DIR__ . '/../api/services/CacheUpdater.php';
-require_once __DIR__ . '/../api/services/AssetWriteService.php';
+require_once GCC_TEST_BACKEND . '/api/classifier.php';
+require_once GCC_TEST_BACKEND . '/api/classification_pipeline.php';
+require_once GCC_TEST_BACKEND . '/config/asset-catalog.php';
+require_once GCC_TEST_BACKEND . '/api/mappers.php';
+require_once GCC_TEST_BACKEND . '/api/services/OptionsService.php';
+require_once GCC_TEST_BACKEND . '/api/services/CapabilitiesService.php';
+require_once GCC_TEST_BACKEND . '/api/services/OperationTracker.php';
+require_once GCC_TEST_BACKEND . '/api/services/DropdownValidator.php';
+require_once GCC_TEST_BACKEND . '/api/services/IdempotencyGuard.php';
+require_once GCC_TEST_BACKEND . '/api/services/CacheUpdater.php';
+require_once GCC_TEST_BACKEND . '/api/services/AssetWriteService.php';
 
 class TestSprint4
 {
@@ -89,7 +90,7 @@ echo str_repeat('─', 60) . "\n\n";
 
 echo "── OperationTracker ──\n\n";
 
-$tracker = new OperationTracker(__DIR__ . '/../data/test_logs');
+$tracker = new OperationTracker(GCC_TEST_BACKEND . '/data/test_logs');
 
 // UUID v4
 $uuid = OperationTracker::generateId();
@@ -164,12 +165,12 @@ TestSprint4::assert(count($ops) > 0, 'findByCriteria encontra operações');
 
 // Audit trail
 $tracker->audit($op, 'test_event', ['key' => 'value']);
-$auditFile = __DIR__ . '/../data/test_logs/audit_' . date('Y-m-d') . '.log';
+$auditFile = GCC_TEST_BACKEND . '/data/test_logs/audit_' . date('Y-m-d') . '.log';
 TestSprint4::assert(file_exists($auditFile), 'Arquivo de auditoria criado');
 
 // Limpar logs de teste
-@array_map('unlink', glob(__DIR__ . '/../data/test_logs/ops/*.json'));
-@array_map('unlink', glob(__DIR__ . '/../data/test_logs/audit_*.log'));
+@array_map('unlink', glob(GCC_TEST_BACKEND . '/data/test_logs/ops/*.json'));
+@array_map('unlink', glob(GCC_TEST_BACKEND . '/data/test_logs/audit_*.log'));
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 2. DropdownValidator — Validação de IDs
@@ -201,7 +202,7 @@ TestSprint4::assert(true, 'DropdownValidator: validação de ID não numérico s
 
 echo "\n── IdempotencyGuard ──\n\n";
 
-$tracker2 = new OperationTracker(__DIR__ . '/../data/test_logs');
+$tracker2 = new OperationTracker(GCC_TEST_BACKEND . '/data/test_logs');
 $guard = new IdempotencyGuard($tracker2);
 
 // Gerar chave
@@ -236,7 +237,7 @@ TestSprint4::assert($check3['allowed'] === false, 'Operação em execução bloq
 TestSprint4::assertArrayHasKey('existing', $check3, 'Retorna operação existente');
 
 // Limpar
-@array_map('unlink', glob(__DIR__ . '/../data/test_logs/ops/*.json'));
+@array_map('unlink', glob(GCC_TEST_BACKEND . '/data/test_logs/ops/*.json'));
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 4. CacheUpdater — Atualização pós-escrita
@@ -244,7 +245,7 @@ TestSprint4::assertArrayHasKey('existing', $check3, 'Retorna operação existent
 
 echo "\n── CacheUpdater ──\n\n";
 
-$cacheDir = __DIR__ . '/../data/cache';
+$cacheDir = GCC_TEST_BACKEND . '/data/cache';
 if (!is_dir($cacheDir)) @mkdir($cacheDir, 0755, true);
 $cacheFile = $cacheDir . '/classified_assets.json';
 
@@ -261,7 +262,7 @@ $testCache = [
 ];
 @file_put_contents($cacheFile, json_encode($testCache));
 
-$updater = new CacheUpdater(__DIR__ . '/../data');
+$updater = new CacheUpdater(GCC_TEST_BACKEND . '/data');
 
 // Atualizar ativo existente
 $result = $updater->updateAsset('Computer', 1, [
@@ -396,7 +397,7 @@ TestSprint4::assertEquals(2, $printerDetails['editableValues']['printermodels_id
 
 echo "\n── Máquina de estados ──\n\n";
 
-$tracker3 = new OperationTracker(__DIR__ . '/../data/test_logs');
+$tracker3 = new OperationTracker(GCC_TEST_BACKEND . '/data/test_logs');
 
 // Caminho feliz: prepared → executing → verifying → completed
 $opHappy = $tracker3->prepare('Computer', 10, 'create', ['name' => 'Teste'], 'user1');
@@ -444,7 +445,7 @@ $opRetry = $tracker3->transition($opRetry, 'executing');
 TestSprint4::assertEquals('executing', $opRetry['state'], 'Retry: failed → executing');
 
 // Limpar
-@array_map('unlink', glob(__DIR__ . '/../data/test_logs/ops/*.json'));
+@array_map('unlink', glob(GCC_TEST_BACKEND . '/data/test_logs/ops/*.json'));
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 9. Preservação de dados de projetores
@@ -469,7 +470,7 @@ TestSprint4::assertEquals('PAT999', $asset['raw']['otherserial'] ?? '', 'Patrim�
 
 echo "\n── Computer e Printer mesmo ID ──\n\n";
 
-$tracker4 = new OperationTracker(__DIR__ . '/../data/test_logs');
+$tracker4 = new OperationTracker(GCC_TEST_BACKEND . '/data/test_logs');
 $opComp = $tracker4->prepare('Computer', 42, 'update', ['name' => 'Comp 42'], 'user');
 $opPrint = $tracker4->prepare('Printer', 42, 'update', ['name' => 'Print 42'], 'user');
 
@@ -478,7 +479,7 @@ TestSprint4::assertEquals('Computer', $opComp['itemtype'], 'itemtype Computer pr
 TestSprint4::assertEquals('Printer', $opPrint['itemtype'], 'itemtype Printer preservado');
 
 // Limpar
-@array_map('unlink', glob(__DIR__ . '/../data/test_logs/ops/*.json'));
+@array_map('unlink', glob(GCC_TEST_BACKEND . '/data/test_logs/ops/*.json'));
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 11. Timeout e recuperação
@@ -486,7 +487,7 @@ TestSprint4::assertEquals('Printer', $opPrint['itemtype'], 'itemtype Printer pre
 
 echo "\n── Timeout e recuperação ──\n\n";
 
-$tracker5 = new OperationTracker(__DIR__ . '/../data/test_logs');
+$tracker5 = new OperationTracker(GCC_TEST_BACKEND . '/data/test_logs');
 $opTimeout = $tracker5->prepare('Computer', 20, 'update', ['name' => 'Timeout'], 'user');
 $opTimeout = $tracker5->transition($opTimeout, 'executing');
 
@@ -495,7 +496,7 @@ $recovered = $guard2->recoverFromTimeout($opTimeout, 0); // timeout = 0 para tes
 TestSprint4::assertEquals('failed', $recovered['state'], 'Timeout marca como failed');
 
 // Limpar
-@array_map('unlink', glob(__DIR__ . '/../data/test_logs/ops/*.json'));
+@array_map('unlink', glob(GCC_TEST_BACKEND . '/data/test_logs/ops/*.json'));
 
 // ══════════════════════════════════════════════════════════════════════════════
 // RELATÓRIO FINAL
