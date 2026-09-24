@@ -30,15 +30,15 @@ final class AssetSync
   /** @var resource|null */
   private $lockHandle = null;
 
-  public function __construct(array $glpiConfig, array $catalog)
+  public function __construct(array $glpiConfig, array $catalog, ?string $dataDir = null, ?string $logDir = null)
   {
     $this->client = new GlpiClient($glpiConfig);
     $this->catalog = $catalog;
 
-    $baseDir = realpath(__DIR__ . '/../data') ?: __DIR__ . '/../data';
+    $baseDir = $dataDir ?? (realpath(__DIR__ . '/../data') ?: __DIR__ . '/../data');
     $this->dataDir = $baseDir;
     $this->cacheDir = $baseDir . '/cache';
-    $this->logDir = (realpath(__DIR__ . '/../logs') ?: __DIR__ . '/../logs');
+    $this->logDir = $logDir ?? (realpath(__DIR__ . '/../logs') ?: __DIR__ . '/../logs');
     $this->lockFile = $this->cacheDir . '/.sync.lock';
 
     foreach ([$this->dataDir, $this->cacheDir, $this->logDir] as $dir) {
@@ -61,7 +61,7 @@ final class AssetSync
   private function acquireLock(): bool
   {
     $this->lockHandle = @fopen($this->lockFile, 'c');
-    if ($this->lockHandle === false) return false;
+    if ($this->lockHandle === false) { $this->lockHandle = null; return false; }
 
     if (!flock($this->lockHandle, LOCK_EX | LOCK_NB)) {
       fclose($this->lockHandle);
@@ -84,7 +84,7 @@ final class AssetSync
       flock($this->lockHandle, LOCK_UN);
       fclose($this->lockHandle);
       $this->lockHandle = null;
-      @unlink($this->lockFile);
+      // Keep the inode: deleting a lock file can allow two independent locks.
     }
   }
 
@@ -93,242 +93,92 @@ final class AssetSync
    */
   public function isRunning(): bool
   {
-    if (!file_exists($this->lockFile)) return false;
-    $content = @file_get_contents($this->lockFile);
-    if ($content === false) return false;
-    $data = json_decode($content, true);
-    return is_array($data) && isset($data['pid']);
+    $handle = @fopen($this->lockFile, 'c');
+    if ($handle === false) return false;
+    $available = flock($handle, LOCK_EX | LOCK_NB);
+    if ($available) flock($handle, LOCK_UN);
+    fclose($handle);
+    return !$available;
   }
 
   // ── Sincronização completa ──────────────────────────────────────────────────
 
-  /**
-   * Sincronização completa: Computer + Printer.
-   */
+  /** Full snapshot of every configured physical asset collection. */
   public function fullSync(): array
   {
     if (!$this->acquireLock()) {
-      return [
-        'items'    => $this->loadClassifiedData(),
-        'stats'    => ['total' => 0, 'error' => 'Sincronização já em execução'],
-        'syncInfo' => ['status' => 'locked', 'message' => 'Outra sincronização está em execução.'],
-      ];
+      return ['items' => $this->loadClassifiedData(), 'stats' => [],
+        'syncInfo' => ['status' => 'locked', 'message' => 'Sincronização indisponível: em execução ou sem permissão de escrita.']];
     }
-
-    // Status: running
-    $this->writeStatus('running');
-
-    $startTime = microtime(true);
-    $syncInfo = [
-      'started_at'   => date('c'),
-      'completed_at' => null,
-      'duration_sec' => 0,
-      'status'       => 'running',
-      'mode'         => 'full',
-      'collections'  => [],
-      'errors'       => [],
-    ];
-
+    $started = microtime(true);
     $previousData = $this->loadClassifiedData();
-
+    $info = ['started_at' => date('c'), 'completed_at' => null, 'duration_sec' => 0,
+      'status' => 'running', 'mode' => 'full', 'collections' => [], 'errors' => []];
+    $session = null;
+    $items = $previousData;
     try {
+      if (!$this->writeStatus('running', $info)) {
+        throw new RuntimeException('Não foi possível gravar o status da sincronização.');
+      }
       $session = $this->client->initSession();
-      $allItems = [];
-
-      try {
-        $computerResult = $this->fetchCollection('/Computer', $session, $syncInfo);
-        foreach ($computerResult as $item) {
-          $item['itemtype'] = 'Computer';
-          $allItems[] = $item;
+      $raw = [];
+      foreach ($this->collections() as $type) {
+        foreach ($this->fetchCollection('/' . $type, $session, $info) as $item) {
+          $item['itemtype'] = $type;
+          $raw[] = $item;
         }
-
-        $printerResult = $this->fetchCollection('/Printer', $session, $syncInfo);
-        foreach ($printerResult as $item) {
-          $item['itemtype'] = 'Printer';
-          $allItems[] = $item;
-        }
-
-        $this->client->killSession($session);
-      } catch (\Throwable $e) {
-        $this->client->killSession($session);
-        $syncInfo['errors'][] = [
-          'collection' => 'session',
-          'message'    => $e->getMessage(),
-          'file'       => $e->getFile(),
-          'line'       => $e->getLine(),
-        ];
       }
-
-      // Se houve erros e não coletamos nada, preservar dados anteriores
-      if ($allItems === [] && $previousData !== []) {
-        $syncInfo['status'] = 'failed';
-        $syncInfo['completed_at'] = date('c');
-        $syncInfo['duration_sec'] = round(microtime(true) - $startTime, 3);
-        $syncInfo['preserved_from_cache'] = count($previousData);
-        $this->writeStatus('failed', $syncInfo);
-        $this->releaseLock();
-
-        return [
-          'items'    => $previousData,
-          'stats'    => $this->computeStats($previousData),
-          'syncInfo' => $syncInfo,
-        ];
+      if ($info['errors'] !== []) {
+        // Never publish a mixture of partial fresh data and old records.
+        throw new RuntimeException('Uma ou mais coleções não foram lidas integralmente.');
       }
-
-      // Classificar todos os ativos
-      $classified = Classifier::classifyBatch($allItems);
-
-      $endTime = microtime(true);
-      $syncInfo['completed_at'] = date('c');
-      $syncInfo['duration_sec'] = round($endTime - $startTime, 3);
-      $syncInfo['status'] = empty($syncInfo['errors']) ? 'success' : 'partial';
-      $syncInfo['total_items'] = count($allItems);
-
-      // Escrita atômica
-      $this->atomicSave($this->cacheDir . '/classified_assets.json', $classified['items']);
-      $this->atomicSave($this->dataDir . '/inventario_' . date('Y-m-d_H-i-s') . '.json', $allItems);
-      $this->saveSyncReport($syncInfo, $classified['stats']);
-      $this->writeStatus($syncInfo['status'], $syncInfo);
-
+      $classified = Classifier::classifyBatch($raw);
+      if (!$this->atomicSave($this->cacheDir . '/classified_assets.json', $classified['items'])) {
+        throw new RuntimeException('Não foi possível substituir o cache de ativos.');
+      }
+      $items = $classified['items'];
+      $info['status'] = 'success';
+      $info['total_items'] = count($items);
+      $info['coverage'] = $this->collections();
+      $info['source'] = 'glpi';
+      $this->atomicSave($this->dataDir . '/inventario_' . date('Y-m-d_H-i-s') . '.json', $raw);
+    } catch (Throwable $e) {
+      $info['status'] = 'failed';
+      $info['preserved_from_cache'] = count($previousData);
+      $info['errors'][] = ['collection' => 'sync',
+        'message' => 'Sincronização não concluída. Confira conexão, credenciais, permissões de leitura e gravação.',
+        'error_class' => get_class($e)];
+    } finally {
+      if ($session !== null) {
+        try { $this->client->killSession($session); } catch (Throwable $ignored) {}
+      }
+      $info['completed_at'] = date('c');
+      $info['duration_sec'] = round(microtime(true) - $started, 3);
+      $stats = $this->computeStats($items);
+      $this->saveSyncReport($info, $stats);
+      $this->writeStatus($info['status'], $info);
       $this->releaseLock();
-
-      return [
-        'items'    => $classified['items'],
-        'stats'    => $classified['stats'],
-        'syncInfo' => $syncInfo,
-      ];
-    } catch (\Throwable $e) {
-      $endTime = microtime(true);
-      $syncInfo['completed_at'] = date('c');
-      $syncInfo['duration_sec'] = round($endTime - $startTime, 3);
-      $syncInfo['status'] = 'failed';
-      $syncInfo['errors'][] = [
-        'message' => $e->getMessage(),
-        'file'    => $e->getFile(),
-        'line'    => $e->getLine(),
-      ];
-
-      $this->saveSyncReport($syncInfo, ['total' => 0]);
-      $this->writeStatus('failed', $syncInfo);
-      $this->releaseLock();
-
-      return [
-        'items'    => $previousData,
-        'stats'    => $this->computeStats($previousData),
-        'syncInfo' => $syncInfo,
-      ];
     }
+    return ['items' => $items, 'stats' => $stats, 'syncInfo' => $info];
   }
 
-  // ── Sincronização incremental ───────────────────────────────────────────────
-
-  /**
-   * Sincronização incremental.
-   *
-   * NOTA: O GLPI REST API não suporta filtro 'modified' na query string.
-   * O endpoint /Computer e /Printer sempre retornam todos os registros.
-   * Portanto, incremental faz merge por ID com dados existentes.
-   * Se não houver cache anterior, executa full sync.
-   */
+  /** GLPI collection reads are full snapshots; use the same validated path. */
   public function incrementalSync(): array
   {
-    $existingItems = $this->loadClassifiedData();
-    if ($existingItems === []) {
-      return $this->fullSync();
-    }
+    return $this->fullSync();
+  }
 
-    if (!$this->acquireLock()) {
-      return [
-        'items'    => $existingItems,
-        'stats'    => ['total' => 0, 'error' => 'Sincronização já em execução'],
-        'syncInfo' => ['status' => 'locked', 'message' => 'Outra sincronização está em execução.'],
-      ];
-    }
-
-    $this->writeStatus('running');
-
-    $startTime = microtime(true);
-    $syncInfo = [
-      'started_at'   => date('c'),
-      'completed_at' => null,
-      'duration_sec' => 0,
-      'status'       => 'running',
-      'mode'         => 'incremental',
-      'collections'  => [],
-      'errors'       => [],
-    ];
-
-    try {
-      $session = $this->client->initSession();
-      $allItems = [];
-
-      try {
-        // GLPI REST não suporta 'modified' — busca tudo e faz merge por ID
-        $computerResult = $this->fetchCollection('/Computer', $session, $syncInfo);
-        foreach ($computerResult as $item) {
-          $item['itemtype'] = 'Computer';
-          $allItems[] = $item;
-        }
-
-        $printerResult = $this->fetchCollection('/Printer', $session, $syncInfo);
-        foreach ($printerResult as $item) {
-          $item['itemtype'] = 'Printer';
-          $allItems[] = $item;
-        }
-
-        $this->client->killSession($session);
-      } catch (\Throwable $e) {
-        $this->client->killSession($session);
-        $syncInfo['errors'][] = [
-          'collection' => 'session',
-          'message'    => $e->getMessage(),
-        ];
+  private function collections(): array
+  {
+    $types = $this->catalog['sync']['collections']
+      ?? ['Computer', 'Printer', 'Monitor', 'Peripheral', 'NetworkEquipment', 'Phone'];
+    if (!is_array($types) || $types === []) throw new RuntimeException('Coleções não configuradas.');
+    foreach ($types as $type) {
+      if (!is_string($type) || !preg_match('/^[A-Za-z][A-Za-z0-9_]*$/D', $type)) {
+        throw new RuntimeException('Coleção inválida.');
       }
-
-      // Merge: priorizar dados novos, manter existentes que não foram atualizados
-      $merged = $this->mergeIncremental($existingItems, $allItems);
-
-      $classified = Classifier::classifyBatch($merged);
-
-      $endTime = microtime(true);
-      $syncInfo['completed_at'] = date('c');
-      $syncInfo['duration_sec'] = round($endTime - $startTime, 3);
-      $syncInfo['status'] = empty($syncInfo['errors']) ? 'success' : 'partial';
-      $syncInfo['total_items'] = count($merged);
-      $syncInfo['updated_count'] = count($allItems);
-
-      $this->atomicSave($this->cacheDir . '/classified_assets.json', $classified['items']);
-      $this->saveSyncReport($syncInfo, $classified['stats']);
-      $this->writeStatus($syncInfo['status'], $syncInfo);
-
-      $this->releaseLock();
-
-      return [
-        'items'    => $classified['items'],
-        'stats'    => $classified['stats'],
-        'syncInfo' => $syncInfo,
-      ];
-    } catch (\Throwable $e) {
-      $endTime = microtime(true);
-      $syncInfo['completed_at'] = date('c');
-      $syncInfo['duration_sec'] = round($endTime - $startTime, 3);
-      $syncInfo['status'] = 'failed';
-      $syncInfo['errors'][] = [
-        'message' => $e->getMessage(),
-        'file'    => $e->getFile(),
-        'line'    => $e->getLine(),
-      ];
-
-      $this->saveSyncReport($syncInfo, ['total' => 0]);
-      $this->writeStatus('failed', $syncInfo);
-      $this->releaseLock();
-
-      return [
-        'items'    => $existingItems,
-        'stats'    => $this->computeStats($existingItems),
-        'syncInfo' => $syncInfo,
-      ];
     }
+    return array_values(array_unique($types));
   }
 
   // ── Status persistido ───────────────────────────────────────────────────────
@@ -336,7 +186,7 @@ final class AssetSync
   /**
    * Escreve status da sincronização em arquivo.
    */
-  private function writeStatus(string $status, array $extra = []): void
+  private function writeStatus(string $status, array $extra = []): bool
   {
     $statusData = array_merge([
       'status'     => $status,
@@ -344,7 +194,7 @@ final class AssetSync
       'pid'        => getmypid(),
     ], $extra);
 
-    $this->atomicSave($this->cacheDir . '/sync_status.json', $statusData);
+    return $this->atomicSave($this->cacheDir . '/sync_status.json', $statusData);
   }
 
   /**
@@ -383,7 +233,8 @@ final class AssetSync
     }
 
     $data = json_decode($content, true);
-    if (!is_array($data)) {
+    if (is_array($data) && isset($data['items'])) $data = $data['items'];
+    if (!is_array($data) || !array_is_list($data)) {
       $this->logError('Cache JSON inválido — ignorando');
       return [];
     }
@@ -441,7 +292,7 @@ final class AssetSync
     }
 
     return [
-      'status'             => 'ok',
+      'status'             => $syncStatus['status'] ?? 'unknown',
       'total_received'     => count($items),
       'total_classified'   => count($items) - $this->countByCategory($items, 'unclassified'),
       'total_unclassified' => $this->countByCategory($items, 'unclassified'),
@@ -539,13 +390,29 @@ final class AssetSync
       ];
     }
 
+    if (isset($data['items']) && is_array($data['items'])) $data = $data['items'];
     $count = count($data);
     $lastModified = filemtime($cacheFile);
     $dataDate = $lastModified ? date('c', $lastModified) : null;
 
     // Sync parcial?
     $isPartial = ($syncStatus['status'] ?? '') === 'partial';
-    $lastSyncFailed = ($report['sync_info']['status'] ?? '') === 'failed';
+    $lastSyncFailed = ($syncStatus['status'] ?? $report['sync_info']['status'] ?? '') === 'failed';
+
+    $verified = ($report['sync_info']['source'] ?? '') === 'glpi'
+      && ($report['sync_info']['coverage'] ?? []) === $this->collections()
+      && ($report['sync_info']['status'] ?? '') === 'success';
+    if (!$verified || $lastSyncFailed || $isPartial) {
+      return ['state' => $lastSyncFailed ? 'stale' : ($isPartial ? 'partial' : 'unverified'),
+        'exists' => true, 'items_count' => $count, 'file_size' => $fileSize,
+        'catalog_version' => $this->catalog['version'] ?? null,
+        'last_sync' => $report['sync_info'] ?? null,
+        'sync_status' => $syncStatus['status'] ?? 'unknown', 'data_date' => $dataDate,
+        'message' => $lastSyncFailed
+          ? 'Última sincronização falhou. O inventário anterior foi preservado.'
+          : 'Cobertura do inventário não confirmada. Execute uma sincronização completa.',
+        'collections' => $this->collections()];
+    }
 
     if ($count === 0) {
       return [
@@ -606,62 +473,20 @@ final class AssetSync
 
   private function fetchCollection(string $collection, string $session, array &$syncInfo, array $options = []): array
   {
-    $batchSize = $this->catalog['sync']['batch_size'] ?? 500;
-    $maxRetries = $this->catalog['sync']['max_retries'] ?? 3;
-    $retryInterval = $this->catalog['sync']['retry_interval'] ?? 2;
-
-    $params = array_merge([
-      'expand_dropdowns' => 'true',
-    ], $options['criteria'] ?? []);
-
-    $items = [];
-    $page = 0;
-    $hasMore = true;
-
-    while ($hasMore) {
-      $retries = 0;
-      $success = false;
-
-      while ($retries < $maxRetries && !$success) {
-        try {
-          $result = $this->client->getAllWithParams($collection, $session, $params, $batchSize);
-          $pageItems = $result['items'] ?? [];
-          $total = $result['total'] ?? 0;
-
-          foreach ($pageItems as $item) {
-            if (is_array($item)) {
-              $items[] = $item;
-            }
-          }
-
-          $success = true;
-          $hasMore = count($items) < $total && count($pageItems) > 0;
-          $page++;
-        } catch (\Throwable $e) {
-          $retries++;
-          if ($retries >= $maxRetries) {
-            $syncInfo['errors'][] = [
-              'collection' => $collection,
-              'page'       => $page,
-              'message'    => $e->getMessage(),
-              'retries'    => $retries,
-            ];
-            $hasMore = false;
-          } else {
-            sleep($retryInterval);
-          }
-        }
-      }
-
-      if (!$success) break;
-    }
-
+    $result = $this->client->getAllWithParams($collection, $session, array_merge([
+      'expand_dropdowns' => 'true', 'is_deleted' => 'false',
+    ], $options['criteria'] ?? []), (int)($this->catalog['sync']['batch_size'] ?? 500));
     $syncInfo['collections'][$collection] = [
-      'total' => count($items),
-      'pages' => $page,
+      'total' => count($result['items']), 'expected' => $result['total'],
+      'pages' => $result['pages'] ?? 0, 'complete' => $result['complete'] === true,
     ];
-
-    return $items;
+    if ($result['complete'] !== true) {
+      foreach ($result['errors'] ?: ['Coleção incompleta.'] as $error) {
+        $syncInfo['errors'][] = ['collection' => $collection, 'message' => $error];
+      }
+      return [];
+    }
+    return $result['items'];
   }
 
   private function mergeIncremental(array $existing, array $updated): array
@@ -703,22 +528,10 @@ final class AssetSync
       return false;
     }
 
-    // Rename atômico no Linux; no Windows, rename + unlink
-    if (PHP_OS_FAMILY === 'Windows') {
-      @unlink($path);
-      $renamed = @rename($tempFile, $path);
-      if (!$renamed) {
-        @copy($tempFile, $path);
-        @unlink($tempFile);
-      }
-    } else {
-      $renamed = @rename($tempFile, $path);
-      if (!$renamed) {
-        @copy($tempFile, $path);
-        @unlink($tempFile);
-      }
+    if (!@rename($tempFile, $path)) {
+      @unlink($tempFile);
+      return false;
     }
-
     return true;
   }
 
