@@ -36,3 +36,8 @@ logs/
 tmp/
 temp/
 .cache/
+
+# Inventário e metadados gerados no ambiente; nunca distribuir cache de teste.
+/Backend/data/cache/
+/Backend/data/sync_report.json
+/Backend/data/inventario_*.json
