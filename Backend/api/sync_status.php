@@ -112,12 +112,28 @@ final class SyncEndpoint
   {
     $catalog = Classifier::getCatalog();
     $sync = new AssetSync($config['glpi'] ?? [], $catalog);
-    $items = $sync->loadClassifiedData();
-
+    $state = $sync->getCacheState();
+    $source = 'cache';
+    if (in_array($state['state'], ['not_created', 'unverified', 'invalid'], true)) {
+      // Authorized inventory read, not an administrative sync. No cache mutation.
+      // An old checkout may contain fixtures; never serve them as a verified inventory.
+      try {
+        require_once __DIR__ . '/services/AssetService.php';
+        $service = new AssetService($config['glpi'] ?? []);
+        $result = $service->all();
+        $items = $result['items'];
+        $source = 'glpi';
+      } catch (Throwable $error) {
+        Responde::erro('Inventário não confirmado. Não foi possível ler todas as coleções do GLPI; confira conexão e permissões da integração.', 502);
+        return;
+      }
+    } else {
+      $items = $sync->loadClassifiedData();
+    }
     header('Cache-Control: no-store');
     Responde::ok([
-      'data'  => $items,
-      'count' => count($items),
+      'data' => $items, 'count' => count($items), 'source' => $source,
+      'complete' => $source === 'glpi' || in_array($state['state'], ['valid', 'empty'], true),
     ]);
   }
 
