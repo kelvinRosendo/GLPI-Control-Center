@@ -69,6 +69,7 @@ window.GlpiClient = {
    * Busca detalhes de qualquer ativo por itemtype.
    */
   async fetchAssetDetails(glpiId, itemtype = 'Computer') {
+    if (!['Computer', 'Printer'].includes(itemtype)) throw new Error('Este tipo de ativo está disponível apenas para consulta no inventário.');
     const endpoint = itemtype === 'Printer'
       ? `/api/assets/printers/${glpiId}`
       : `/api/assets/computers/${glpiId}`;
@@ -80,6 +81,7 @@ window.GlpiClient = {
    * Atualiza ativo (Computer e Printer suportados).
    */
   async updateAsset(glpiId, itemtype, input) {
+    if (!['Computer', 'Printer'].includes(itemtype)) throw new Error('Este tipo de ativo está disponível apenas para consulta no inventário.');
     const endpoint = itemtype === 'Printer'
       ? `/api/assets/printers/${glpiId}`
       : `/api/assets/computers/${glpiId}`;
@@ -94,6 +96,7 @@ window.GlpiClient = {
    * Cria um novo ativo.
    */
   async createAsset(itemtype, input) {
+    if (!['Computer', 'Printer'].includes(itemtype)) throw new Error('Este tipo de ativo está disponível apenas para consulta no inventário.');
     const endpoint = itemtype === 'Printer'
       ? '/api/assets/printers'
       : '/api/assets/computers';
@@ -108,6 +111,7 @@ window.GlpiClient = {
    * Exclui logicamente um ativo.
    */
   async deleteAsset(glpiId, itemtype) {
+    if (!['Computer', 'Printer'].includes(itemtype)) throw new Error('Este tipo de ativo está disponível apenas para consulta no inventário.');
     const endpoint = itemtype === 'Printer'
       ? `/api/assets/printers/${glpiId}/delete`
       : `/api/assets/computers/${glpiId}/delete`;
@@ -119,6 +123,7 @@ window.GlpiClient = {
    * Restaura um ativo excluído logicamente.
    */
   async restoreAsset(glpiId, itemtype) {
+    if (!['Computer', 'Printer'].includes(itemtype)) throw new Error('Este tipo de ativo está disponível apenas para consulta no inventário.');
     const endpoint = itemtype === 'Printer'
       ? `/api/assets/printers/${glpiId}/restore`
       : `/api/assets/computers/${glpiId}/restore`;
@@ -293,7 +298,7 @@ window.GlpiClient = {
       cacheState = csResult.value ?? null;
     }
 
-    const useClassified = Array.isArray(classified) && classified.length > 0;
+    const useClassified = Array.isArray(classified) && (classified.length > 0 || this._assetSource === 'glpi' || cacheState?.state === 'empty');
     let mapped = {};
     const legacyErrors = [];
 
@@ -375,7 +380,7 @@ window.GlpiClient = {
   },
 
   _mapClassifiedToLegacy(classified) {
-    if (!Array.isArray(classified) || classified.length === 0) return {};
+    if (!Array.isArray(classified)) return {};
     const map = { computadores: [], chromebooksGeekiees: [], chromebooksApoio: {}, chromebooksSalas: {}, chromebooksExibicao: [], projetores: [], impressoras: [] };
     for (const asset of classified) {
       const cat = asset.category;
@@ -409,7 +414,7 @@ window.GlpiClient = {
         map.projetores.push(this._toLegacyAsset(asset));
       } else if (cat === 'printer' || cat === 'printer_computer') {
         map.impressoras.push(this._toLegacyAsset(asset));
-      } else {
+      } else if (asset.itemtype === 'Computer') {
         map.computadores.push(this._toLegacyAsset(asset));
       }
     }
