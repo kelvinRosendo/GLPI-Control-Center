@@ -177,3 +177,55 @@ Pendências antes da publicação:
 - Conferir visualmente a página dentro do GCC completo.
 - Revisar o conteúdo herdado do PR, incluindo dados operacionais versionados.
 - Validar preparação da release e rollback.
+
+## Correção do inventário incompleto
+
+As capturas do ambiente local mostravam CS-002, CS-003 e EPSON. Esses três registros
+coincidiam com o cache versionado; o relatório versionado separadamente descrevia
+577 ativos, demonstrando que os arquivos não representavam o mesmo inventário.
+Isso não comprova o total atual do GLPI.
+
+Correções:
+- O cache de exemplo foi movido para Backend/tests/fixtures. Cache, status e
+  relatório operacionais deixaram de ser distribuídos pela branch.
+- Os testes legados que manipulavam o cache usam uma cópia temporária isolada.
+- A paginação avança pela quantidade recebida, aceita HTTP 206, exige total,
+  detecta páginas repetidas, mudança de total, erros HTTP e término prematuro.
+- Sincronizações só substituem o inventário após leitura integral de todas as
+  coleções configuradas. Falha preserva o cache anterior; erro de gravação não
+  é tratado como sucesso.
+- Coleções padrão: Computer, Printer, Monitor, Peripheral, NetworkEquipment e
+  Phone. A lista fica em Backend/config/asset-catalog.php, sync.collections.
+  Tipos customizados ou de plugins precisam ser configurados e homologados.
+  A consulta respeita o perfil e entidades acessíveis ao token GLPI; não amplia
+  permissões. Coleção sem permissão falha explicitamente.
+- Sem cache confirmado, GET /api/assets/all faz consulta direta de leitura ao
+  GLPI, disponível aos perfis já autorizados a consultar inventário. Não executa
+  sincronização administrativa nem grava o resultado no cache.
+- Novos tipos têm detalhes de consulta; não são encaminhados para edição de
+  Computer por compartilharem o mesmo ID.
+- O painel lê o formato real do relatório, não registra horário de login como
+  última sincronização e identifica cache sem cobertura confirmada.
+- A ação incremental usa o mesmo snapshot completo validado: a API consultada
+  não oferece delta nesse fluxo. Isso evita conservar ativos removidos.
+
+Validação adicional:
+- php Backend/tests/test_inventory_sync.php
+- node --test Frontend/test-inventory-sync.cjs
+- Os cenários cobrem paginação limitada pelo servidor, falhas HTTP, repetição,
+  preservação do cache, inventário vazio legítimo, tipos com IDs iguais,
+  concorrência, gravação, leitura direta sem cache e ausência de alteração em
+  Computer ao consultar periféricos.
+
+Aplicação no ambiente:
+1. Atualizar o código a partir do PR revisado, preservando .env e dados reais.
+   Na VPS, usar nova release e os vínculos persistentes já documentados.
+2. Abrir Inventário Geral. Sem cache confirmado, o backend consulta o GLPI.
+3. Para manter cache persistente, executar a sincronização pelo administrador
+   ou php Backend/scripts/sync-cron.php no ambiente configurado.
+4. Conferir total e contagens por coleção contra o GLPI usando o mesmo perfil
+   e escopo de entidades.
+
+O terminal local da sessão permanece indisponível. Estas alterações e os testes
+foram realizados via GitHub; a carga do GLPI real ainda depende da aplicação do
+código no ambiente do usuário. Nenhuma credencial foi alterada.
