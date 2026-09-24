@@ -347,13 +347,17 @@ window.GlpiClient = {
       syncStatus: syncStatus ?? previous.syncStatus,
       syncReport: syncReport ?? previous.syncReport,
       cacheState: cacheState ?? previous.cacheState,
-      lastSuccessfulSync: useClassified ? new Date().toISOString() : previous.lastSuccessfulSync,
+      lastSuccessfulSync: syncReport?.sync_info?.status === 'success'
+        ? syncReport.sync_info.completed_at : previous.lastSuccessfulSync,
       ...uiState,
     };
 
     const allErrors = [...classifiedErrors, ...legacyErrors];
 
     if (classifiedErrors.length === 0 && useClassified) {
+      if (!cacheState || !['valid', 'empty'].includes(cacheState.state)) {
+        return { ok: false, partial: true, errors: [cacheState?.message || 'Inventário ainda não verificado.'] };
+      }
       return { ok: true, errors: [] };
     }
 
