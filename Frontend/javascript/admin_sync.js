@@ -57,7 +57,7 @@ window.AdminSync = (() => {
         window.DATA.syncReport = result.data;
         window.DATA.syncPartial = false;
         // Recarregar ativos
-        const loadResult = await window.AssetClassifier.fetchAllClassified();
+        const loadResult = await window.AssetClassifier.fetchAllClassified(true);
         if (loadResult.ok) {
           window.DATA.classifiedAssets = loadResult.data;
           window.DATA.classifiedAssetsLoaded = true;
@@ -73,6 +73,7 @@ window.AdminSync = (() => {
       window.DATA.syncStatus = { status: 'failed', last_run: new Date().toISOString() };
     }
 
+    await window.GlpiClient.loadAll();
     window.DATA.syncInProgress = false;
     window.App._renderContent();
 
@@ -96,7 +97,7 @@ window.AdminSync = (() => {
       const result = await window.AssetClassifier.runIncrementalSync();
       if (result.ok) {
         window.DATA.syncReport = result.data;
-        const loadResult = await window.AssetClassifier.fetchAllClassified();
+        const loadResult = await window.AssetClassifier.fetchAllClassified(true);
         if (loadResult.ok) {
           window.DATA.classifiedAssets = loadResult.data;
           window.DATA.classifiedAssetsLoaded = true;
@@ -109,6 +110,7 @@ window.AdminSync = (() => {
       window.DATA.syncError = e.message;
     }
 
+    await window.GlpiClient.loadAll();
     window.DATA.syncInProgress = false;
     window.App._renderContent();
   }
@@ -120,21 +122,22 @@ window.AdminSync = (() => {
     const user = window.UserContext?.getCurrentUser();
     const isAdmin = user?.perfil === 'admin';
     const D = window.DATA;
-    const report = D.syncReport || {};
-    const status = D.syncStatus || {};
+    const rawReport = D.syncReport || {};
+    const report = rawReport.sync_info || rawReport;
+    const reportStats = rawReport.stats || {};
+    const indicators = D.syncStatus || {};
+    const status = { status: indicators.sync_status || indicators.status || 'unknown' };
     const cache = D.cacheState || {};
     const inProgress = D.syncInProgress;
     const error = D.syncError;
 
     const lastSync = report.completed_at
       ? new Date(report.completed_at).toLocaleString('pt-BR')
-      : D.lastSuccessfulSync
-        ? new Date(D.lastSuccessfulSync).toLocaleString('pt-BR')
-        : 'Nunca';
+      : 'Nunca';
 
-    const duration = report.duration ? `${Math.round(report.duration / 1000)}s` : '-';
-    const total = report.total ?? '-';
-    const pages = report.pages ?? '-';
+    const duration = report.duration_sec != null ? `${report.duration_sec}s` : '-';
+    const total = report.total_items ?? reportStats.total ?? '-';
+    const pages = report.collections ? Object.values(report.collections).reduce((n, c) => n + (c.pages || 0), 0) : '-';
     const newCount = report.new_assets ?? '-';
     const updatedCount = report.updated_assets ?? '-';
     const removedCount = report.removed_assets ?? '-';
@@ -149,6 +152,7 @@ window.AdminSync = (() => {
       partial: 'Parcial',
       invalid: 'Inválido',
       stale: 'Desatualizado',
+      unverified: 'Não verificado',
       unknown: 'Desconhecido',
     };
     const cacheStateIcons = {
@@ -198,12 +202,12 @@ window.AdminSync = (() => {
 
         ${status.status === 'partial' ? '<div class="sync-warning">⚠ A sincronização foi concluída parcialmente. Algumas categorias não puderam ser atualizadas.</div>' : ''}
         ${error ? `<div class="sync-error">✖ ${String(error).replace(/</g, '&lt;')}</div>` : ''}
-        ${errors.length > 0 ? `<div class="sync-errors"><strong>Erros:</strong><ul>${errors.map(e => `<li>${String(e).replace(/</g, '&lt;')}</li>`).join('')}</ul></div>` : ''}
+        ${errors.length > 0 ? `<div class="sync-errors"><strong>Erros:</strong><ul>${errors.map(e => `<li>${String(typeof e === 'object' ? `${e.collection || ''}: ${e.message || 'Falha de sincronização'}` : e).replace(/</g, '&lt;')}</li>`).join('')}</ul></div>` : ''}
 
         ${isAdmin ? `
           <div class="sync-actions">
             <button class="btn-primary" data-sync-action="incremental" ${inProgress ? 'disabled' : ''}>
-              ${inProgress ? 'Sincronizando...' : 'Sincronização Incremental'}
+              ${inProgress ? 'Sincronizando...' : 'Atualizar inventário'}
             </button>
             <button class="btn-danger" data-sync-action="full" ${inProgress ? 'disabled' : ''}>
               ${inProgress ? 'Sincronizando...' : 'Sincronização Completa'}
@@ -223,7 +227,7 @@ window.AdminSync = (() => {
         if (result.ok && result.data.status !== window.DATA.syncStatus?.status) {
           window.DATA.syncStatus = result.data;
           if (result.data.status === 'completed' || result.data.status === 'partial') {
-            const loadResult = await window.AssetClassifier.fetchAllClassified();
+            const loadResult = await window.AssetClassifier.fetchAllClassified(true);
             if (loadResult.ok) {
               window.DATA.classifiedAssets = loadResult.data;
               window.DATA.classifiedAssetsLoaded = true;
