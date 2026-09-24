@@ -71,6 +71,37 @@ final class GlpiClient
     $ch = null;
   }
 
+
+  /**
+   * Strict page read for reports: never turn upstream failure into an empty list.
+   * Existing legacy callers keep their previous behavior.
+   */
+  public function getReportPage(string $path, string $sessionToken, int $offset, int $size = 200): array
+  {
+    $batch = $this->getWithParamsRaw($path, $sessionToken, [
+      'expand_dropdowns' => 'false', 'get_hateoas' => 'false',
+      'is_deleted' => 'false', 'sort' => 'id', 'order' => 'ASC',
+      'range' => $offset . '-' . ($offset + $size - 1),
+    ]);
+    $code = $batch['_http_code'] ?? 0;
+    $items = $batch['items'] ?? null;
+    if (!in_array($code, [200, 206], true) || isset($batch['_error'])
+        || !is_array($items) || !array_is_list($items)) {
+      throw new RuntimeException('Não foi possível consultar a coleção GLPI para o relatório.', 502);
+    }
+    $total = isset($batch['_content_range'])
+      ? self::parseContentRangeTotal($batch['_content_range']) : null;
+    if ($total === null) {
+      throw new RuntimeException('GLPI não informou o total da coleção para o relatório.', 502);
+    }
+    foreach ($items as $item) {
+      if (!is_array($item) || !isset($item['id']) || !is_numeric($item['id'])) {
+        throw new RuntimeException('Registro GLPI inválido no relatório.', 502);
+      }
+    }
+    return ['items' => $items, 'total' => $total];
+  }
+
   public function post(string $path, string $sessionToken, array $payload): array
   {
     return $this->requestWithJsonBody('POST', $path, $sessionToken, $payload);
