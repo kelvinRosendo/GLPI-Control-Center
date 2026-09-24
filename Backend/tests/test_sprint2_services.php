@@ -8,13 +8,14 @@
  */
 
 declare(strict_types=1);
+require_once __DIR__ . '/sandbox.php';
 
-require_once __DIR__ . '/../api/classifier.php';
-require_once __DIR__ . '/../api/classification_pipeline.php';
-require_once __DIR__ . '/../config/asset-catalog.php';
-require_once __DIR__ . '/../api/mappers.php';
-require_once __DIR__ . '/../api/services/OptionsService.php';
-require_once __DIR__ . '/../api/services/CapabilitiesService.php';
+require_once GCC_TEST_BACKEND . '/api/classifier.php';
+require_once GCC_TEST_BACKEND . '/api/classification_pipeline.php';
+require_once GCC_TEST_BACKEND . '/config/asset-catalog.php';
+require_once GCC_TEST_BACKEND . '/api/mappers.php';
+require_once GCC_TEST_BACKEND . '/api/services/OptionsService.php';
+require_once GCC_TEST_BACKEND . '/api/services/CapabilitiesService.php';
 
 class TestSprint2
 {
@@ -199,7 +200,7 @@ TestSprint2::assertArrayHasKey('printer', $batch['stats']['byCategory'], 'Reconc
 
 echo "\n── AssetService::fromCache ──\n\n";
 
-$cacheDir = __DIR__ . '/../data/cache';
+$cacheDir = GCC_TEST_BACKEND . '/data/cache';
 if (!is_dir($cacheDir)) @mkdir($cacheDir, 0755, true);
 $cacheFile = $cacheDir . '/classified_assets.json';
 
@@ -218,7 +219,7 @@ $testCache = [
 ];
 @file_put_contents($cacheFile, json_encode($testCache));
 
-require_once __DIR__ . '/../api/services/AssetService.php';
+require_once GCC_TEST_BACKEND . '/api/services/AssetService.php';
 $cached = AssetService::fromCache();
 TestSprint2::assert($cached !== null, 'fromCache retorna dados');
 TestSprint2::assertArrayHasKey('items', $cached, 'Cache tem items');
