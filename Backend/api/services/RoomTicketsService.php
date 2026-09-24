@@ -187,7 +187,7 @@ final class RoomTicketsService
                 $name = self::text($asset['name'] ?? $asset['nome'] ?? $raw['name'] ?? '');
                 $tag = self::text($raw['otherserial'] ?? $asset['patrimonio'] ?? '');
                 $assetTypes = self::types($name);
-                $categoryKey = $asset['category'] ?? '';
+                $categoryKey = self::text($asset['category'] ?? '');
                 if (str_starts_with($categoryKey, 'chromebook_')) $assetTypes = ['chromebook'];
                 elseif ($categoryKey === 'projector') $assetTypes = ['projector'];
                 elseif ($categoryKey === 'computer_cs') $assetTypes = ['pc'];
@@ -200,13 +200,19 @@ final class RoomTicketsService
                 ];
             }
             $typeSource = $types ? 'ativo_vinculado' : 'nao_identificado';
-            if (!$types) {
-                $types = self::types($category);
-                if ($types) $typeSource = 'categoria_glpi';
+            // An incident about a mouse can be attached to its PC. Prefer the
+            // explicitly reported equipment, then category, before the linked asset type.
+            $reportedTypes = [];
+            if (preg_match('/^\s*(?:Equipamento|Tipo de equipamento)\s*:\s*([^\n\r|;]+)/imu', $description, $m)) {
+                $reportedTypes = self::types($m[1]);
             }
-            if (!$types && preg_match('/^\s*(?:Equipamento|Tipo de equipamento)\s*:\s*([^\n\r|;]+)/imu', $description, $m)) {
-                $types = self::types($m[1]);
-                if ($types) $typeSource = 'campo_equipamento';
+            $categoryTypes = self::types($category);
+            if ($reportedTypes) {
+                $types = $reportedTypes;
+                $typeSource = 'campo_equipamento';
+            } elseif ($categoryTypes) {
+                $types = $categoryTypes;
+                $typeSource = 'categoria_glpi';
             }
             if (!$types) {
                 $types = self::types($title);
