@@ -37,6 +37,20 @@ window.AssetDetailsUI = (function () {
     _onSaveCallback = onSave || null;
 
     _ensureModal();
+    if (!['Computer', 'Printer'].includes(itemtype)) {
+      const asset = (window.DATA?.classifiedAssets || []).find(a => a.itemtype === itemtype && String(a.id) === String(glpiId));
+      if (!asset) { _showError('Ativo não encontrado no inventário carregado.'); return; }
+      const fields = [['Nome', asset.name], ['Tipo', asset.itemtype], ['Serial', asset.serial],
+        ['Patrimônio', asset.otherserial], ['Local', asset.location], ['Estado', asset.stateRaw || asset.stateSummary],
+        ['Fabricante', asset.manufacturer], ['Modelo', asset.model]];
+      const content = document.getElementById('computer-details-modal-content');
+      content.innerHTML = '<div class="asset-details"><h3>' + _escHtml(asset.name || itemtype) + '</h3>' +
+        '<p>Consulta do inventário. Alterações deste tipo de ativo são feitas no GLPI.</p><dl>' +
+        fields.map(([label, value]) => '<dt>' + _escHtml(label) + '</dt><dd>' + _escHtml(String(value || '—')) + '</dd>').join('') +
+        '</dl><button class="btn btn--secondary" data-action="close">Fechar</button></div>';
+      content.querySelector('[data-action="close"]')?.addEventListener('click', close);
+      return;
+    }
     _showLoading('Carregando detalhes...');
 
     try {
