@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/services/GlpiCollectionReader.php';
+
 final class GlpiClient
 {
   private string $baseUrl;
@@ -156,69 +158,13 @@ final class GlpiClient
    */
   public function getAllWithParams(string $path, string $sessionToken, array $params = [], int $batchSize = 500): array
   {
-    $batchSize = max(1, min(5000, $batchSize));
-    $all = [];
-    $total = null;
-    $seenIds = [];
-    $errors = [];
-    $previousBatchCount = null;
-
-    for ($offset = 0; ; $offset += $batchSize) {
-      $batch = $this->getWithParamsRaw($path, $sessionToken, array_merge($params, [
-        'range' => $offset . '-' . ($offset + $batchSize - 1),
-      ]));
-
-      $httpCode = $batch['_http_code'] ?? 0;
-      $items = $batch['items'] ?? [];
-      $contentRange = $batch['_content_range'] ?? null;
-
-      if ($contentRange !== null && $total === null) {
-        $total = self::parseContentRangeTotal($contentRange);
-      }
-
-      if ($httpCode === 400 || $httpCode === 404) {
-        $errors[] = "Paginação encerrada no offset {$offset}: HTTP {$httpCode}";
-        break;
-      }
-
-      if (!is_array($items) || $items === []) {
-        break;
-      }
-
-      $validItems = array_values(array_filter($items, 'is_array'));
-      $batchCount = count($validItems);
-
-      foreach ($validItems as $item) {
-        $id = $item['id'] ?? null;
-        $key = $id !== null ? $id : spl_object_hash($item);
-        if (!isset($seenIds[$key])) {
-          $seenIds[$key] = true;
-          $all[] = $item;
-        }
-      }
-
-      if ($previousBatchCount !== null && $batchCount === $previousBatchCount && $batchCount === $batchSize) {
-        $errors[] = "Possível página repetida no offset {$offset}";
-      }
-      $previousBatchCount = $batchCount;
-
-      if ($total !== null && count($all) >= $total) {
-        break;
-      }
-
-      if ($batchCount < $batchSize) {
-        break;
-      }
-    }
-
-    $complete = $total === null ? true : count($all) >= $total;
-
-    return [
-      'items' => $all,
-      'total' => $total,
-      'complete' => $complete,
-      'errors' => $errors,
-    ];
+    return GlpiCollectionReader::collect(
+      fn(int $offset, int $size): array => $this->getWithParamsRaw($path, $sessionToken, array_merge($params, [
+        'range' => $offset . '-' . ($offset + $size - 1),
+        'sort' => 'id', 'order' => 'ASC',
+      ])),
+      $batchSize
+    );
   }
 
   /**
