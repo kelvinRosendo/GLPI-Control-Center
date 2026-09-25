@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/sandbox.php';
+putenv('GLPI_INVENTORY_COLLECTIONS'); // Tests always start with the default catalog.
 require_once GCC_TEST_BACKEND . '/api/services/GlpiCollectionReader.php';
 // Fake transport; no .env or network is accessed.
 final class GlpiClient {
@@ -55,6 +56,15 @@ check(!$r['complete'], 'missing identifier rejected');
 $r = GlpiCollectionReader::collect(function () { throw new RuntimeException('SECRET'); });
 check(!str_contains(json_encode($r), 'SECRET'), 'transport failure does not leak payload');
 $catalog = Classifier::getCatalog();
+putenv('GLPI_INVENTORY_COLLECTIONS=Computer, Printer,Computer');
+$customCatalog = require GCC_TEST_BACKEND . '/config/asset-catalog.php';
+check($customCatalog['sync']['collections'] === ['Computer', 'Printer'], 'configured scope is normalized and deduplicated');
+putenv('GLPI_INVENTORY_COLLECTIONS=../User');
+$invalidScopeRejected = false;
+try { require GCC_TEST_BACKEND . '/config/asset-catalog.php'; }
+catch (RuntimeException $error) { $invalidScopeRejected = true; }
+check($invalidScopeRejected, 'invalid collection path rejected');
+putenv('GLPI_INVENTORY_COLLECTIONS');
 $types = $catalog['sync']['collections'];
 check(in_array('Peripheral', $types, true) && in_array('Monitor', $types, true), 'collect peripherals and monitors');
 foreach ($types as $type) GlpiClient::$data['/' . $type] = [['id' => 1, 'name' => $type . '-one']];
@@ -67,6 +77,7 @@ check($result['syncInfo']['status'] === 'success', 'complete snapshot succeeds')
 check(count($result['items']) === count($types), 'same id across itemtypes remains distinct');
 check(count(array_unique(array_column($result['items'], 'itemtype'))) === count($types), 'identity preserves every itemtype');
 check($sync->getCacheState()['state'] === 'valid', 'validated snapshot marked valid');
+check($sync->getCacheState()['collections'] === $types, 'cache reports the exact configured scope');
 check(!$sync->isRunning(), 'persistent lock inode not mistaken for running sync');
 $before = file_get_contents($path);
 GlpiClient::$fail = '/Peripheral';

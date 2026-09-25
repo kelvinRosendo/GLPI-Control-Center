@@ -41,7 +41,7 @@
 
       // GLPI (acesso direto para某些 funções)
       glpi: {
-        url: 'http://localhost/glpi',
+        url: 'https://glpi.colegiosatelite.cloud',
       },
 
       // Google OAuth

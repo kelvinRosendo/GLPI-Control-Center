@@ -417,6 +417,7 @@ final class AssetSync
     if ($count === 0) {
       return [
         'state'           => 'empty',
+        'collections'     => $this->collections(),
         'exists'          => true,
         'items_count'     => 0,
         'file_size'       => $fileSize,
@@ -458,6 +459,7 @@ final class AssetSync
 
     return [
       'state'           => 'valid',
+      'collections'     => $this->collections(),
       'exists'          => true,
       'items_count'     => $count,
       'file_size'       => $fileSize,

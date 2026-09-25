@@ -171,6 +171,8 @@ window.AdminSync = (() => {
     const cacheDataDate = cache.data_date ? new Date(cache.data_date).toLocaleString('pt-BR') : '-';
     const cacheMessage = cache.message || '';
     const catalogVersion = cache.catalog_version ?? '-';
+    const collectionLabels = {Computer: 'Computadores', Printer: 'Impressoras', Monitor: 'Monitores', Peripheral: 'Periféricos', NetworkEquipment: 'Rede', Phone: 'Telefones'};
+    const scope = (cache.collections || report.coverage || []).map(type => collectionLabels[type] || String(type).replace(/[^A-Za-z0-9_]/g, '')).join(', ') || 'Não confirmado';
 
     el.innerHTML = `
       <div class="sync-panel">
@@ -196,6 +198,7 @@ window.AdminSync = (() => {
             <div class="sync-info-item"><span class="sync-label">Tamanho:</span> <span class="sync-value">${cacheFileSize}</span></div>
             <div class="sync-info-item"><span class="sync-label">Dados de:</span> <span class="sync-value">${cacheDataDate}</span></div>
             <div class="sync-info-item"><span class="sync-label">Catálogo:</span> <span class="sync-value">v${catalogVersion}</span></div>
+            <div class="sync-info-item"><span class="sync-label">Coleções consultadas:</span> <span class="sync-value">${scope}</span></div>
           </div>
           ${cacheMessage ? `<div class="cache-state-message">${cacheMessage}</div>` : ''}
         </div>

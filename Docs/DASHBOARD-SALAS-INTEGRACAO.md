@@ -241,6 +241,22 @@ por largura no Chrome (desktop e estreita).
 
 O teste de navegador agora aguarda as microtarefas das respostas simuladas, sem
 temporizadores que podiam competir com o encerramento do dump do Chrome.
-A sincronização real foi tentada, mas o endereço configurado não retornou a API
-JSON esperada. É necessário confirmar o endereço atual do GLPI antes de concluir
-a validação com dados reais. As credenciais e a VPS não foram alteradas.
+A configuração local foi corrigida para o domínio confirmado pelo responsável:
+https://glpi.colegiosatelite.cloud/apirest.php. A sincronização real concluiu com
+558 ativos: 557 Computer e 1 Printer, usando o perfil original da integração.
+O cache anterior de três registros permanece disponível no backup local.
+
+A conta consultada não possui leitura de Monitor, Peripheral, NetworkEquipment
+ou Phone em nenhum dos dois perfis disponíveis. Por isso, este ambiente configura
+GLPI_INVENTORY_COLLECTIONS=Computer,Printer. O painel informa as coleções
+consultadas. Essa configuração não prova inexistência de ativos nas coleções
+restritas; para incluí-las, conceder leitura no GLPI e ampliar a lista do ambiente.
+As permissões da conta, suas credenciais e a VPS não foram alteradas.
+
+Distribuição observada: 71 computadores CS, 99 Chromebooks de alunos, 345 de apoio,
+3 de exibição, 32 projetores, 7 impressoras cadastradas como Computer e 1 Printer.
+O frontend local aponta os links de ativos para o mesmo domínio GLPI confirmado.
+O catálogo aceita GLPI_INVENTORY_COLLECTIONS no ambiente sem alterar código,
+valida nomes de coleções e mantém seis tipos como padrão quando não configurado.
+O teste de inventário agora contém 36 verificações, incluindo configuração e
+exibição do escopo. O GCC local foi iniciado em localhost:3000 e localhost:8080.
