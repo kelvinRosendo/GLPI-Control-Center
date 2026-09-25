@@ -43,6 +43,7 @@ require_once __DIR__ . '/classification_pipeline.php';
 require_once __DIR__ . '/sync.php';
 require_once __DIR__ . '/sync_status.php';
 require_once __DIR__ . '/tickets.php';
+require_once __DIR__ . '/room_tickets.php';
 require_once __DIR__ . '/workflow.php';
 require_once __DIR__ . '/assistance_action.php';
 require_once __DIR__ . '/integration_audit.php';
@@ -53,6 +54,23 @@ require_once __DIR__ . '/projetors.php';
 require_once __DIR__ . '/diagnostic.php';
 require_once __DIR__ . '/utils/mailer.php';
 require_once __DIR__ . '/utils/mail_templates.php';
+require_once __DIR__ . '/services/AssetService.php';
+require_once __DIR__ . '/services/AssetWriteService.php';
+require_once __DIR__ . '/services/OptionsService.php';
+require_once __DIR__ . '/services/CapabilitiesService.php';
+require_once __DIR__ . '/services/ReconcileService.php';
+require_once __DIR__ . '/services/OperationTracker.php';
+require_once __DIR__ . '/services/DropdownValidator.php';
+require_once __DIR__ . '/services/IdempotencyGuard.php';
+require_once __DIR__ . '/services/CacheUpdater.php';
+require_once __DIR__ . '/services/AIProvider.php';
+require_once __DIR__ . '/services/AgentTools.php';
+require_once __DIR__ . '/services/AgentProposal.php';
+require_once __DIR__ . '/services/AgentExecution.php';
+require_once __DIR__ . '/services/AgentService.php';
+require_once __DIR__ . '/services/FieldNormalizer.php';
+require_once __DIR__ . '/services/VerificationService.php';
+require_once __DIR__ . '/services/BatchStore.php';
 
 function isConfigValid(array $config): array
 {
@@ -142,6 +160,7 @@ final class Endpoints
       $result = $glpi->getAllWithParams('/Computer', $session, [
         'expand_dropdowns' => 'true',
       ], 500);
+      if (($result['complete'] ?? false) !== true) throw new RuntimeException('Consulta GLPI incompleta.', 502);
       $items = $result['items'];
       $glpi->killSession($session);
       return array_filter($items, 'is_array');
@@ -159,6 +178,7 @@ final class Endpoints
       $result = $glpi->getAllWithParams('/Printer', $session, [
         'expand_dropdowns' => 'true',
       ], 500);
+      if (($result['complete'] ?? false) !== true) throw new RuntimeException('Consulta GLPI incompleta.', 502);
       $items = $result['items'];
       $glpi->killSession($session);
       return array_filter($items, 'is_array');
@@ -235,32 +255,6 @@ final class Endpoints
     }
   }
 
-  public static function updateComputer(array $config, int $id): void
-  {
-    $body = self::parseJsonBody();
-    $input = is_array($body['input'] ?? null) ? $body['input'] : $body;
-    $payload = Mappers::filterEditableComputerInput($input);
-
-    if ($payload === []) {
-      Responde::erro('Nenhum campo editável foi enviado para atualização.', 422);
-    }
-
-    $glpi = new GlpiClient($config['glpi'] ?? []);
-    $session = $glpi->initSession();
-    $glpi->put("/Computer/{$id}", $session, [
-      'input' => $payload,
-    ]);
-    $updated = $glpi->getWithParams("/Computer/{$id}", $session, [
-      'expand_dropdowns' => 'true',
-    ]);
-    $glpi->killSession($session);
-
-    Responde::ok([
-      'message' => 'Computador atualizado com sucesso no GLPI.',
-      'data' => Mappers::computerDetails($updated),
-    ]);
-  }
-
   public static function chromebooksGeekiees(array $config): void
   {
     $all = self::getAllComputers($config);
@@ -328,6 +322,51 @@ final class Endpoints
 
     Responde::ok(['data' => $items, 'count' => count($items)]);
   }
+
+  public static function createAsset(array $config, string $itemtype): void
+  {
+    $body = self::parseJsonBody();
+    $input = is_array($body['input'] ?? null) ? $body['input'] : $body;
+    $idempotencyKey = $body['idempotency_key'] ?? null;
+    $userId = AuthService::currentUserId($config) ?? 'anonymous';
+
+    $service = new AssetWriteService($config['glpi'] ?? [], $userId);
+    $result = $service->create($itemtype, $input, $idempotencyKey);
+
+    $status = $result['status'] === 'completed_verified' ? 201 : 200;
+    Responde::ok(['data' => $result], $status);
+  }
+
+  public static function updateAsset(array $config, string $itemtype, int $id): void
+  {
+    $body = self::parseJsonBody();
+    $input = is_array($body['input'] ?? null) ? $body['input'] : $body;
+    $idempotencyKey = $body['idempotency_key'] ?? null;
+    $userId = AuthService::currentUserId($config) ?? 'anonymous';
+
+    $service = new AssetWriteService($config['glpi'] ?? [], $userId);
+    $result = $service->update($itemtype, $id, $input, $idempotencyKey);
+
+    Responde::ok(['data' => $result]);
+  }
+
+  public static function deleteAsset(array $config, string $itemtype, int $id): void
+  {
+    $userId = AuthService::currentUserId($config) ?? 'anonymous';
+    $service = new AssetWriteService($config['glpi'] ?? [], $userId);
+    $result = $service->delete($itemtype, $id);
+
+    Responde::ok(['data' => $result]);
+  }
+
+  public static function restoreAsset(array $config, string $itemtype, int $id): void
+  {
+    $userId = AuthService::currentUserId($config) ?? 'anonymous';
+    $service = new AssetWriteService($config['glpi'] ?? [], $userId);
+    $result = $service->restore($itemtype, $id);
+
+    Responde::ok(['data' => $result]);
+  }
 }
 
 $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
@@ -343,13 +382,33 @@ function authorizeRequest(string $path, string $method, array $config): void
 
   if ($path === '/api/auth/logout') return;
 
+  // Agent routes: explicit, não caem no fallback ADMIN
+  if (str_starts_with($path, '/api/agent/')) {
+    $agentWrite = ['/api/agent/execute', '/api/agent/execute/batch'];
+    $isWrite = false;
+    foreach ($agentWrite as $p) { if ($path === $p || str_starts_with($path, $p)) { $isWrite = true; break; } }
+    // chat/history/status precisam assistente:chat ; propostas/execução precisam computadores:edit para write
+    if ($isWrite) {
+      // Requer computadores:edit ou impressoras:edit conforme alvo, mas checagem fina é no serviço; aqui exige ao menos assistente:chat
+      PermissionMiddleware::requireAction('assistente', 'chat');
+      return;
+    }
+    PermissionMiddleware::requireAction('assistente', $method === 'GET' && $path === '/api/agent/status' ? 'view' : 'chat');
+    return;
+  }
+
   if (in_array($path, ['/api/projetors/diagnostic', '/api/projetors/config', '/api/diagnostic/compare', '/api/diagnostic/export', '/api/sync/run', '/api/sync/incremental'], true)) {
     PermissionMiddleware::requireMinLevel('ADMIN');
     return;
   }
 
   $rules = [
-    '#^/api/assets/computers#' => ['computadores', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/operations/.+$#' => ['computadores', 'view'],
+    '#^/api/batches(?:/.+)?$#' => ['computadores', 'view'],
+    '#^/api/assets/computers(?:/\d+/delete|/\d+/restore)?$#' => ['computadores', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/assets/computers/\d+$#' => ['computadores', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/assets/printers(?:/\d+/delete|/\d+/restore)?$#' => ['impressoras', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/assets/printers/\d+$#' => ['impressoras', $method === 'GET' ? 'view' : 'edit'],
     '#^/api/assets/chromebooks#' => ['computadores', 'view'],
     '#^/api/assets/projetores#' => ['projetores', 'view'],
     '#^/api/assets/impressoras#' => ['impressoras', 'view'],
@@ -363,6 +422,9 @@ function authorizeRequest(string $path, string $method, array $config): void
     '#^/api/tickets#' => ['chamados', $method === 'GET' ? 'view' : 'create'],
     '#^/api/chat$#' => ['assistente', 'chat'],
     '#^/api/integration#' => ['integrations', $method === 'GET' ? 'view' : 'manage'],
+    '#^/api/capabilities$#' => ['settings', 'view'],
+    '#^/api/options#' => ['computadores', 'view'],
+    '#^/api/reconcile#' => ['auditoria', 'view'],
   ];
 
   foreach ($rules as $pattern => [$module, $action]) {
@@ -394,12 +456,24 @@ try {
     '/api/auth/google' => $method === 'POST' ? AuthService::login($config) : Responde::erro('Método não permitido.', 405),
     '/api/auth/demo' => $method === 'POST' ? AuthService::demoLogin($config) : Responde::erro('Método não permitido.', 405),
     '/api/auth/logout' => $method === 'POST' ? AuthService::logout() : Responde::erro('Método não permitido.', 405),
-    '/api/assets/computers' => Endpoints::computers($config),
+    '/api/capabilities' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET' => (function () use ($config) { require __DIR__ . '/capabilities.php'; })(),
+      default => Responde::erro('Método não permitido.', 405),
+    },
+    '/api/assets/computers' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET'  => Endpoints::computers($config),
+      'POST' => Endpoints::createAsset($config, 'Computer'),
+      default => Responde::erro('Método não permitido.', 405),
+    },
     '/api/assets/chromebooks-geekiees' => Endpoints::chromebooksGeekiees($config),
     '/api/assets/chromebooks-apoio' => Endpoints::chromebooksApoio($config),
     '/api/assets/chromebooks-exibicao' => Endpoints::chromebooksExibicao($config),
     '/api/assets/projetores' => Endpoints::projetores($config),
-    '/api/assets/impressoras' => Endpoints::impressoras($config),
+    '/api/assets/impressoras' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
+      'GET'  => Endpoints::impressoras($config),
+      'POST' => Endpoints::createAsset($config, 'Printer'),
+      default => Responde::erro('Método não permitido.', 405),
+    },
     '/api/assets/all' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
       'GET' => SyncEndpoint::assets($config),
       default => Responde::erro('Método não permitido.', 405),
@@ -448,6 +522,9 @@ try {
     '/api/chat' => ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
       ? ChatEndpoint::handle()
       : Responde::erro('Método não permitido.', 405),
+    '/api/tickets/salas' => $method === 'GET'
+      ? RoomTicketsEndpoint::list($config)
+      : Responde::erro('Método não permitido.', 405),
     '/api/tickets' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
       'POST' => TicketsEndpoint::create($config),
       default => TicketsEndpoint::listAll($config),
@@ -489,10 +566,26 @@ try {
           return;
         }
         if ($method === 'POST' || $method === 'PUT') {
-          Endpoints::updateComputer($config, (int) $m[1]);
+          Endpoints::updateAsset($config, 'Computer', (int) $m[1]);
           return;
         }
         Responde::erro('Método não permitido.', 405);
+      }
+
+      if (preg_match('#^/api/assets/computers/(\d+)/delete$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        Endpoints::deleteAsset($config, 'Computer', (int) $m[1]);
+        return;
+      }
+
+      if (preg_match('#^/api/assets/computers/(\d+)/restore$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        Endpoints::restoreAsset($config, 'Computer', (int) $m[1]);
+        return;
       }
 
       if (preg_match('#^/api/assets/printers/(\d+)$#', $path, $m)) {
@@ -501,7 +594,27 @@ try {
           Endpoints::printerDetails($config, (int) $m[1]);
           return;
         }
+        if ($method === 'POST' || $method === 'PUT') {
+          Endpoints::updateAsset($config, 'Printer', (int) $m[1]);
+          return;
+        }
         Responde::erro('Método não permitido.', 405);
+      }
+
+      if (preg_match('#^/api/assets/printers/(\d+)/delete$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        Endpoints::deleteAsset($config, 'Printer', (int) $m[1]);
+        return;
+      }
+
+      if (preg_match('#^/api/assets/printers/(\d+)/restore$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        Endpoints::restoreAsset($config, 'Printer', (int) $m[1]);
+        return;
       }
 
       if (preg_match('#^/api/projetors/(\d+)$#', $path, $m)) {
@@ -552,6 +665,318 @@ try {
         return;
       }
 
+      if (preg_match('#^/api/options/([A-Za-z]+)$#', $path, $m)) {
+        $collection = $m[1];
+        if (!OptionsService::isAllowed($collection)) {
+          Responde::erro("Coleção '{$collection}' não é permitida.", 404, ['allowed' => OptionsService::allowedCollections()]);
+        }
+        $simulated = ($_GET['simulated'] ?? '') === '1';
+        if ($simulated) {
+          Responde::ok(['data' => OptionsService::fixtures($collection)]);
+        }
+        $service = new OptionsService($config['glpi'] ?? []);
+        Responde::ok(['data' => $service->fetch($collection)]);
+        return;
+      }
+
+      if ($path === '/api/reconcile/compare') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $category = $_GET['category'] ?? null;
+        if ($category !== null && $category !== '') {
+          $category = (string) $category;
+        } else {
+          $category = null;
+        }
+        $service = new ReconcileService($config['glpi'] ?? []);
+        $result = $service->compare($category);
+        Responde::ok(['data' => $result]);
+        return;
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // AGENTE DE IA (Sprint 06)
+      // ════════════════════════════════════════════════════════════════════
+
+      if ($path === '/api/agent/chat') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $message = trim($body['message'] ?? '');
+        $context = $body['context'] ?? [];
+
+        if ($message === '') {
+          Responde::erro('Mensagem é obrigatória.', 400);
+        }
+
+        $userId = AuthService::currentUserId($config);
+        $agent = new AgentService($userId);
+        $result = $agent->processMessage($message, $context);
+        Responde::ok($result);
+        return;
+      }
+
+      if ($path === '/api/agent/status') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $userId = AuthService::currentUserId($config);
+        $agent = new AgentService($userId);
+        Responde::ok(['data' => $agent->getStatus()]);
+        return;
+      }
+
+      if ($path === '/api/agent/history') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $userId = AuthService::currentUserId($config);
+        $agent = new AgentService($userId);
+        Responde::ok(['data' => $agent->getHistory()]);
+        return;
+      }
+
+      if ($path === '/api/agent/clear') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $userId = AuthService::currentUserId($config);
+        $agent = new AgentService($userId);
+        $agent->clearHistory();
+        Responde::ok(['message' => 'Histórico limpo']);
+        return;
+      }
+
+      if ($path === '/api/agent/proposal') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $proposalId = $_GET['id'] ?? '';
+        if ($proposalId === '') {
+          Responde::erro('ID da proposta é obrigatório.', 400);
+        }
+        $proposal = AgentProposal::get($proposalId);
+        if ($proposal === null) {
+          Responde::erro('Proposta não encontrada.', 404);
+        }
+        if (($proposal['created_by'] ?? null) !== AuthService::currentUserId($config)) Responde::erro('Acesso negado.', 403);
+        Responde::ok(['data' => $proposal]);
+        return;
+      }
+
+      if ($path === '/api/agent/proposal/cancel') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $proposalId = $body['proposal_id'] ?? '';
+        if ($proposalId === '') {
+          Responde::erro('ID da proposta é obrigatório.', 400);
+        }
+        $proposal = AgentProposal::cancel($proposalId, AuthService::currentUserId($config));
+        if ($proposal === null) {
+          Responde::erro('Proposta não encontrada ou não pode ser cancelada.', 404);
+        }
+        Responde::ok(['data' => $proposal]);
+        return;
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // AGENTE DE IA — EXECUÇÃO (Sprint 07)
+      // ════════════════════════════════════════════════════════════════════
+
+      if ($path === '/api/agent/execute') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $proposalId = $body['proposal_id'] ?? '';
+        if ($proposalId === '') {
+          Responde::erro('ID da proposta é obrigatório.', 400);
+        }
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $execution = new AgentExecution($config['glpi'] ?? [], $userId);
+        $confirmedHash = $body['confirmed_hash'] ?? null;
+        if (!is_string($confirmedHash) || !preg_match('/^[a-f0-9]{64}$/D', $confirmedHash)) Responde::erro('Confirme a prévia atual pelo painel.', 422);
+        $result = $execution->executeProposal($proposalId, $confirmedHash);
+        Responde::ok($result);
+        return;
+      }
+
+      if ($path === '/api/agent/execute/batch') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $proposalIds = $body['proposal_ids'] ?? [];
+        if (empty($proposalIds) || !is_array($proposalIds)) {
+          Responde::erro('proposal_ids é obrigatório e deve ser um array.', 400);
+        }
+        $maxBatch = 10;
+        if (count($proposalIds) > $maxBatch) {
+          Responde::erro("Lote máximo é {$maxBatch} itens.", 400);
+        }
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $execution = new AgentExecution($config['glpi'] ?? [], $userId);
+        $result = $execution->executeBatch($proposalIds, is_array($body['confirmations'] ?? null) ? $body['confirmations'] : []);
+        Responde::ok($result);
+        return;
+      }
+
+      if ($path === '/api/agent/policies') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $execution = new AgentExecution($config['glpi'] ?? [], $userId);
+        Responde::ok(['data' => $execution->getPolicies()]);
+        return;
+      }
+
+      if ($path === '/api/agent/proposals') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $filters = [];
+        if (!empty($_GET['status'])) $filters['status'] = $_GET['status'];
+        if (!empty($_GET['action'])) $filters['action'] = $_GET['action'];
+        if (!empty($_GET['itemtype'])) $filters['itemtype'] = $_GET['itemtype'];
+        $proposals = AgentProposal::listByUser($userId, $filters);
+        Responde::ok(['data' => $proposals, 'count' => count($proposals)]);
+        return;
+      }
+
+      // ── SPRINT 08: Verificação e comprovantes ───────────────────────────────
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/receipt$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') Responde::erro('Método não permitido.', 405);
+        $opId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $tracker = new OperationTracker();
+        $op = $tracker->find($opId);
+        if ($op === null) Responde::erro('Operação não encontrada.', 404);
+        if (($op['user_id'] ?? '') !== $userId) Responde::erro('Acesso negado.', 403);
+        $vs = new VerificationService(null, $tracker);
+        $receipt = $vs->verify($opId, $config['glpi'] ?? []);
+        // Selecionar campos para comprovante ao usuário
+        $comprovante = [
+          'operation_id' => $receipt['operation_id'],
+          'proposal_id' => $receipt['proposal_id'] ?? null,
+          'asset' => ($receipt['itemtype'] ?? '') . ':' . ($receipt['id'] ?? ''),
+          'itemtype' => $receipt['itemtype'],
+          'id' => $receipt['id'],
+          'action' => $receipt['action'],
+          'fields_before' => $op['requested_fields'] ?? null,
+          'overall' => $receipt['overall'],
+          'layers' => $receipt['layers'],
+          'divergences' => $receipt['divergences'],
+          'cache_version' => $receipt['cache_version'],
+          'verified_at' => $receipt['verified_at'],
+          'link' => "/api/operations/{$opId}/receipt",
+        ];
+        // Mensagem humana
+        $msgMap = [
+          'verified' => 'operação concluída e verificada',
+          'verified_glpi' => 'GLPI: valor confirmado após nova consulta',
+          'verified_local' => 'operação local verificada',
+          'partial_cache_pending' => 'GLPI confirmado, cache/API pendente — recuperação disponível',
+          'partial_local' => 'operação local pendente',
+          'divergent' => 'divergência observada entre esperado e GLPI',
+          'unknown' => 'resultado desconhecido — verificar novamente',
+          'failed' => 'falha de gravação',
+        ];
+        $comprovante['human_result'] = $msgMap[$receipt['overall']] ?? $receipt['overall'];
+        Responde::ok(['data' => $comprovante]);
+        return;
+      }
+
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/verify$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') Responde::erro('Método não permitido.', 405);
+        $opId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $tracker = new OperationTracker();
+        $op = $tracker->find($opId);
+        if ($op === null) Responde::erro('Operação não encontrada.', 404);
+        if (($op['user_id'] ?? '') !== $userId) Responde::erro('Acesso negado.', 403);
+        $vs = new VerificationService(null, $tracker);
+        $result = $vs->reverify($opId, $config['glpi'] ?? []);
+        Responde::ok(['data' => $result]);
+        return;
+      }
+
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/recover-cache$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') Responde::erro('Método não permitido.', 405);
+        $opId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $tracker = new OperationTracker();
+        $op = $tracker->find($opId);
+        if ($op === null) Responde::erro('Operação não encontrada.', 404);
+        if (($op['user_id'] ?? '') !== $userId) Responde::erro('Acesso negado.', 403);
+        $vs = new VerificationService(null, $tracker);
+        $result = $vs->recoverCache($opId, $config['glpi'] ?? []);
+        Responde::ok(['data' => $result]);
+        return;
+      }
+
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/representation$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') Responde::erro('Método não permitido.', 405);
+        $vs = new VerificationService();
+        $result = $vs->representation($m[1], AuthService::currentUserId($config) ?? 'anonymous');
+        if (!$result['success']) Responde::erro($result['error'], 409);
+        Responde::ok(['data' => $result]);
+      }
+
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/frontend-confirm$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'POST') !== 'POST') Responde::erro('Método não permitido.', 405);
+        $opId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $version = $body['api_version'] ?? $body['version'] ?? 'unknown';
+        $vs = new VerificationService();
+        $result = $vs->frontendConfirm($opId, $userId, (string)$version);
+        if (!($result['success'] ?? false)) Responde::erro($result['error'] ?? 'Erro', 400);
+        Responde::ok(['data' => $result]);
+        return;
+      }
+
+      if (preg_match('#^/api/operations/([a-f0-9\-]+)/history$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') Responde::erro('Método não permitido.', 405);
+        $opId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $tracker = new OperationTracker();
+        $op = $tracker->find($opId);
+        if ($op === null) Responde::erro('Operação não encontrada.', 404);
+        if (($op['user_id'] ?? '') !== $userId) Responde::erro('Acesso negado.', 403);
+        $vs = new VerificationService(null, $tracker);
+        $hist = $vs->verificationHistory($opId);
+        Responde::ok(['data' => $hist, 'count' => count($hist)]);
+        return;
+      }
+
+      if (preg_match('#^/api/batches/([a-zA-Z0-9_\-]+)$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') Responde::erro('Método não permitido.', 405);
+        $batchId = $m[1];
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $store = new BatchStore();
+        $batch = $store->find($batchId);
+        if ($batch === null) Responde::erro('Lote não encontrado.', 404);
+        if (($batch['user_id'] ?? '') !== $userId) Responde::erro('Acesso negado.', 403);
+        Responde::ok(['data' => $batch]);
+        return;
+      }
+
+      if ($path === '/api/batches') {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') Responde::erro('Método não permitido.', 405);
+        $userId = AuthService::currentUserId($config) ?? 'anonymous';
+        $store = new BatchStore();
+        $list = $store->findByUser($userId);
+        Responde::ok(['data' => $list, 'count' => count($list)]);
+        return;
+      }
+
+      // ── autorização para novas rotas ───────────────────────────────────────
       Responde::erro('Endpoint não encontrado.', 404, ['path' => $path]);
     })(),
   };

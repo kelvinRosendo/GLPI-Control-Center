@@ -38,6 +38,7 @@ window.App = {
     if (window.Mobile) window.Mobile.init();
     if (window.ApiClient) window.ApiClient.init();
     if (window.ApiInterceptors) window.ApiInterceptors.install();
+    if (window.AgentPanel) window.AgentPanel.init();
     if (window.Preload) window.Preload.init();
     if (window.PerfMonitor) window.PerfMonitor.init();
     if (window.Security) window.Security.init();
@@ -74,6 +75,8 @@ window.App = {
   },
 
   async onLoginSuccess(username) {
+    // Re-inicializar painel do agente após autenticação (limpa estado anterior)
+    if (window.AgentPanel?.init) window.AgentPanel.init();
     const user = window.UserContext?.getCurrentUser();
 
     // Atualizar avatar com foto do Google ou inicial
@@ -159,6 +162,7 @@ window.App = {
   },
 
   showLoginScreen() {
+    window.RoomTickets?.reset();
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
     window.State?.resetFilters();
@@ -167,6 +171,10 @@ window.App = {
   },
 
   logout() {
+    window.RoomTickets?.reset();
+    // Limpar estado do agente ao sair: mensagens, propostas, contexto, pendentes
+    try { window.AgentPanel?.clearState?.(); } catch {}
+    try { window.AgentPanel?.closePanel?.(); } catch {}
     if (window.Auth) {
       window.Auth.logout();
     } else {
@@ -181,6 +189,7 @@ window.App = {
       return;
     }
 
+    if (tabId !== 'chamados-salas') window.RoomTickets?.unmount();
     window.State.setTab(tabId);
 
     // Aplicar filtros opcionais (navegação via cards/dashboard)
@@ -292,6 +301,9 @@ window.App = {
           return window.UI.renderSectionLoading('Carregando impressoras...');
         }
         return window.UI.renderAssetList(window.DATA.impressoras, 'Buscar impressora por nome ou serial...', 'impressora');
+      case 'chamados-salas':
+        window.RoomTickets.mount();
+        return '';
       case 'chamados':
         if (!window.STATE.ticketsLoaded && !window.STATE.ticketsLoading) {
           this._preloadTickets();

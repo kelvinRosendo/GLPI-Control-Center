@@ -220,6 +220,62 @@
   button, .btn, [role="button"] {
     min-height: 44px;
   }
+
+  /* Increase tap targets for interactive elements */
+  .sidebar-item {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  .tab-btn {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+
+  .filter-btn,
+  .filter-select {
+    min-height: 44px;
+  }
+
+  .inventory-search-input {
+    min-height: 44px;
+  }
+
+  .tickets-filter-btn {
+    min-height: 36px;
+    padding: 6px 12px;
+  }
+
+  .dash-quick-btn {
+    min-height: 72px;
+  }
+
+  .kpi-card--clickable {
+    min-height: 56px;
+  }
+}
+
+/* Focus visible for keyboard navigation */
+:focus-visible {
+  outline: 2px solid var(--color-accent, #4f7ef7);
+  outline-offset: 2px;
+}
+
+button:focus:not(:focus-visible),
+.btn:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Safe area (notch) */

@@ -1,0 +1,30 @@
+{
+    "proposal_id": "prop_a9ca839eb880d4d632c1e0a80d4c2431",
+    "status": "pending",
+    "created_at": "2026-09-21T23:28:05+02:00",
+    "expires_at": "2026-09-22T00:28:05+02:00",
+    "created_by": "user@test.com",
+    "action": "create",
+    "itemtype": "Printer",
+    "id": null,
+    "asset_name": "Nova Impressora",
+    "current_values": null,
+    "proposed_values": {
+        "name": "Nova Impressora"
+    },
+    "field_sources": {
+        "name": "agent_proposed"
+    },
+    "permissions": {
+        "can_read": true,
+        "can_write": true,
+        "can_create": true,
+        "can_delete": true,
+        "can_restore": true,
+        "supported_operation": true
+    },
+    "pending_validations": [],
+    "read_reference": null,
+    "glpi_version": null,
+    "disclaimer": "PRÉVIA — nenhuma alteração executada. Esta proposta expira em 1 hora."
+}

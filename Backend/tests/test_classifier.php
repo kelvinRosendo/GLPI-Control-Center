@@ -9,10 +9,11 @@
  */
 
 declare(strict_types=1);
+require_once __DIR__ . '/sandbox.php';
 
-require_once __DIR__ . '/../api/classifier.php';
-require_once __DIR__ . '/../api/classification_pipeline.php';
-require_once __DIR__ . '/../config/asset-catalog.php';
+require_once GCC_TEST_BACKEND . '/api/classifier.php';
+require_once GCC_TEST_BACKEND . '/api/classification_pipeline.php';
+require_once GCC_TEST_BACKEND . '/config/asset-catalog.php';
 
 class TestClassifier
 {
@@ -163,7 +164,7 @@ TestClassifier::assert(!empty($a['classificationWarnings']), 'Avisos preenchidos
 
 // 12. Erro 403 — preservar dados anteriores
 echo "\n12. Cache válido quando vazio\n";
-$cacheDir = __DIR__ . '/../data/cache';
+$cacheDir = GCC_TEST_BACKEND . '/data/cache';
 if (!is_dir($cacheDir)) @mkdir($cacheDir, 0755, true);
 $cacheFile = $cacheDir . '/classified_assets.json';
 $backup = file_exists($cacheFile) ? @file_get_contents($cacheFile) : null;

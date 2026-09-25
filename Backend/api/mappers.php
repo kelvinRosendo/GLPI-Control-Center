@@ -16,6 +16,30 @@ final class Mappers
     'comment',
   ];
 
+  private const EDITABLE_COMPUTER_DROPDOWN_FIELDS = [
+    'locations_id',
+    'groups_id',
+    'users_id',
+    'states_id',
+  ];
+
+  private const EDITABLE_PRINTER_FIELDS = [
+    'name',
+    'serial',
+    'otherserial',
+    'contact',
+    'contact_num',
+    'comment',
+  ];
+
+  private const EDITABLE_PRINTER_DROPDOWN_FIELDS = [
+    'locations_id',
+    'users_id',
+    'states_id',
+    'printermodels_id',
+    'manufacturers_id',
+  ];
+
   public static function computer(array $c): array
   {
     return [
@@ -245,15 +269,15 @@ final class Mappers
   {
     return [
       'asset' => self::impressora($p),
-      'editableValues' => [],
+      'editableValues' => self::extractEditablePrinterValues($p),
       'sections' => [
         self::detailSection('identificacao', 'Identificação', [
-          self::detailField('name', 'Nome da impressora', $p['name'] ?? '', false),
-          self::detailField('serial', 'Serial', $p['serial'] ?? '', false),
-          self::detailField('otherserial', 'Patrimônio', $p['otherserial'] ?? '', false),
-          self::detailField('contact', 'Contato', $p['contact'] ?? '', false),
-          self::detailField('contact_num', 'Telefone / ramal', $p['contact_num'] ?? '', false),
-          self::detailField('comment', 'Observações', $p['comment'] ?? '', false, 'textarea'),
+          self::detailField('name', 'Nome da impressora', $p['name'] ?? '', true),
+          self::detailField('serial', 'Serial', $p['serial'] ?? '', true),
+          self::detailField('otherserial', 'Patrimônio', $p['otherserial'] ?? '', true),
+          self::detailField('contact', 'Contato', $p['contact'] ?? '', true),
+          self::detailField('contact_num', 'Telefone / ramal', $p['contact_num'] ?? '', true),
+          self::detailField('comment', 'Observações', $p['comment'] ?? '', true, 'textarea'),
         ]),
         self::detailSection('alocacao', 'Alocação', [
           self::detailField('location_name', 'Local', self::extractName($p['locations_id'] ?? null), false),
@@ -363,6 +387,39 @@ final class Mappers
 
     foreach (self::EDITABLE_COMPUTER_FIELDS as $field) {
       $values[$field] = self::rawString($c[$field] ?? '');
+    }
+
+    foreach (self::EDITABLE_COMPUTER_DROPDOWN_FIELDS as $field) {
+      $rawValue = $c[$field] ?? null;
+      if (is_array($rawValue)) {
+        $values[$field] = (int) ($rawValue['id'] ?? 0);
+      } elseif (is_int($rawValue)) {
+        $values[$field] = $rawValue;
+      } else {
+        $values[$field] = 0;
+      }
+    }
+
+    return $values;
+  }
+
+  private static function extractEditablePrinterValues(array $p): array
+  {
+    $values = [];
+
+    foreach (self::EDITABLE_PRINTER_FIELDS as $field) {
+      $values[$field] = self::rawString($p[$field] ?? '');
+    }
+
+    foreach (self::EDITABLE_PRINTER_DROPDOWN_FIELDS as $field) {
+      $rawValue = $p[$field] ?? null;
+      if (is_array($rawValue)) {
+        $values[$field] = (int) ($rawValue['id'] ?? 0);
+      } elseif (is_int($rawValue)) {
+        $values[$field] = $rawValue;
+      } else {
+        $values[$field] = 0;
+      }
     }
 
     return $values;

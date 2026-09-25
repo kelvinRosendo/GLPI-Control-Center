@@ -52,6 +52,7 @@ window.Permissions = (function () {
     salas: { key: 'salas', label: 'Salas/Turmas', icon: '&#127979;', order: 4.5 },
     projetores: { key: 'projetores', label: 'Projetores', icon: '&#128249;', order: 5 },
     impressoras: { key: 'impressoras', label: 'Impressoras', icon: '&#128424;', order: 6 },
+    'chamados-salas': { key: 'chamados-salas', label: 'Chamados das salas', icon: '&#127979;', order: 7.1 },
     chamados: { key: 'chamados', label: 'Chamados', icon: '&#128196;', order: 7 },
     relatorios: { key: 'relatorios', label: 'Relatórios', icon: '&#128203;', order: 8 },
     auditoria: { key: 'auditoria', label: 'Auditoria', icon: '&#128737;', order: 9 },
@@ -106,6 +107,7 @@ window.Permissions = (function () {
       view: BOTH,
       edit: BOTH,
     },
+    'chamados-salas': { view: BOTH },
     chamados: {
       view: BOTH,
       create: BOTH,

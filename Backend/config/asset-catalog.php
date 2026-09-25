@@ -22,12 +22,25 @@
 
 declare(strict_types=1);
 
+$inventoryCollections = getenv('GLPI_INVENTORY_COLLECTIONS');
+$inventoryCollections = $inventoryCollections === false || trim($inventoryCollections) === ''
+  ? ['Computer', 'Printer', 'Monitor', 'Peripheral', 'NetworkEquipment', 'Phone']
+  : array_values(array_unique(array_filter(array_map('trim', explode(',', $inventoryCollections)))));
+foreach ($inventoryCollections as $collection) {
+  if (!preg_match('/^[A-Za-z][A-Za-z0-9_]*$/D', $collection)) {
+    throw new RuntimeException('Tipo inválido em GLPI_INVENTORY_COLLECTIONS.');
+  }
+}
+if ($inventoryCollections === []) throw new RuntimeException('Configure ao menos uma coleção de inventário.');
+
 return [
   // ── Versão do catálogo ──────────────────────────────────────────────────────
   'version' => '1.0.0',
 
   // ── Configuração de sincronização ───────────────────────────────────────────
   'sync' => [
+    // Physical inventory collections; extend explicitly for local/custom GLPI types.
+    'collections' => $inventoryCollections,
     'batch_size'       => 500,
     'cache_ttl'        => 300,
     'api_timeout'      => 30,

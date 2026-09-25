@@ -36,6 +36,7 @@ window.Sidebar = (function () {
       items: [
         { id: 'computadores', label: 'Inventário', icon: 'computer', module: 'computadores' },
         { id: 'chamados', label: 'Chamados', icon: 'tickets', module: 'chamados' },
+        { id: 'chamados-salas', label: 'Chamados das salas', icon: 'tickets', module: 'chamados-salas' },
         { id: 'projetores', label: 'Projetores', icon: 'projector', module: 'projetores' },
         { id: 'assistente', label: 'Assistências', icon: 'assistance', module: 'assistente' },
       ],
@@ -167,10 +168,22 @@ window.Sidebar = (function () {
       });
     }
 
-    // Toggle sidebar
+    // Toggle sidebar (desktop collapse)
     const toggleBtn = document.getElementById('sidebar-toggle');
     if (toggleBtn) {
       toggleBtn.addEventListener('click', () => toggle());
+    }
+
+    // Mobile hamburger menu
+    const mobileToggle = document.getElementById('sidebar-mobile-toggle');
+    if (mobileToggle) {
+      mobileToggle.addEventListener('click', () => _toggleMobile());
+    }
+
+    // Overlay click closes mobile sidebar
+    const overlay = document.getElementById('sidebar-overlay');
+    if (overlay) {
+      overlay.addEventListener('click', () => _closeMobile());
     }
 
     // Itens de navegação
@@ -179,6 +192,10 @@ window.Sidebar = (function () {
         const tabId = item.dataset.sidebarTab;
         if (tabId && window.App?.go) {
           window.App.go(tabId);
+        }
+        // Close mobile sidebar after navigation
+        if (window.innerWidth < 480) {
+          _closeMobile();
         }
       });
 
@@ -193,7 +210,7 @@ window.Sidebar = (function () {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // TOGGLE
+  // TOGGLE (Desktop)
   // ════════════════════════════════════════════════════════════════════════════
 
   function toggle() {
@@ -223,6 +240,43 @@ window.Sidebar = (function () {
       _saveState();
       render();
     }
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // MOBILE TOGGLE
+  // ════════════════════════════════════════════════════════════════════════════
+
+  let _mobileOpen = false;
+
+  function _toggleMobile() {
+    _mobileOpen = !_mobileOpen;
+    _applyMobileState();
+  }
+
+  function _closeMobile() {
+    if (_mobileOpen) {
+      _mobileOpen = false;
+      _applyMobileState();
+    }
+  }
+
+  function _applyMobileState() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const btn = document.getElementById('sidebar-mobile-toggle');
+
+    if (sidebar) {
+      sidebar.classList.toggle('sidebar--mobile-open', _mobileOpen);
+    }
+    if (overlay) {
+      overlay.classList.toggle('active', _mobileOpen);
+    }
+    if (btn) {
+      btn.setAttribute('aria-label', _mobileOpen ? 'Fechar menu' : 'Abrir menu');
+    }
+
+    // Prevent body scroll when mobile sidebar is open
+    document.body.classList.toggle('modal-open', _mobileOpen);
   }
 
   // ════════════════════════════════════════════════════════════════════════════

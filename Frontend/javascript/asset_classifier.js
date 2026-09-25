@@ -18,7 +18,7 @@
 'use strict';
 
 window.AssetClassifier = (() => {
-  let _inFlight = null;
+  const _inFlight = new Map();
   let _lastFetch = 0;
   const MIN_INTERVAL_MS = 5000;
 
@@ -28,28 +28,12 @@ window.AssetClassifier = (() => {
   }
 
   async function _guardedFetch(path, options = {}) {
-    if (_inFlight && !options.force) {
-      return _inFlight;
-    }
-
-    const timeout = options.timeout || 30000;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
-
-    try {
-      _inFlight = window.GlpiClient._fetch(path, {
-        ...options,
-        signal: controller.signal,
-      });
-      const result = await _inFlight;
-      clearTimeout(timer);
-      return result;
-    } catch (e) {
-      clearTimeout(timer);
-      throw e;
-    } finally {
-      _inFlight = null;
-    }
+    const key = (options.method || 'GET') + ':' + path;
+    if (_inFlight.has(key)) return _inFlight.get(key);
+    const request = window.GlpiClient._fetch(path, options);
+    _inFlight.set(key, request);
+    try { return await request; }
+    finally { if (_inFlight.get(key) === request) _inFlight.delete(key); }
   }
 
   return {
@@ -57,10 +41,10 @@ window.AssetClassifier = (() => {
      * Busca todos os ativos classificados do cache do backend.
      * Preserva dados anteriores se a chamada falhar.
      */
-    async fetchAllClassified() {
+    async fetchAllClassified(force = false) {
       try {
         const now = Date.now();
-        if (now - _lastFetch < MIN_INTERVAL_MS && window.DATA.classifiedAssets?.length) {
+        if (!force && now - _lastFetch < MIN_INTERVAL_MS && window.DATA.classifiedAssets?.length) {
           return { ok: true, data: window.DATA.classifiedAssets, cached: true };
         }
 
@@ -119,7 +103,12 @@ window.AssetClassifier = (() => {
           force: true,
           timeout: 120000,
         });
-        return { ok: true, data: json.data ?? {} };
+        const data = json.data ?? {};
+        if (data.sync_info?.status !== 'success') {
+          return { ok: false, error: 'Sincronização não concluída. Consulte o relatório.', data };
+        }
+        _lastFetch = 0;
+        return { ok: true, data };
       } catch (e) {
         return { ok: false, error: e.message, data: null };
       }
@@ -136,7 +125,12 @@ window.AssetClassifier = (() => {
           force: true,
           timeout: 120000,
         });
-        return { ok: true, data: json.data ?? {} };
+        const data = json.data ?? {};
+        if (data.sync_info?.status !== 'success') {
+          return { ok: false, error: 'Sincronização não concluída. Consulte o relatório.', data };
+        }
+        _lastFetch = 0;
+        return { ok: true, data };
       } catch (e) {
         return { ok: false, error: e.message, data: null };
       }
