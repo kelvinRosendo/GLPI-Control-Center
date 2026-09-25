@@ -88,7 +88,7 @@ final class GlpiClient
     $code = $batch['_http_code'] ?? 0;
     $items = $batch['items'] ?? null;
     if (!in_array($code, [200, 206], true) || isset($batch['_error'])
-        || !is_array($items) || !array_is_list($items)) {
+        || !is_array($items) || $items !== array_values($items)) {
       throw new RuntimeException('Não foi possível consultar a coleção GLPI para o relatório.', 502);
     }
     $total = isset($batch['_content_range'])

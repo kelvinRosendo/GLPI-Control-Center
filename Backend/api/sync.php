@@ -234,7 +234,7 @@ final class AssetSync
 
     $data = json_decode($content, true);
     if (is_array($data) && isset($data['items'])) $data = $data['items'];
-    if (!is_array($data) || !array_is_list($data)) {
+    if (!is_array($data) || $data !== array_values($data)) {
       $this->logError('Cache JSON inválido — ignorando');
       return [];
     }

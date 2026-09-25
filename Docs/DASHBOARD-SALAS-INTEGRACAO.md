@@ -229,3 +229,18 @@ Aplicação no ambiente:
 O terminal local da sessão permanece indisponível. Estas alterações e os testes
 foram realizados via GitHub; a carga do GLPI real ainda depende da aplicação do
 código no ambiente do usuário. Nenhuma credencial foi alterada.
+
+### Validação local em 25/09/2026
+
+O acesso ao terminal foi restabelecido e a branch foi aplicada ao checkout local,
+após backup dos três arquivos de cache/relatório em .cache/before-inventory-fix-20260925.
+O PHP local é 8.0.30: as verificações de listas foram adaptadas para não depender
+de array_is_list, disponível apenas a partir de PHP 8.1. Passaram localmente 33
+verificações de inventário, 38 de chamados, 11 testes JavaScript e 13 verificações
+por largura no Chrome (desktop e estreita).
+
+O teste de navegador agora aguarda as microtarefas das respostas simuladas, sem
+temporizadores que podiam competir com o encerramento do dump do Chrome.
+A sincronização real foi tentada, mas o endereço configurado não retornou a API
+JSON esperada. É necessário confirmar o endereço atual do GLPI antes de concluir
+a validação com dados reais. As credenciais e a VPS não foram alteradas.

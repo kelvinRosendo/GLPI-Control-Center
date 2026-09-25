@@ -22,7 +22,7 @@ final class RoomTicketsReader
             }
             $total = $currentTotal;
             $page = $batch['items'] ?? null;
-            if (!is_array($page) || !array_is_list($page)) throw new RuntimeException('Página inválida.');
+            if (!is_array($page) || $page !== array_values($page)) throw new RuntimeException('Página inválida.');
             if (!$page && count($rows) < $total) throw new RuntimeException('Consulta incompleta.');
             foreach ($page as $row) {
                 if (!is_array($row) || !isset($row['id']) || !ctype_digit((string) $row['id']) || (int) $row['id'] < 1) {

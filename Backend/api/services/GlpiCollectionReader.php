@@ -23,7 +23,7 @@ final class GlpiCollectionReader
                     throw new RuntimeException('Falha na consulta GLPI (HTTP ' . (int)$http . ').');
                 }
                 $rows = $batch['items'] ?? null;
-                if (!is_array($rows) || !array_is_list($rows)) {
+                if (!is_array($rows) || $rows !== array_values($rows)) {
                     throw new RuntimeException('Formato de coleção GLPI inválido.');
                 }
                 if (!preg_match('~/([0-9]+)$~', trim((string)($batch['_content_range'] ?? '')), $m)) {
