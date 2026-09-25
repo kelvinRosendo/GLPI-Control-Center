@@ -78,14 +78,17 @@ final class GlpiClient
    * Strict page read for reports: never turn upstream failure into an empty list.
    * Existing legacy callers keep their previous behavior.
    */
-  public function getReportPage(string $path, string $sessionToken, int $offset, int $size = 200): array
+  public function getReportPage(string $path, string $sessionToken, int $offset, int $size = 200, bool $expandDropdowns = false): array
   {
     $batch = $this->getWithParamsRaw($path, $sessionToken, [
-      'expand_dropdowns' => 'false', 'get_hateoas' => 'false',
+      'expand_dropdowns' => $expandDropdowns ? 'true' : 'false', 'get_hateoas' => 'false',
       'is_deleted' => 'false', 'sort' => 'id', 'order' => 'ASC',
       'range' => $offset . '-' . ($offset + $size - 1),
     ]);
     $code = $batch['_http_code'] ?? 0;
+    if ($code === 403) {
+      throw new RuntimeException('Acesso à coleção GLPI não permitido.', 403);
+    }
     $items = $batch['items'] ?? null;
     if (!in_array($code, [200, 206], true) || isset($batch['_error'])
         || !is_array($items) || $items !== array_values($items)) {

@@ -21,6 +21,7 @@ on:
       - 'Backend/api/client.php'
       - 'Backend/api/endpoints.php'
       - 'Backend/tests/test_room_tickets.php'
+      - 'Backend/tests/test_room_tickets_endpoint.php'
       - 'Frontend/javascript/room-tickets.js'
       - 'Frontend/javascript/app.js'
       - 'Frontend/javascript/sidebar.js'
@@ -60,7 +61,9 @@ jobs:
           php -l Backend/api/endpoints.php
           php -l Backend/scripts/sync-cron.php
       - name: Room aggregation and pagination tests (no network or credentials)
-        run: php Backend/tests/test_room_tickets.php
+        run: |
+          php Backend/tests/test_room_tickets.php
+          php Backend/tests/test_room_tickets_endpoint.php
       - name: Inventory regression tests (isolated data, no network)
         run: |
           php Backend/tests/test_inventory_sync.php

@@ -159,7 +159,7 @@ final class RoomTicketsService
             if ($id < 1 || !empty($ticket['is_deleted']) || isset($items[$id])) continue;
             $title = self::text($ticket['name'] ?? '');
             $description = self::text($ticket['content'] ?? '');
-            $location = $loc[(int) ($ticket['locations_id'] ?? 0)] ?? '';
+            $location = $loc[(int) ($ticket['locations_id'] ?? 0)] ?? self::text($ticket['_location_name'] ?? '');
             $room = self::roomName($location);
             $roomSource = $room !== null ? 'local_glpi' : 'nao_identificado';
             if ($room === null && preg_match('/^\s*Local\s*:\s*([^\n\r|;]+)/imu', $description, $m)) {
@@ -178,7 +178,7 @@ final class RoomTicketsService
             if (!$date || $date->format('Y-m-d H:i:s') !== $dateString) { $invalidDates++; continue; }
             $entity = (int) ($ticket['entities_id'] ?? 0);
             $roomKey = $room !== null ? $entity . ':' . self::key($room) : 'unknown';
-            $category = $cat[(int) ($ticket['itilcategories_id'] ?? 0)] ?? '';
+            $category = $cat[(int) ($ticket['itilcategories_id'] ?? 0)] ?? self::text($ticket['_category_name'] ?? '');
             $ticketAssets = [];
             $types = [];
             foreach ($byTicket[$id] ?? [] as $key => $link) {
