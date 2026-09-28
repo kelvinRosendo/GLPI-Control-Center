@@ -111,4 +111,51 @@ $reported = RoomTicketsService::normalize([
 ], $locations, $categories, [], []);
 check($reported['items'][0]['types'] === ['keyboard'], 'Campo explícito prevalece sobre categoria genérica');
 
+$locMap = [1 => 'Sala 010', 2 => 'Bloco B > Sala 10'];
+$detected = RoomTicketsService::detectRoom(['name'=>'Sem título','locations_id'=>1], $locMap);
+check($detected === ['Sala 10', 'local_glpi'], 'detectRoom usa o cadastro de locais');
+$detected = RoomTicketsService::detectRoom(['name'=>'Sem título','locations_id'=>0,'content'=>"<p>Local: sala 10</p>"], $locMap);
+check($detected === ['Sala 10', 'campo_local'], 'detectRoom usa o campo Local do chamado');
+$detected = RoomTicketsService::detectRoom(['name'=>'Projetor queimado na sala 05','locations_id'=>0], $locMap);
+check($detected === ['Sala 5', 'titulo_inferido'], 'detectRoom infere sala pelo título');
+$detected = RoomTicketsService::detectRoom(['name'=>'[L-0004] Revisar local','locations_id'=>0], $locMap);
+check($detected === [null, 'nao_identificado'], 'detectRoom não inventa sala sem indício');
+$detected = RoomTicketsService::detectRoom(['name'=>'[L-0005] Bloco B','locations_id'=>2], $locMap);
+check($detected[0] === 'bloco b > Sala 10' && $detected[1] === 'local_glpi', 'detectRoom preserva a hierarquia');
+
+foreach (['aberto'=>true, 'em_andamento'=>true, 'pendente'=>true, 'resolvido'=>false, 'fechado'=>false] as $status => $expected) {
+    check(RoomTicketsService::isAlertEligible(['status'=>$status]) === $expected, 'Elegibilidade de alerta: ' . $status);
+}
+check(RoomTicketsService::isAlertEligible([]) === false, 'Status ausente não gera alerta');
+
+$monitor = RoomTicketsService::monitorEntries($normalized['items']);
+check(count($monitor) === 7, 'Monitoramento independe de filtros e paginação');
+check($monitor[0]['id'] === 10, 'Monitor ordena do mais recente para o antigo');
+check(array_column($monitor, 'id') === [10,5,4,3,2,1,7], 'Ordenação por data e desempate por ID');
+check($monitor[4]['id'] === 2 && $monitor[4]['eligible'] === false, 'Chamado resolvido sinalizado como inelegível');
+check($monitor[0]['eligible'] === true, 'Chamado aberto sinalizado como elegível');
+check(count(RoomTicketsService::monitorEntries($normalized['items'], 3)) === 3, 'Limite do monitor respeitado');
+check(RoomTicketsService::monitorEntries([]) === [], 'Monitor vazio sem erro');
+$filtered = RoomTicketsService::aggregate($normalized['items'], array_replace($filters, ['status'=>'fechado']));
+check($filtered['summary']['total'] === 0 && count(RoomTicketsService::monitorEntries($normalized['items'])) === 7,
+    'Monitor não acompanha filtro de relatório');
+
+$single = RoomTicketsService::fromGlpi([
+    'id'=>78, 'name'=>'[L-0009] Projetor não liga', 'content'=>'',
+    'date'=>'2026-09-10 10:00:00', 'status'=>1, 'entities_id'=>'Escola',
+    'locations_id'=>'Sala 16', 'itilcategories_id'=>'Projetor',
+]);
+check($single !== null && $single['room'] === 'Sala 16' && $single['reference'] === 'L-0009',
+    'Chamado expandido do GLPI entra na fila');
+check($single['status'] === 'aberto' && $single['roomSource'] === 'local_glpi', 'Status e origem da sala preservados');
+check(RoomTicketsService::fromGlpi([
+    'id'=>79, 'name'=>'Chamado administrativo', 'content'=>'', 'date'=>'2026-09-10 10:00:00', 'status'=>1,
+]) === null, 'Chamado sem sala e sem referência fora da fila');
+check(RoomTicketsService::fromGlpi([
+    'id'=>80, 'name'=>'[L-0010] Sem data', 'content'=>'', 'date'=>'2026-09-31 00:00:00', 'status'=>1,
+]) === null, 'Data inválida fora da fila');
+check(RoomTicketsService::fromGlpi([
+    'id'=>81, 'name'=>'[L-0011] Excluído', 'content'=>'', 'date'=>'2026-09-10 10:00:00', 'status'=>1, 'is_deleted'=>1,
+]) === null, 'Chamado excluído fora da fila');
+
 echo "OK: {$count} verificações de chamados por sala.\n";

@@ -26,11 +26,37 @@ final class RoomTicketAcknowledgementStore
         return is_array($entry) ? $entry : null;
     }
 
+    /**
+     * Reads many acknowledgements in a single lock: ids that were never
+     * acknowledged are simply absent from the returned map.
+     */
+    public static function forIds(array $ticketIds): array
+    {
+        $document = self::all();
+        $items = is_array($document['items'] ?? null) ? $document['items'] : [];
+        $entries = [];
+        foreach ($ticketIds as $ticketId) {
+            $ticketId = (int) $ticketId;
+            if ($ticketId < 1) continue;
+            $entry = $items[(string) $ticketId] ?? null;
+            if (is_array($entry)) $entries[(string) $ticketId] = $entry;
+        }
+        return $entries;
+    }
+
+    /**
+     * First acknowledgement wins: a second acknowledgement never overwrites
+     * who accepted first, it only returns the existing entry.
+     */
     public static function accept(int $ticketId, array $ticket, array $actor): array
     {
         if ($ticketId <= 0) throw new InvalidArgumentException('Chamado inválido.');
 
         return self::withLockedFile(true, static function (array $document) use ($ticketId, $ticket, $actor): array {
+            $existing = $document['items'][(string) $ticketId] ?? null;
+            if (is_array($existing)) {
+                return ['document' => $document, 'result' => $existing];
+            }
             $now = date(DATE_ATOM);
             $entry = [
                 'ticketId' => $ticketId,
@@ -50,17 +76,23 @@ final class RoomTicketAcknowledgementStore
 
     public static function attach(array $result): array
     {
-        $document = self::all();
-        $items = is_array($document['items'] ?? null) ? $document['items'] : [];
-        $attach = static function (array $ticket) use ($items): array {
-            $ack = $items[(string) ((int) ($ticket['id'] ?? 0))] ?? null;
-            $ticket['acknowledgement'] = is_array($ack) ? $ack : null;
-            return $ticket;
-        };
-
-        $result['items'] = array_map($attach, is_array($result['items'] ?? null) ? $result['items'] : []);
-        if (is_array($result['latest'] ?? null)) $result['latest'] = $attach($result['latest']);
+        $result['items'] = self::attachList(is_array($result['items'] ?? null) ? $result['items'] : []);
+        if (is_array($result['latest'] ?? null)) $result['latest'] = self::attachList([$result['latest']])[0];
         return $result;
+    }
+
+    /** Annotates a plain list of ticket-like rows with their acknowledgement. */
+    public static function attachList(array $items): array
+    {
+        $document = self::all();
+        $entries = is_array($document['items'] ?? null) ? $document['items'] : [];
+        $attach = static function ($item) use ($entries) {
+            if (!is_array($item)) return $item;
+            $entry = $entries[(string) ((int) ($item['id'] ?? 0))] ?? null;
+            $item['acknowledgement'] = is_array($entry) ? $entry : null;
+            return $item;
+        };
+        return array_map($attach, $items);
     }
 
     private static function path(): string

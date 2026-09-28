@@ -75,6 +75,14 @@ final class RoomTicketsEndpoint
                 'limitPerCollection' => 10000,
                 'restrictedLookups' => $restrictedLookups,
             ];
+            // Monitoring slice ignores report filters: one queue for every screen.
+            $result['monitor'] = [
+                'recent' => RoomTicketAcknowledgementStore::attachList(
+                    RoomTicketsService::monitorEntries($normalized['items'])
+                ),
+                'recentLimit' => 30,
+                'collectedAt' => $result['meta']['collectedAt'],
+            ];
         } catch (Throwable $error) {
             // Do not expose GLPI payloads, tokens or upstream exception messages.
             error_log('[room-tickets] Falha na consulta: ' . get_class($error));
@@ -90,26 +98,101 @@ final class RoomTicketsEndpoint
         Responde::ok(['data' => $result]);
     }
 
-    public static function accept(int $ticketId): void
+    /**
+     * Acknowledges an alert in the GCC only. Eligibility, reference and
+     * openedAt are always re-read from GLPI: the client cannot choose them.
+     */
+    public static function accept(int $ticketId, array $config): void
     {
         Request::rateLimit('room-ticket-accept', 60, 60);
-        $body = Request::json(4096);
+        if ($ticketId < 1) {
+            Responde::erro('Chamado inválido.', 422);
+            return;
+        }
+        $existing = RoomTicketAcknowledgementStore::forTicket($ticketId);
+        if ($existing !== null) {
+            Responde::ok(['data' => ['acknowledgement' => $existing, 'alreadyAccepted' => true]]);
+            return;
+        }
+
+        $client = new GlpiClient($config['glpi'] ?? []);
+        $session = null;
         try {
+            $session = $client->initSession();
+            $row = $client->getWithParams('/Ticket/' . $ticketId, $session, ['expand_dropdowns' => 'true']);
+            if (!is_array($row) || (int) ($row['id'] ?? 0) !== $ticketId) {
+                Responde::erro('Chamado não encontrado.', 404);
+                return;
+            }
+            $ticket = RoomTicketsService::fromGlpi($row);
+            if ($ticket === null) {
+                Responde::erro('O chamado não pertence à fila de salas.', 422);
+                return;
+            }
+            if (!RoomTicketsService::isAlertEligible($ticket)) {
+                Responde::erro('O chamado não está mais em aberto.', 422);
+                return;
+            }
             $entry = RoomTicketAcknowledgementStore::accept($ticketId, [
-                'reference' => $body['reference'] ?? '',
-                'openedAt' => $body['openedAt'] ?? '',
+                'reference' => $ticket['reference'],
+                'openedAt' => $ticket['openedAt'],
             ], [
                 'name' => PermissionMiddleware::getUserName() ?? '',
                 'email' => PermissionMiddleware::getUserEmail() ?? '',
             ]);
-        } catch (InvalidArgumentException $error) {
-            Responde::erro($error->getMessage(), 422);
-            return;
+            Responde::ok(['data' => ['acknowledgement' => $entry]]);
+        } catch (RuntimeException $error) {
+            $httpCode = (int) ($error->http_code ?? 0);
+            if ($httpCode === 404) {
+                Responde::erro('Chamado não encontrado.', 404);
+                return;
+            }
+            error_log('[room-tickets] Falha na verificação do chamado: ' . get_class($error));
+            Responde::erro('Não foi possível verificar o chamado no GLPI. Tente novamente.', 502);
         } catch (Throwable $error) {
             error_log('[room-tickets] Falha ao registrar aceite: ' . get_class($error));
             Responde::erro('Não foi possível registrar o aceite do alerta.', 500);
+        } finally {
+            if ($session !== null) {
+                try { $client->killSession($session); } catch (Throwable $ignored) {}
+            }
+        }
+    }
+
+    /**
+     * Lightweight acknowledgement read for periodic synchronisation across
+     * tabs and screens. Never touches GLPI.
+     */
+    public static function acknowledgements(): void
+    {
+        header('Cache-Control: no-store');
+        Request::rateLimit('room-ticket-acks-read', 300, 60);
+        $raw = $_GET['ids'] ?? '';
+        if (!is_string($raw)) {
+            Responde::erro('Filtro inválido: ids.', 422);
             return;
         }
-        Responde::ok(['data' => ['acknowledgement' => $entry]]);
+        $ids = [];
+        foreach (explode(',', $raw) as $piece) {
+            $piece = trim($piece);
+            if ($piece === '') continue;
+            if (!ctype_digit($piece)) {
+                Responde::erro('Identificadores de chamado inválidos.', 422);
+                return;
+            }
+            $ids[] = (int) $piece;
+        }
+        if (!$ids) {
+            Responde::erro('Informe ao menos um chamado.', 422);
+            return;
+        }
+        if (count($ids) > 100) {
+            Responde::erro('Limite de 100 chamados por consulta.', 422);
+            return;
+        }
+        Responde::ok(['data' => [
+            'acknowledgements' => RoomTicketAcknowledgementStore::forIds($ids),
+            'checkedAt' => date(DATE_ATOM),
+        ]]);
     }
 }

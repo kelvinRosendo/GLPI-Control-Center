@@ -1,32 +1,29 @@
 /**
  * Operational TV mode for GCC.
- * Rotates the assets and room-ticket panels and owns the 15-second new-ticket alert.
+ * Rotates the assets and room-ticket panels. Data, alerts, sound and
+ * acknowledgement state come from RoomTicketsMonitor: this module only renders.
  */
 window.RoomTicketsTV = (() => {
   'use strict';
 
   const ROTATION_SECONDS = 30;
-  const REFRESH_MS = 60000;
-  const ALERT_MS = 15000;
-  const OPEN_STATUSES = new Set(['aberto', 'em_andamento', 'pendente']);
   const TYPES = { projector: 'Projetor', pc: 'PC', mouse: 'Mouse', keyboard: 'Teclado',
     chromebook: 'Chromebook', cart: 'Carrinho', other: 'Outros', unknown: 'Não identificado' };
+  const SYNC_LABELS = {
+    success: 'Concluída', partial: 'Parcial', failed: 'Falhou',
+    running: 'Em execução', not_created: 'Não criada',
+  };
 
   let overlay = null;
   let callData = null;
   let active = false;
   let panel = 'assets';
   let paused = false;
-  let soundEnabled = false;
   let rotationRemaining = ROTATION_SECONDS;
   let tickTimer = null;
-  let refreshTimer = null;
-  let alertTimer = null;
-  let alertTicket = null;
-  let alertUntil = 0;
-  let lastAlertedId = null;
-  let globalAlert = null;
-  let audioContext = null;
+  let alertInfo = null;
+  let monitorView = null;
+  let unsubscribe = null;
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -42,6 +39,8 @@ window.RoomTicketsTV = (() => {
     if (data?.latest) return data.latest;
     return [...(data?.items || [])].sort((a, b) => String(b.openedAt).localeCompare(String(a.openedAt)) || b.id - a.id)[0] || null;
   }
+
+  function monitorApi() { return window.RoomTicketsMonitor; }
 
   function assetIndicators() {
     const dashboard = window.Dashboard?.getIndicators?.() || {};
@@ -67,6 +66,25 @@ window.RoomTicketsTV = (() => {
       ['Impressoras', values.printers, 'red'],
     ];
     const maximum = Math.max(1, ...rows.map(row => row[1]));
+    const assetStatus = window.App?.glpiStatus || 'desconhecido';
+    const assetMap = {
+      conectado: ['ok', 'Dados carregados'],
+      carregando: ['warn', 'Carregando'],
+      parcial: ['warn', 'Dados parciais'],
+      sem_sync: ['warn', 'Sem sincronização'],
+      offline: ['bad', 'Indisponível'],
+      desconhecido: ['warn', 'Não verificado'],
+    };
+    const [assetTone, assetLabel] = assetMap[assetStatus] || assetMap.desconhecido;
+    const sessionOk = Boolean(window.UserContext?.isAuthenticated?.());
+    const sessionTone = sessionOk ? 'ok' : 'bad';
+    const sync = window.DATA?.syncStatus?.status || 'unknown';
+    const monitorState = monitorApi()?.snapshot?.() || {};
+    const monitorTone = ['error', 'expired'].includes(monitorState.state) ? 'bad'
+      : monitorState.state === 'ok' ? 'ok' : 'warn';
+    const syncTone = sync === 'success' ? 'ok' : 'warn';
+    const row = (tone, label, value) =>
+      `<li><i class="${tone === 'ok' ? '' : tone}"></i><span>${esc(label)}</span><strong class="${tone}">${esc(value)}</strong></li>`;
     return `<main class="rt-tv-main">
       <header class="rt-tv-section-head"><div><span>VISÃO GERAL</span><h1>Ativos da infraestrutura</h1></div><strong>${values.total} ativos classificados</strong></header>
       <section class="rt-tv-kpis">
@@ -78,8 +96,10 @@ window.RoomTicketsTV = (() => {
           ${rows.map(([label, value, color]) => `<div class="rt-tv-bar"><span>${label}</span><div><i class="rt-tv-bar--${color}" style="width:${Math.max(2, value / maximum * 100)}%"></i></div><strong>${value}</strong></div>`).join('')}
         </div></article>
         <article class="rt-tv-card"><h2>Status da infraestrutura</h2><ul class="rt-tv-status">
-          <li><i></i><span>GLPI</span><strong>Online</strong></li><li><i></i><span>Backend</span><strong>Online</strong></li>
-          <li><i></i><span>Autenticação</span><strong>Online</strong></li><li><i class="warn"></i><span>Integrações</span><strong>Em acompanhamento</strong></li>
+          ${row(assetTone, 'Inventário GCC', assetLabel)}
+          ${row(sessionTone, 'Sessão', sessionOk ? 'Autenticada' : 'Expirada')}
+          ${row(monitorTone, 'Monitor de chamados', monitorState.label || 'Aguardando')}
+          ${row(syncTone, 'Sincronização', SYNC_LABELS[sync] || 'Não verificada')}
         </ul></article>
       </section>
     </main>`;
@@ -90,10 +110,16 @@ window.RoomTicketsTV = (() => {
     const summary = callData?.summary || {};
     const room = summary.topRooms?.[0];
     const type = summary.topTypes?.[0];
+    const queue = monitorApi()?.getQueue?.() || [];
+    const accepted = Boolean(ticket?.acknowledgement);
+    const queueHtml = queue.length > 1
+      ? `<article class="rt-tv-card rt-tv-queue-card"><h2>Fila de alertas (${queue.length})</h2><ul class="rt-tv-queue">
+          ${queue.map(item => `<li><strong>${esc(item.ticket.room)}</strong><span>#${esc(item.id)}${item.ticket.reference ? ` · ${esc(item.ticket.reference)}` : ''}</span><small>${formatDate(item.ticket.openedAt, true)}</small></li>`).join('')}
+        </ul></article>`
+      : '';
     if (!ticket) return `<main class="rt-tv-main"><header class="rt-tv-section-head"><div><span>ATENDIMENTO</span><h1>Chamados das salas</h1></div></header><section class="rt-tv-empty">Nenhum chamado encontrado nos últimos 30 dias.</section></main>`;
-    const accepted = Boolean(ticket.acknowledgement);
     return `<main class="rt-tv-main">
-      <header class="rt-tv-section-head"><div><span>ATENDIMENTO</span><h1>Chamados das salas</h1></div><strong>${summary.total || 0} no período · ${summary.open || 0} em aberto</strong></header>
+      <header class="rt-tv-section-head"><div><span>ATENDIMENTO</span><h1>Chamados das salas</h1></div><strong>${summary.total || 0} no período · ${summary.open || 0} em aberto${queue.length ? ` · ${queue.length} aguardando aceite` : ''}</strong></header>
       <section class="rt-tv-grid rt-tv-grid--calls">
         <article class="rt-tv-card rt-tv-card--latest">
           <div class="rt-tv-ticket-head"><span>ÚLTIMO CHAMADO RECEBIDO</span><strong>#${ticket.id}${ticket.reference ? ` · ${esc(ticket.reference)}` : ''}</strong></div>
@@ -107,20 +133,29 @@ window.RoomTicketsTV = (() => {
           <article><span>Sala com mais chamados</span><strong>${esc(room?.label || 'Sem identificação')}</strong><small>${room ? `${room.count} chamado${room.count === 1 ? '' : 's'}` : 'Sem sala identificada'}</small></article>
           <article><span>Dispositivo com mais chamados</span><strong>${esc(type?.label || 'Sem identificação')}</strong><small>${type ? `${type.count} chamado${type.count === 1 ? '' : 's'}` : 'Sem dispositivo identificado'}</small></article>
         </aside>
+        ${queueHtml}
       </section>
     </main>`;
   }
 
   function alertBanner() {
-    if (!alertTicket || Date.now() >= alertUntil) return '';
-    const types = (alertTicket.types || []).map(key => TYPES[key] || key).join(', ');
+    if (!alertInfo?.ticket || Date.now() >= alertInfo.until) return '';
+    const ticket = alertInfo.ticket;
+    const types = (ticket.types || []).map(key => TYPES[key] || key).join(', ');
+    const soundEnabled = monitorApi()?.isSoundEnabled?.() ?? false;
     return `<section class="rt-tv-alert" role="alert">
-      <span class="rt-tv-alert-label">NOVO CHAMADO</span><strong>${esc(alertTicket.room)}</strong><span>${esc(types)}</span>
-      <small>#${alertTicket.id}${alertTicket.reference ? ` · ${esc(alertTicket.reference)}` : ''} · ${formatDate(alertTicket.openedAt, true)}</small>
+      <span class="rt-tv-alert-label">NOVO CHAMADO</span><strong>${esc(ticket.room)}</strong><span>${esc(types)}</span>
+      <small>#${esc(ticket.id)}${ticket.reference ? ` · ${esc(ticket.reference)}` : ''} · ${formatDate(ticket.openedAt, true)}</small>
       <span class="rt-tv-alert-sound">${soundEnabled ? 'Som ativado' : 'Som desativado'}</span>
-      <span class="rt-tv-alert-count">Some em <b data-tv-alert-count>${Math.max(0, Math.ceil((alertUntil - Date.now()) / 1000))}</b></span>
-      <button type="button" data-tv-action="accept" data-ticket-id="${alertTicket.id}">Aceitar</button>
+      <span class="rt-tv-alert-count">Some em <b data-tv-alert-count>${Math.max(0, Math.ceil((alertInfo.until - Date.now()) / 1000))}</b></span>
+      <button type="button" data-tv-action="accept" data-ticket-id="${esc(ticket.id)}">Aceitar</button>
     </section>`;
+  }
+
+  function connectionStatus() {
+    const view = monitorView || monitorApi()?.snapshot?.() || {};
+    const tone = ['error', 'expired'].includes(view.state) ? 'is-error' : view.state === 'ok' ? 'is-ok' : 'is-warn';
+    return `<div class="rt-tv-connection"><span class="rt-tv-connection-state ${tone}">${esc(view.label || 'Aguardando')}</span><strong class="rt-tv-clock">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</strong></div>`;
   }
 
   function render() {
@@ -128,10 +163,10 @@ window.RoomTicketsTV = (() => {
     overlay.innerHTML = `<div class="rt-tv-shell">
       <header class="rt-tv-top"><div class="rt-tv-brand"><img src="/assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite"><span>Painel Operacional<small>Central de T.I.</small></span></div>
       <nav aria-label="Painéis do modo TV"><button type="button" data-tv-panel="assets" class="${panel === 'assets' ? 'active' : ''}">01 Ativos</button><button type="button" data-tv-panel="calls" class="${panel === 'calls' ? 'active' : ''}">02 Chamados</button></nav>
-      <div class="rt-tv-connection"><span>Conectado ao GCC</span><strong class="rt-tv-clock">${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</strong></div></header>
+      ${connectionStatus()}</header>
       ${alertBanner()}${panel === 'assets' ? assetPanel() : callPanel()}
-      <footer class="rt-tv-footer"><div><b data-tv-countdown>${String(rotationRemaining).padStart(2, '0')}</b><span>${alertTicket ? 'Rotação em espera durante o alerta' : paused ? 'Rotação pausada' : 'Próxima troca'}<small>Painel ${panel === 'assets' ? '01 · Ativos' : '02 · Chamados'}</small></span></div>
-      <div class="rt-tv-controls"><button type="button" data-tv-action="pause">${paused ? 'Retomar rotação' : 'Pausar rotação'}</button><button type="button" data-tv-action="switch">Trocar painel</button><button type="button" data-tv-action="sound">${soundEnabled ? 'Desativar som' : 'Ativar som'}</button><button type="button" data-tv-action="close">Sair do modo TV</button></div></footer>
+      <footer class="rt-tv-footer"><div><b data-tv-countdown>${String(rotationRemaining).padStart(2, '0')}</b><span>${alertInfo ? 'Rotação em espera durante o alerta' : paused ? 'Rotação pausada' : 'Próxima troca'}<small>Painel ${panel === 'assets' ? '01 · Ativos' : '02 · Chamados'}</small></span></div>
+      <div class="rt-tv-controls"><button type="button" data-tv-action="pause">${paused ? 'Retomar rotação' : 'Pausar rotação'}</button><button type="button" data-tv-action="switch">Trocar painel</button><button type="button" data-tv-action="sound">${monitorApi()?.isSoundEnabled?.() ? 'Desativar som' : 'Ativar som'}</button><button type="button" data-tv-action="close">Sair do modo TV</button></div></footer>
     </div>`;
   }
 
@@ -140,20 +175,19 @@ window.RoomTicketsTV = (() => {
     const clock = overlay.querySelector('.rt-tv-clock');
     if (clock) clock.textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const alertCount = overlay.querySelector('[data-tv-alert-count]');
-    if (alertCount) alertCount.textContent = String(Math.max(0, Math.ceil((alertUntil - Date.now()) / 1000)));
+    if (alertCount && alertInfo) alertCount.textContent = String(Math.max(0, Math.ceil((alertInfo.until - Date.now()) / 1000)));
     const countdown = overlay.querySelector('[data-tv-countdown]');
     if (countdown) countdown.textContent = String(rotationRemaining).padStart(2, '0');
   }
 
   function tick() {
-    if (alertTicket && Date.now() >= alertUntil) {
-      alertTicket = null;
-      alertUntil = 0;
+    if (alertInfo && Date.now() >= alertInfo.until) {
+      alertInfo = null;
       rotationRemaining = ROTATION_SECONDS;
       render();
       return;
     }
-    if (!paused && !alertTicket) {
+    if (!paused && !alertInfo) {
       rotationRemaining -= 1;
       if (rotationRemaining <= 0) switchPanel();
     }
@@ -166,98 +200,29 @@ window.RoomTicketsTV = (() => {
     render();
   }
 
-  async function fetchCalls() {
-    try {
-      const response = await window.ApiClient.get('/api/tickets/salas?period=30d&page=1', { cache: false, retries: 0, timeout: 90000 });
-      if (response?.data?.summary) update(response.data);
-    } catch (error) {
-      console.warn('[RoomTicketsTV] Não foi possível atualizar os chamados.', error);
-    }
-  }
-
-  function considerAlert(ticket) {
-    if (!ticket || ticket.acknowledgement || !OPEN_STATUSES.has(ticket.status) || Number(ticket.id) === Number(lastAlertedId)) return;
-    lastAlertedId = Number(ticket.id);
-    alertTicket = ticket;
-    alertUntil = Date.now() + ALERT_MS;
-    panel = 'calls';
-    rotationRemaining = ROTATION_SECONDS;
-    playSound();
-    if (active) {
-      render();
-      clearTimeout(alertTimer);
-      alertTimer = setTimeout(() => { alertTicket = null; alertUntil = 0; render(); }, ALERT_MS + 100);
-    } else {
-      showGlobalAlert(ticket);
-    }
-  }
-
-  function update(nextData) {
-    callData = nextData;
-    considerAlert(latest(nextData));
-    if (active) render();
+  function applyView(view) {
+    if (!view) return;
+    const previous = monitorView;
+    const previousData = callData;
+    const previousAlertId = previous?.alert?.ticket?.id ?? null;
+    const nextAlertId = view.alert?.ticket?.id ?? null;
+    monitorView = view;
+    if (view.data) callData = view.data;
+    alertInfo = view.alert;
+    if (!active) return;
+    const changed = !previous
+      || callData !== previousData
+      || nextAlertId !== previousAlertId
+      || view.state !== previous.state
+      || view.queueLength !== previous.queueLength;
+    if (changed) render();
   }
 
   async function accept(ticket) {
+    const api = monitorApi();
+    if (!api?.accept) throw new Error('Monitor de chamados indisponível.');
     if (!ticket?.id) throw new Error('Chamado inválido.');
-    const response = await window.ApiClient.post(`/api/tickets/salas/${encodeURIComponent(ticket.id)}/aceite`, {
-      reference: ticket.reference || '', openedAt: ticket.openedAt || '',
-    }, { cache: false, retries: 0, timeout: 15000 });
-    const acknowledgement = response?.data?.acknowledgement;
-    if (!acknowledgement) throw new Error('Resposta incompleta do servidor.');
-    if (callData?.latest?.id === ticket.id) callData.latest.acknowledgement = acknowledgement;
-    for (const item of callData?.items || []) if (item.id === ticket.id) item.acknowledgement = acknowledgement;
-    if (alertTicket?.id === ticket.id) { alertTicket = null; alertUntil = 0; }
-    removeGlobalAlert();
-    if (active) render();
-    document.dispatchEvent(new CustomEvent('roomtickets:accepted', { detail: { ticketId: ticket.id, acknowledgement } }));
-    return acknowledgement;
-  }
-
-  function showGlobalAlert(ticket) {
-    removeGlobalAlert();
-    globalAlert = document.createElement('aside');
-    globalAlert.className = 'rt-global-alert';
-    globalAlert.setAttribute('role', 'alert');
-    globalAlert.innerHTML = `<span>Novo chamado em sala</span><strong>${esc(ticket.room)}</strong><p>${esc(ticket.title || 'Sem título')}</p><div><button type="button" data-global-alert-accept>Aceitar</button><button type="button" data-global-alert-close>Fechar</button></div>`;
-    globalAlert.querySelector('[data-global-alert-accept]').addEventListener('click', async event => {
-      event.currentTarget.disabled = true;
-      try { await accept(ticket); } catch { event.currentTarget.disabled = false; }
-    });
-    globalAlert.querySelector('[data-global-alert-close]').addEventListener('click', removeGlobalAlert);
-    document.body.appendChild(globalAlert);
-    alertTimer = setTimeout(removeGlobalAlert, ALERT_MS);
-  }
-
-  function removeGlobalAlert() {
-    if (globalAlert) globalAlert.remove();
-    globalAlert = null;
-    clearTimeout(alertTimer);
-  }
-
-  function ensureAudio() {
-    if (!audioContext) {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (AudioContext) audioContext = new AudioContext();
-    }
-    audioContext?.resume?.().catch(() => {});
-  }
-
-  function playSound() {
-    if (!soundEnabled) return;
-    ensureAudio();
-    if (!audioContext) return;
-    const start = audioContext.currentTime;
-    [0, 0.22].forEach(offset => {
-      const oscillator = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      oscillator.frequency.value = 880;
-      gain.gain.setValueAtTime(0.0001, start + offset);
-      gain.gain.exponentialRampToValueAtTime(0.18, start + offset + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.16);
-      oscillator.connect(gain); gain.connect(audioContext.destination);
-      oscillator.start(start + offset); oscillator.stop(start + offset + 0.18);
-    });
+    try { return await api.accept(ticket); } finally { if (active) render(); }
   }
 
   function onOverlayClick(event) {
@@ -268,9 +233,15 @@ window.RoomTicketsTV = (() => {
       case 'close': close(); break;
       case 'switch': switchPanel(); break;
       case 'pause': paused = !paused; render(); break;
-      case 'sound': soundEnabled = !soundEnabled; if (soundEnabled) { ensureAudio(); playSound(); } render(); break;
+      case 'sound': {
+        const api = monitorApi();
+        api?.setSoundEnabled?.(!api?.isSoundEnabled?.());
+        render();
+        break;
+      }
       case 'accept': {
-        const ticket = [alertTicket, latest()].find(item => item && Number(item.id) === Number(button.dataset.ticketId));
+        const alertTicket = alertInfo?.ticket && Number(alertInfo.ticket.id) === Number(button.dataset.ticketId) ? alertInfo.ticket : null;
+        const ticket = alertTicket || [latest()].find(item => item && Number(item.id) === Number(button.dataset.ticketId));
         if (!ticket) return;
         button.disabled = true;
         accept(ticket).catch(() => { button.disabled = false; });
@@ -286,7 +257,6 @@ window.RoomTicketsTV = (() => {
   function open(seedData = null) {
     if (active) return;
     active = true; panel = 'assets'; paused = false; rotationRemaining = ROTATION_SECONDS;
-    soundEnabled = true; ensureAudio();
     if (seedData) callData = seedData;
     overlay = document.createElement('section');
     overlay.className = 'rt-tv';
@@ -297,21 +267,29 @@ window.RoomTicketsTV = (() => {
     document.addEventListener('keydown', onKeydown);
     render();
     tickTimer = setInterval(tick, 1000);
-    refreshTimer = setInterval(fetchCalls, REFRESH_MS);
-    fetchCalls();
+    const api = monitorApi();
+    if (api) {
+      if (unsubscribe) unsubscribe();
+      unsubscribe = api.subscribe(applyView);
+      api.start();
+      applyView(api.snapshot());
+      api.dismissBanner?.();
+    }
     overlay.requestFullscreen?.().catch(() => {});
   }
 
   function close() {
     if (!active) return;
     active = false;
-    clearInterval(tickTimer); clearInterval(refreshTimer); clearTimeout(alertTimer);
-    tickTimer = refreshTimer = alertTimer = null;
+    if (tickTimer !== null) clearInterval(tickTimer);
+    tickTimer = null;
+    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
     document.removeEventListener('keydown', onKeydown);
     overlay?.remove(); overlay = null;
     document.body.classList.remove('rt-tv-open');
+    monitorApi()?.syncUi?.();
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   }
 
-  return { open, close, update, accept, isActive: () => active };
+  return { open, close, accept, isActive: () => active };
 })();

@@ -21,16 +21,18 @@ window.Dashboard = {
 
   _autoRefreshTimer: null,
   _visibilityChangeHandler: null,
+  _requeryPromise: null,
+  _generation: 0,
 
   // ── Ciclo de Vida ────────────────────────────────────────────────────────
 
-  async load() {
+  async load(options = {}) {
     if (this._state.loading) return { ok: true };
     this._state.loading = true;
     this._state.error = '';
 
     try {
-      const loadResult = await this._ensureData();
+      const loadResult = await this._ensureData({ refresh: options.refresh === true });
 
       this._state.indicators = this._calculateIndicators();
       this._state.widgets = this._calculateWidgets();
@@ -101,6 +103,9 @@ window.Dashboard = {
 
   reset() {
     this._stopAutoRefresh();
+    this._generation += 1;
+    this._requeryPromise = null;
+    window.GlpiClient?.invalidateGeneration?.();
     window.DashboardAnalytics.reset();
     this._state = {
       loaded: false,
@@ -125,7 +130,7 @@ window.Dashboard = {
       if (this._state.loaded && !this._state.loading) {
         this._state.isStale = true;
         this._emit('dashboard:stale', { loadedAt: this._state.loadedAt });
-        this.load();
+        this.load({ refresh: true });
       }
     }, config.autoRefreshInterval);
 
@@ -169,12 +174,33 @@ window.Dashboard = {
         descricao: 'Dashboard atualizado manualmente',
       });
     }
-    await this.load();
+    await this.load({ refresh: true });
   },
 
   // ── Garantia de Dados ────────────────────────────────────────────────────
 
-  async _ensureData() {
+  /**
+   * Consulta de ativos com controle de concorrência: uma única requisição por
+   * chamada do relógio, e respostas atrasadas de uma sessão anterior são descartadas.
+   */
+  async _requeryAssets() {
+    if (this._requeryPromise) return this._requeryPromise;
+    const generation = this._generation;
+    this._requeryPromise = (async () => {
+      try {
+        const result = await window.GlpiClient.loadAll({ refresh: true }) || { ok: true };
+        if (generation !== this._generation) return { ok: true, superseded: true, errors: [] };
+        return result;
+      } catch (error) {
+        return { ok: false, errors: [error.message], partial: false };
+      } finally {
+        this._requeryPromise = null;
+      }
+    })();
+    return this._requeryPromise;
+  },
+
+  async _ensureData(options = {}) {
     const D = window.DATA;
 
     // Dados já foram carregados por _loadInitialData → loadAll().
@@ -185,7 +211,9 @@ window.Dashboard = {
 
     let loadResult = { ok: true };
 
-    if (!hasData) {
+    if (options.refresh) {
+      loadResult = await this._requeryAssets();
+    } else if (!hasData) {
       // Fallback: só chama loadAll se dados realmente não existem
       try {
         loadResult = await window.GlpiClient.loadAll() || { ok: true };

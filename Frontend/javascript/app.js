@@ -118,6 +118,8 @@ window.App = {
     this.assetsLoading = true;
     this.assetsLoaded = false;
     this._setGlpiStatus('carregando');
+    // Monitoramento de chamados roda em todas as telas, desde o login.
+    window.RoomTicketsMonitor?.start();
     this.go('home');
 
     await this._loadInitialData();
@@ -163,6 +165,12 @@ window.App = {
 
   showLoginScreen() {
     window.RoomTickets?.reset();
+    window.RoomTicketsMonitor?.reset();
+    window.RoomTicketsTV?.close();
+    // Encerra consultas e alertas da sessão anterior: nada atrasado pode
+    // reaparecer nem reescrever dados após o logout ou a expiração.
+    try { window.GlpiClient?.invalidateGeneration?.(); } catch {}
+    try { window.Dashboard?.reset?.(); } catch {}
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
     window.State?.resetFilters();
@@ -172,6 +180,8 @@ window.App = {
 
   logout() {
     window.RoomTickets?.reset();
+    window.RoomTicketsMonitor?.reset();
+    window.RoomTicketsTV?.close();
     // Limpar estado do agente ao sair: mensagens, propostas, contexto, pendentes
     try { window.AgentPanel?.clearState?.(); } catch {}
     try { window.AgentPanel?.closePanel?.(); } catch {}
@@ -780,6 +790,7 @@ window.App = {
   },
 
   _setGlpiStatus(estado, errors) {
+    this.glpiStatus = estado;
     const el = document.getElementById('glpi-status');
     if (!el) return;
 

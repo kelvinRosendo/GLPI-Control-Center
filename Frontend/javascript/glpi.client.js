@@ -7,6 +7,16 @@
  */
 
 window.GlpiClient = {
+  _generation: 0,
+
+  /**
+   * Invalida consultas em andamento: respostas atrasadas não escrevem mais
+   * em window.DATA. Chamado no logout e ao redefinir o dashboard.
+   */
+  invalidateGeneration() {
+    this._generation += 1;
+  },
+
   get baseUrl() {
     return (window.CONFIG?.backendUrl ?? 'http://localhost:8080').replace(/\/$/, '');
   },
@@ -261,8 +271,12 @@ window.GlpiClient = {
 
   /**
    * Carrega todos os dados. Uma única chamada — sem duplicação.
+   * `refresh: true` força nova consulta mesmo com dados em memória.
+   * Somente a consulta mais recente escreve em window.DATA: respostas
+   * atrasadas de uma sessão anterior são descartadas.
    */
-  async loadAll() {
+  async loadAll(options = {}) {
+    const generation = ++this._generation;
     const previous = window.DATA || {};
 
     let classified = null;
@@ -316,7 +330,9 @@ window.GlpiClient = {
       const legacy = legacyResults.map((r, i) => {
         if (r.status === 'rejected') {
           legacyErrors.push(`${names[i]}: ${r.reason?.message ?? r.reason}`);
-          return names[i] === 'chromebooksApoio' ? {} : [];
+          // Falha pontual não apaga o último inventário conhecido.
+          if (names[i] === 'chromebooksApoio') return previous.chromebooksApoio ?? {};
+          return previous[names[i]] ?? [];
         }
         return r.value;
       });
@@ -337,6 +353,10 @@ window.GlpiClient = {
       syncPartial: previous.syncPartial ?? false,
       syncErrors: previous.syncErrors ?? [],
     };
+
+    if (generation !== this._generation) {
+      return { ok: true, superseded: true, errors: [] };
+    }
 
     window.DATA = {
       computadores: mapped.computadores ?? previous.computadores ?? [],

@@ -14,6 +14,8 @@ window.RoomTickets = (() => {
   const defaults = () => ({ period: '30d', from: '', to: '', room: '', type: '', status: '', asset: '', q: '', page: 1 });
   let filters = defaults(), data = null, loading = false, error = '', generation = 0;
   let timer = null, auto = true, initialized = false;
+  let lastQuery = '', monitorBound = false;
+  const monitor = () => window.RoomTicketsMonitor;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const active = () => window.STATE?.tab === 'chamados-salas';
   const formatDate = value => {
@@ -92,10 +94,10 @@ window.RoomTickets = (() => {
   }
 
   function renderData() {
-    if (loading) return '<div class="rt-message" role="status">Consultando chamados e vínculos no GLPI…</div>';
-    if (error) return '<div class="rt-message rt-error" role="alert">' + esc(error) +
-      ' <button type="button" data-rt-action="refresh">Tentar novamente</button></div>';
-    if (!data) return '';
+    const banner = error ? '<div class="rt-message rt-error" role="alert">' + esc(error) +
+      ' <button type="button" data-rt-action="refresh">Tentar novamente</button></div>' : '';
+    if (loading && !data) return banner + '<div class="rt-message" role="status">Consultando chamados e vínculos no GLPI…</div>';
+    if (!data) return banner;
     const summary = data.summary;
     const period = formatDate(data.filters.from) + ' a ' + formatDate(data.filters.to);
     const cards = [
@@ -104,7 +106,7 @@ window.RoomTickets = (() => {
       ['Sala com mais chamados', leaders(summary.topRooms), summary.topRooms[0] ? summary.topRooms[0].count + ' chamados' : 'Sem sala identificada'],
       ['Tipo com mais chamados', leaders(summary.topTypes), summary.topTypes[0] ? summary.topTypes[0].count + ' chamados' : 'Sem tipo identificado'],
     ];
-    return '<p class="rt-muted">Período: ' + esc(period) + ' · Horário de Brasília · Contagem pela abertura do chamado.</p>' +
+    return banner + '<p class="rt-muted">Período: ' + esc(period) + ' · Horário de Brasília · Contagem pela abertura do chamado.</p>' +
       (data.meta.warnings || []).map(w => '<p class="rt-message" role="status">' + esc(w) + '</p>').join('') +
       (!data.meta.complete ? '<p class="rt-message rt-error" role="alert">Dados incompletos: os valores abaixo não representam todos os chamados.</p>' : '') +
       '<div class="rt-cards">' + cards.map(([label, value, note]) =>
@@ -128,14 +130,68 @@ window.RoomTickets = (() => {
       '<button type="button" data-rt-action="next"' + (data.pagination.page >= data.pagination.pages ? ' disabled' : '') + '>Próxima</button></div></section>';
   }
 
+  function buildQuery() {
+    const query = new URLSearchParams();
+    for (const [key, value] of Object.entries(filters)) if (value !== '') query.set(key, String(value));
+    return query;
+  }
+
+  /** Só aceita respostas cujos filtros aplicados são exatamente os pedidos. */
+  function matchesFilters(next, query) {
+    const applied = next?.filters;
+    if (!applied || !query) return false;
+    for (const [key, value] of new URLSearchParams(query)) {
+      if (key === 'per_page') continue;
+      if (String(applied[key] ?? '') !== String(value)) return false;
+    }
+    return true;
+  }
+
+  function adopt(next) {
+    data = next;
+    if (data.pagination) filters.page = data.pagination.page;
+    if (data.filters) { filters.from = data.filters.from; filters.to = data.filters.to; }
+    writeUrl();
+  }
+
+  function lastUpdateLabel() {
+    return data?.meta?.collectedAt
+      ? new Date(data.meta.collectedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+      : 'Ainda não consultado';
+  }
+
+  function statusText() {
+    const status = monitor()?.getStatus?.();
+    return 'Última consulta: ' + lastUpdateLabel() + (status?.label ? ' · ' + status.label : '');
+  }
+
+  function bindMonitor() {
+    if (monitorBound) return;
+    const api = monitor();
+    if (!api?.subscribe) return;
+    monitorBound = true;
+    api.subscribe((view, change) => {
+      if ((change === 'data' || change === 'init') && view.data && lastQuery && matchesFilters(view.data, lastQuery) && view.data !== data) {
+        adopt(view.data);
+        if (auto && active() && !loading) mount();
+        return;
+      }
+      if (change !== 'status' && change !== 'alert') return;
+      const label = typeof document !== 'undefined' && document.querySelector
+        ? document.querySelector('.rt-toolbar-status') : null;
+      if (label) label.textContent = statusText();
+    });
+  }
+
   function mount() {
     if (!active()) return;
     readUrl();
+    bindMonitor();
+    monitor()?.start?.();
     const root = document.getElementById('main-content');
     if (!root) return;
     const rooms = Object.fromEntries((data?.options?.rooms || []).map(r => [r.key, r.label]));
     if (filters.room && !rooms[filters.room]) rooms[filters.room] = filters.room === 'unknown' ? 'Sala não identificada' : filters.room;
-    const lastUpdate = data?.meta?.collectedAt ? new Date(data.meta.collectedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'Ainda não consultado';
     root.innerHTML = '<div class="rt-dashboard"><header class="rt-header"><div><p class="rt-eyebrow">OPERAÇÃO · CHAMADOS</p>' +
       '<h1>Chamados das salas</h1><p class="rt-muted">Identifique onde os problemas se repetem e quais equipamentos precisam de atenção.</p></div>' +
       '<div class="rt-header-actions"><button type="button" data-rt-action="refresh"' + (loading ? ' disabled' : '') + '>Atualizar agora</button>' +
@@ -153,8 +209,13 @@ window.RoomTickets = (() => {
       '<label class="rt-search">Buscar chamado<input name="q" maxlength="200" placeholder="Número, problema ou referência L-…" value="' + esc(filters.q) + '"></label>' +
       '<button type="submit">Aplicar filtros</button><button type="button" data-rt-action="clear">Limpar</button></div></fieldset></form>' +
       (filters.asset ? '<p class="rt-quality">Ativo selecionado: ' + esc(filters.asset) + ' <button type="button" data-rt-action="clear-asset">Remover filtro</button></p>' : '') +
-      '<div class="rt-toolbar"><span class="rt-muted">Última consulta: ' + esc(lastUpdate) + '</span>' +
-      '<label><input id="rt-auto" type="checkbox"' + (auto ? ' checked' : '') + '> Atualizar a cada 1 minuto</label></div>' +
+      '<div class="rt-toolbar"><span class="rt-muted rt-toolbar-status">' + esc(statusText()) + '</span>' +
+      '<div class="rt-toolbar-controls">' +
+      '<label><input id="rt-auto" type="checkbox"' + (auto ? ' checked' : '') + '> Atualizar a cada 1 minuto</label>' +
+      '<label><input id="rt-monitor" type="checkbox"' + (monitor()?.isMonitorEnabled?.() !== false ? ' checked' : '') + '> Monitorar alertas</label>' +
+      '<button type="button" data-rt-action="sound">' + (monitor()?.isSoundEnabled?.() ? 'Som ativo' : 'Som inativo') + '</button>' +
+      '<button type="button" data-rt-action="test-sound">Testar som</button>' +
+      '</div></div>' +
       '<div id="rt-results" aria-busy="' + loading + '">' + renderData() + '</div>' +
       '<dialog id="rt-detail" aria-labelledby="rt-detail-title"><div class="rt-detail-body"></div></dialog></div>';
     root.querySelector('.rt-dashboard').addEventListener('click', onClick);
@@ -164,7 +225,7 @@ window.RoomTickets = (() => {
       const values = new FormData(form);
       for (const key of ['period', 'from', 'to', 'room', 'type', 'status', 'q']) filters[key] = String(values.get(key) || '');
       filters.page = 1;
-      load();
+      load('filters');
     });
     form.elements.period.addEventListener('change', () => {
       for (const name of ['from', 'to']) {
@@ -173,35 +234,43 @@ window.RoomTickets = (() => {
       }
     });
     root.querySelector('#rt-auto').addEventListener('change', event => { auto = event.target.checked; startTimer(); });
+    root.querySelector('#rt-monitor')?.addEventListener('change', event => {
+      monitor()?.setMonitorEnabled?.(event.target.checked);
+      mount();
+    });
     startTimer();
-    if (!data && !loading && !error) load();
+    if (!data && !loading && !error) load('initial');
   }
 
-  async function load() {
+  async function load(reason = 'manual') {
     if (loading || !active()) return;
     const id = ++generation;
-    loading = true; error = ''; data = null;
+    loading = true; error = '';
     writeUrl();
     mount();
+    const query = buildQuery().toString();
+    lastQuery = query;
+    const api = monitor();
     try {
-      const query = new URLSearchParams();
-      for (const [key, value] of Object.entries(filters)) if (value !== '') query.set(key, String(value));
-      const response = await window.ApiClient.get('/api/tickets/salas?' + query.toString(), {
-        cache: false, retries: 0, timeout: 90000,
-      });
+      if (!api?.refresh) throw Object.assign(new Error('Monitor de chamados indisponível.'), { status: 0 });
+      // Reaproveita a leitura mais recente do monitor; filtros próprios sempre consultam.
+      const maxAge = reason === 'initial' ? 4000
+        : reason === 'tick' && api.isMonitorEnabled?.() ? 51000
+        : 0;
+      const result = await api.refresh({ q: query, reason, maxAge });
       if (id !== generation) return;
-      if (!response?.data?.summary || !Array.isArray(response.data.items)) throw new Error('Resposta incompleta do servidor.');
-      data = response.data;
-      filters.page = data.pagination.page;
-      filters.from = data.filters.from; filters.to = data.filters.to;
-      writeUrl();
-      window.RoomTicketsTV?.update(data);
+      if (!result.ok) {
+        error = result.message || 'Não foi possível carregar os chamados completos. Tente novamente.';
+      } else if (matchesFilters(result.data, query)) {
+        adopt(result.data);
+      } else {
+        error = 'A resposta do servidor não corresponde aos filtros aplicados. Atualize novamente.';
+      }
     } catch (failure) {
       if (id !== generation) return;
-      if (failure.status === 401) error = 'Sua sessão expirou. Entre novamente para consultar os chamados.';
-      else if (failure.status === 403) error = 'Seu perfil não tem acesso a estes chamados.';
-      else if (failure.status === 422) error = 'Revise os filtros: datas válidas, início antes do fim e intervalo máximo de 366 dias.';
-      else error = 'Não foi possível carregar os chamados completos. Tente novamente. Se persistir, verifique o acesso ao GLPI e o limite de 10 mil registros por coleção.';
+      error = failure?.status === 401
+        ? 'Sua sessão expirou. Entre novamente para consultar os chamados.'
+        : 'Não foi possível carregar os chamados completos. Tente novamente.';
     } finally {
       if (id === generation) { loading = false; if (active()) mount(); }
     }
@@ -211,20 +280,26 @@ window.RoomTickets = (() => {
     const button = event.target.closest('button');
     if (!button) return;
     if (button.dataset.rtAction === 'close-detail') { document.getElementById('rt-detail')?.close(); return; }
+    if (button.dataset.rtAction === 'sound') {
+      monitor()?.setSoundEnabled?.(!monitor()?.isSoundEnabled?.());
+      mount();
+      return;
+    }
+    if (button.dataset.rtAction === 'test-sound') { monitor()?.testSound?.(); return; }
     if (loading) return;
     const dimension = button.dataset.rtDimension;
     if (['room', 'type', 'asset'].includes(dimension)) {
-      filters[dimension] = button.dataset.rtKey; filters.page = 1; load(); return;
+      filters[dimension] = button.dataset.rtKey; filters.page = 1; load('filters'); return;
     }
     if (button.dataset.rtTicket) { detail(Number(button.dataset.rtTicket)); return; }
     switch (button.dataset.rtAction) {
-      case 'refresh': load(); break;
+      case 'refresh': load('manual'); break;
       case 'tv': window.RoomTicketsTV?.open(data); break;
       case 'accept': acceptTicket(Number(button.dataset.ticketId), button); break;
-      case 'clear': filters = defaults(); load(); break;
-      case 'clear-asset': filters.asset = ''; filters.page = 1; load(); break;
-      case 'previous': filters.page = Math.max(1, filters.page - 1); load(); break;
-      case 'next': filters.page += 1; load(); break;
+      case 'clear': filters = defaults(); load('filters'); break;
+      case 'clear-asset': filters.asset = ''; filters.page = 1; load('filters'); break;
+      case 'previous': filters.page = Math.max(1, filters.page - 1); load('filters'); break;
+      case 'next': filters.page += 1; load('filters'); break;
     }
   }
 
@@ -233,7 +308,7 @@ window.RoomTickets = (() => {
     if (!ticket || ticket.acknowledgement) return;
     if (button) button.disabled = true;
     try {
-      const acknowledgement = await window.RoomTicketsTV.accept(ticket);
+      const acknowledgement = await monitor().accept(ticket);
       if (data?.latest?.id === ticket.id) data.latest.acknowledgement = acknowledgement;
       for (const item of data?.items || []) if (item.id === ticket.id) item.acknowledgement = acknowledgement;
       mount();
@@ -271,7 +346,7 @@ window.RoomTickets = (() => {
 
   function startTimer() {
     if (timer !== null) clearInterval(timer);
-    timer = auto && active() ? setInterval(() => { if (!document.hidden && !loading) load(); }, 60000) : null;
+    timer = auto && active() ? setInterval(() => { if (!document.hidden && !loading) load('tick'); }, 60000) : null;
   }
   function unmount() {
     if (timer !== null) clearInterval(timer);
@@ -279,6 +354,8 @@ window.RoomTickets = (() => {
   }
   function reset() {
     unmount(); generation++; loading = false; data = null; error = ''; filters = defaults(); auto = true;
+    lastQuery = '';
+    monitor()?.reset?.();
     // Do not restore the previous user's filters on a subsequent login.
     initialized = true;
     const url = new URL(window.location.href);

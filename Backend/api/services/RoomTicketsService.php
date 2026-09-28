@@ -113,6 +113,76 @@ final class RoomTicketsService
         return null;
     }
 
+    /**
+     * Room detection shared by the report and by single-ticket validation.
+     * Returns [?room, source] keeping the original precedence of sources.
+     */
+    public static function detectRoom(array $ticket, array $locations): array
+    {
+        $title = self::text($ticket['name'] ?? '');
+        $description = self::text($ticket['content'] ?? '');
+        $location = $locations[(int) ($ticket['locations_id'] ?? 0)] ?? self::text($ticket['_location_name'] ?? '');
+        $room = self::roomName($location);
+        $roomSource = $room !== null ? 'local_glpi' : 'nao_identificado';
+        if ($room === null && preg_match('/^\s*Local\s*:\s*([^\n\r|;]+)/imu', $description, $m)) {
+            $room = self::roomName(trim($m[1]));
+            if ($room !== null) $roomSource = 'campo_local';
+        }
+        if ($room === null && preg_match_all('/\bsala\s+0*\d+(?:\s*[-\/]\s*[a-z])?\b/iu', $title, $m)) {
+            $names = array_values(array_unique(array_filter(array_map([self::class, 'roomName'], $m[0]))));
+            if (count($names) === 1) { $room = $names[0]; $roomSource = 'titulo_inferido'; }
+        }
+        return [$room, $roomSource];
+    }
+
+    /**
+     * Normalizes a single expanded GLPI ticket (dropdowns already resolved to
+     * names) for eligibility checks. Returns null when the ticket does not
+     * belong to the room queue (no room and no L- reference) or has no usable date.
+     */
+    public static function fromGlpi(array $ticket): ?array
+    {
+        $row = $ticket;
+        if (is_string($row['locations_id'] ?? null)) $row['_location_name'] = $row['locations_id'];
+        if (is_string($row['itilcategories_id'] ?? null)) $row['_category_name'] = $row['itilcategories_id'];
+        $normalized = self::normalize([$row], [], [], [], []);
+        return $normalized['items'][0] ?? null;
+    }
+
+    /** Alertable statuses: alerts follow the queue, never the GLPI lifecycle writes. */
+    public static function isAlertEligible(array $ticket): bool
+    {
+        return in_array($ticket['status'] ?? '', ['aberto', 'em_andamento', 'pendente'], true);
+    }
+
+    /**
+     * Filter-independent monitoring slice: newest tickets first, limit applied
+     * after ordering so the queue does not depend on report filters or paging.
+     */
+    public static function monitorEntries(array $items, int $limit = 30): array
+    {
+        $rows = [];
+        foreach ($items as $ticket) {
+            if (!is_array($ticket) || !isset($ticket['id'])) continue;
+            $rows[] = [
+                'id' => (int) $ticket['id'],
+                'title' => (string) ($ticket['title'] ?? ''),
+                'room' => (string) ($ticket['room'] ?? ''),
+                'roomKey' => (string) ($ticket['roomKey'] ?? ''),
+                'reference' => (string) ($ticket['reference'] ?? ''),
+                'openedAt' => (string) ($ticket['openedAt'] ?? ''),
+                'status' => (string) ($ticket['status'] ?? ''),
+                'urgency' => (int) ($ticket['urgency'] ?? 0),
+                'types' => array_values(is_array($ticket['types'] ?? null) ? $ticket['types'] : []),
+                'review' => (bool) ($ticket['review'] ?? false),
+                'eligible' => self::isAlertEligible($ticket),
+            ];
+        }
+        usort($rows, static fn(array $a, array $b): int =>
+            strcmp($b['openedAt'], $a['openedAt']) ?: ($b['id'] <=> $a['id']));
+        return array_slice($rows, 0, max(1, $limit));
+    }
+
     private static function types(string $text): array
     {
         $text = self::key($text);
@@ -159,17 +229,7 @@ final class RoomTicketsService
             if ($id < 1 || !empty($ticket['is_deleted']) || isset($items[$id])) continue;
             $title = self::text($ticket['name'] ?? '');
             $description = self::text($ticket['content'] ?? '');
-            $location = $loc[(int) ($ticket['locations_id'] ?? 0)] ?? self::text($ticket['_location_name'] ?? '');
-            $room = self::roomName($location);
-            $roomSource = $room !== null ? 'local_glpi' : 'nao_identificado';
-            if ($room === null && preg_match('/^\s*Local\s*:\s*([^\n\r|;]+)/imu', $description, $m)) {
-                $room = self::roomName(trim($m[1]));
-                if ($room !== null) $roomSource = 'campo_local';
-            }
-            if ($room === null && preg_match_all('/\bsala\s+0*\d+(?:\s*[-\/]\s*[a-z])?\b/iu', $title, $m)) {
-                $names = array_values(array_unique(array_filter(array_map([self::class, 'roomName'], $m[0]))));
-                if (count($names) === 1) { $room = $names[0]; $roomSource = 'titulo_inferido'; }
-            }
+            [$room, $roomSource] = self::detectRoom($ticket, $loc);
             $hasReference = preg_match('/\[?(L-\d+)\]?/i', $title . "\n" . $description, $ref) === 1;
             // Non-room Mano Isa tickets remain visible as "review"; do not assign an invented room.
             if ($room === null && !$hasReference) continue;

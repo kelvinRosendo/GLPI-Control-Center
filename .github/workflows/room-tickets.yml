@@ -22,14 +22,20 @@ on:
       - 'Backend/api/endpoints.php'
       - 'Backend/tests/test_room_tickets.php'
       - 'Backend/tests/test_room_tickets_endpoint.php'
+      - 'Backend/tests/test_room_ticket_acknowledgements.php'
       - 'Frontend/javascript/room-tickets.js'
+      - 'Frontend/javascript/room-tickets-monitor.js'
+      - 'Frontend/javascript/room-tickets-tv.js'
+      - 'Frontend/javascript/dashboard.js'
       - 'Frontend/javascript/app.js'
       - 'Frontend/javascript/sidebar.js'
       - 'Frontend/javascript/permissions.js'
       - 'Frontend/css/room-tickets.css'
+      - 'Frontend/css/room-tickets-tv.css'
       - 'Frontend/index.html'
       - 'Frontend/test-room-tickets.cjs'
       - 'Frontend/test-room-tickets-browser.cjs'
+      - 'Frontend/test-room-tickets-tv-browser.cjs'
       - '.github/workflows/room-tickets.yml'
 permissions:
   contents: read
@@ -57,6 +63,7 @@ jobs:
           php -l Backend/api/room_tickets.php
           php -l Backend/api/services/RoomTicketsService.php
           php -l Backend/api/services/RoomTicketsReader.php
+          php -l Backend/api/services/RoomTicketAcknowledgementStore.php
           php -l Backend/api/client.php
           php -l Backend/api/endpoints.php
           php -l Backend/scripts/sync-cron.php
@@ -64,6 +71,7 @@ jobs:
         run: |
           php Backend/tests/test_room_tickets.php
           php Backend/tests/test_room_tickets_endpoint.php
+          php Backend/tests/test_room_ticket_acknowledgements.php
       - name: Inventory regression tests (isolated data, no network)
         run: |
           php Backend/tests/test_inventory_sync.php
@@ -71,6 +79,9 @@ jobs:
       - name: JavaScript syntax
         run: |
           node --check Frontend/javascript/room-tickets.js
+          node --check Frontend/javascript/room-tickets-monitor.js
+          node --check Frontend/javascript/room-tickets-tv.js
+          node --check Frontend/javascript/dashboard.js
           node --check Frontend/javascript/app.js
           node --check Frontend/javascript/asset_details_ui.js
           node --check Frontend/javascript/admin_sync.js
@@ -81,4 +92,6 @@ jobs:
       - name: UI behavior with simulated DOM and API
         run: node --test Frontend/test-room-tickets.cjs
       - name: Browser smoke test (isolated data, desktop and narrow screen)
-        run: node Frontend/test-room-tickets-browser.cjs
+        run: |
+          node Frontend/test-room-tickets-browser.cjs
+          node Frontend/test-room-tickets-tv-browser.cjs
