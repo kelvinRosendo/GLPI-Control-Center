@@ -92,6 +92,18 @@
   cursor: not-allowed;
 }
 
+.dash-tv-btn {
+  background: var(--color-yellow, #f2c522);
+  border-color: var(--color-yellow, #f2c522);
+  color: #101521;
+}
+
+.dash-tv-btn:hover {
+  background: #ffd83d;
+  border-color: #ffd83d;
+  color: #101521;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    KPIs — Total + Categorias
    ══════════════════════════════════════════════════════════════════════════ */

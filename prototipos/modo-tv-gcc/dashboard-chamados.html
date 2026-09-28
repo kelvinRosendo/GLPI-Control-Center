@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Chamados das salas — Protótipo GCC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/app.css" />
+<link rel="stylesheet" href="css/tv.css" />
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <img class="sidebar__logo" src="../../Frontend/assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite" />
+      <div class="sidebar__brand-text">
+        <span class="sidebar__brand-name">GLPI Control Center</span>
+        <span class="sidebar__brand-sub">Central de T.I.</span>
+      </div>
+    </div>
+
+    <nav class="sidebar__nav">
+      <div>
+        <div class="sidebar__group-label">Principal</div>
+        <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/dashboard.svg" alt="" /></span><span>Dashboard</span></button>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Operação</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Inventário</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/tickets.svg" alt="" /></span><span>Chamados</span></button>
+          <button class="sidebar__item sidebar__item--active"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/tickets.svg" alt="" /></span><span>Chamados das salas</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/projector.svg" alt="" /></span><span>Projetores</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/assistance.svg" alt="" /></span><span>Assistências</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Gestão</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/chromebook.svg" alt="" /></span><span>Alunos</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/cart.svg" alt="" /></span><span>Carrinhos</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Salas/Turmas</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Exibição</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/printer.svg" alt="" /></span><span>Impressoras</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Inventário Geral</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/reports.svg" alt="" /></span><span>Relatórios</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/audit.svg" alt="" /></span><span>Auditoria</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Integrações</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/suppliers.svg" alt="" /></span><span>Fornecedores</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/integrations.svg" alt="" /></span><span>Integrações</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Administração</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/settings.svg" alt="" /></span><span>Configurações</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/refresh.svg" alt="" /></span><span>Sincronização GLPI</span></button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar__footer">Protótipo · versão dark institucional</div>
+  </aside>
+
+  <!-- CONTEÚDO -->
+  <div class="main">
+    <header class="topbar">
+      <span class="conn"><span class="conn__dot"></span> Conectado ao GLPI</span>
+
+      <div class="topbar__search">
+        <span class="gcc-icon gcc-icon--sm"><img src="assets/icons/search.svg" alt="" /></span>
+        <input type="text" placeholder="Pesquisar ativo, patrimonio, sala..." />
+        <span class="topbar__kbd">Ctrl+K</span>
+      </div>
+
+      <div class="topbar__right">
+        <button class="icon-btn" title="Central de Notificações"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/notifications.svg" alt="" /></span></button>
+        <div class="user">
+          <div class="user__avatar">T</div>
+          <div>
+            <div class="user__name">Equipe T.I.</div>
+            <div class="user__role">Administrador</div>
+          </div>
+        </div>
+        <button class="icon-btn" title="Sair"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/logout.svg" alt="" /></span></button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- CABEÇALHO -->
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Operação · Chamados</p>
+          <h1 class="page-head__title">Chamados das salas</h1>
+          <p class="page-head__sub">Identifique onde os problemas se repetem e quais equipamentos precisam de atenção.</p>
+        </div>
+        <div class="page-head__actions">
+          <button class="btn"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/refresh.svg" alt="" /></span> Atualizar agora</button>
+          <a class="btn btn--yellow" href="tv-chamados.html"><span class="gcc-icon gcc-icon--md"><img src="assets/icons/tv.svg" alt="" /></span> Ativar modo TV</a>
+        </div>
+      </div>
+
+      <!-- VISÃO OPERACIONAL -->
+      <section class="room-live" aria-labelledby="room-live-title">
+        <article class="panel room-live__ticket">
+          <div class="panel__head">
+            <div>
+              <p class="eyebrow">Último chamado recebido</p>
+              <h2 class="room-live__title" id="room-live-title">Sala 16</h2>
+            </div>
+            <span class="badge badge--blue">Novo</span>
+          </div>
+          <div class="room-live__meta">
+            <span class="badge badge--yellow badge--plain"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/projector.svg" alt="" /></span> Projetor</span>
+            <span class="mono">#78 · L-0009</span>
+            <span>25/09/2026 15:27</span>
+          </div>
+          <h3>Projetor da sala 16 não liga</h3>
+          <p class="muted">Chamado mais recente identificado pelo GCC. Atualização automática a cada minuto.</p>
+          <div class="room-live__actions">
+            <button class="btn btn--yellow"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/check.svg" alt="" /></span> Aceitar</button>
+            <a class="btn" href="#analise-detalhada">Ver análise detalhada</a>
+          </div>
+        </article>
+
+        <aside class="room-live__stats" aria-label="Indicadores dos chamados">
+          <article class="panel room-live__stat"><span>Chamados abertos</span><strong>1</strong><small>1 novo</small></article>
+          <article class="panel room-live__stat"><span>Sala recorrente</span><strong>Sala 16</strong><small>1 chamado</small></article>
+          <article class="panel room-live__stat"><span>Dispositivo recorrente</span><strong>Projetor</strong><small>1 chamado</small></article>
+        </aside>
+      </section>
+
+      <div class="analysis-head" id="analise-detalhada">
+        <div>
+          <p class="eyebrow">Análise detalhada</p>
+          <h2>Histórico e recorrências</h2>
+          <p class="muted">Use os filtros para investigar períodos, salas e equipamentos.</p>
+        </div>
+      </div>
+
+      <!-- FILTROS -->
+      <section class="panel">
+        <div class="panel__head">
+          <h2 class="panel__title">Filtrar chamados</h2>
+          <span class="panel__hint">Horário de Brasília · contagem pela abertura do chamado</span>
+        </div>
+        <div class="filters">
+          <div>
+            <label class="field-label" for="f-periodo">Período</label>
+            <select class="select" id="f-periodo">
+              <option>Últimos 30 dias</option>
+              <option>Mês anterior completo</option>
+              <option>Personalizado</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="f-de">De</label>
+            <input class="input" id="f-de" type="date" value="2026-08-27" />
+          </div>
+          <div>
+            <label class="field-label" for="f-ate">Até</label>
+            <input class="input" id="f-ate" type="date" value="2026-09-25" />
+          </div>
+          <div>
+            <label class="field-label" for="f-sala">Sala</label>
+            <select class="select" id="f-sala">
+              <option>Todas as salas</option>
+              <option>Sala 16</option>
+              <option>Sala não identificada</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="f-equip">Equipamento</label>
+            <select class="select" id="f-equip">
+              <option>Todos os tipos</option>
+              <option>Projetor</option>
+              <option>PC</option>
+              <option>Mouse</option>
+              <option>Teclado</option>
+              <option>Chromebook</option>
+              <option>Carrinho</option>
+              <option>Outros</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="f-status">Status</label>
+            <select class="select" id="f-status">
+              <option>Todos os status</option>
+              <option>Novo</option>
+              <option>Em atendimento</option>
+              <option>Pendente</option>
+              <option>Resolvido</option>
+              <option>Fechado</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="f-busca">Buscar chamado</label>
+            <input class="input" id="f-busca" type="text" placeholder="Número, problema ou referência L-…" />
+          </div>
+          <div>
+            <label class="field-label" for="f-status-fake">&nbsp;</label>
+            <div class="row row--gap-3">
+              <button class="btn btn--primary">Aplicar filtros</button>
+              <button class="btn">Limpar</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="toolbar">
+        <span>Última consulta: 25/09/2026 15:27:00</span>
+        <label class="toolbar__check"><input type="checkbox" checked /> Atualizar a cada 1 minuto</label>
+      </div>
+
+      <!-- RESUMO -->
+      <div class="grid-4">
+        <article class="panel">
+          <p class="field-label">Chamados no período</p>
+          <p class="tickets-total__value">1</p>
+          <p class="muted" style="margin-top: 8px; font-size: 13px;">Abertura entre 27/08/2026 e 25/09/2026</p>
+        </article>
+        <article class="panel">
+          <p class="field-label">Ainda em aberto</p>
+          <p class="tickets-total__value" style="color: var(--yellow)">1</p>
+          <p class="muted" style="margin-top: 8px; font-size: 13px;">Entre os chamados do período</p>
+        </article>
+        <article class="panel">
+          <p class="field-label">Sala com mais chamados</p>
+          <p style="font-size: 30px; font-weight: 700; line-height: 1.1">Sala 16</p>
+          <p class="muted" style="margin-top: 8px; font-size: 13px;">1 chamado</p>
+        </article>
+        <article class="panel">
+          <p class="field-label">Tipo com mais chamados</p>
+          <p style="font-size: 30px; font-weight: 700; line-height: 1.1">Projetor</p>
+          <p class="muted" style="margin-top: 8px; font-size: 13px;">1 chamado</p>
+        </article>
+      </div>
+
+      <div class="quality">
+        <span class="gcc-icon gcc-icon--sm" style="color: var(--yellow)"><img src="assets/icons/info.svg" alt="" /></span>
+        0 sem sala · 1 sem ativo vinculado · 0 para revisar.
+        <span class="badge badge--green">Identificação completa</span>
+      </div>
+
+      <!-- RANKINGS -->
+      <div class="grid-3">
+        <section class="panel">
+          <div class="panel__head">
+            <h2 class="panel__title">Salas com mais chamados</h2>
+          </div>
+          <ul class="rank-list">
+            <li class="rank-list__item">
+              <span class="rank-list__label">Sala 16</span><span class="rank-list__value">1</span>
+              <span class="rank-list__meter"><span style="width: 100%"></span></span>
+            </li>
+          </ul>
+          <p class="panel__hint" style="margin-top: 16px">Até 10 resultados. Selecione para filtrar os chamados.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel__head">
+            <h2 class="panel__title">Chamados por tipo de equipamento</h2>
+          </div>
+          <ul class="rank-list">
+            <li class="rank-list__item">
+              <span class="rank-list__label">Projetor</span><span class="rank-list__value">1</span>
+              <span class="rank-list__meter rank-list__meter--yellow"><span style="width: 100%"></span></span>
+            </li>
+          </ul>
+          <p class="panel__hint" style="margin-top: 16px">Um chamado pode envolver vários equipamentos; a soma por tipo pode superar o total.</p>
+        </section>
+
+        <section class="panel">
+          <div class="panel__head">
+            <h2 class="panel__title">Ativos com mais chamados</h2>
+          </div>
+          <p class="muted">O chamado atual não possui ativo patrimonial vinculado. A classificação Projetor veio da categoria registrada.</p>
+        </section>
+      </div>
+
+      <!-- TABELA -->
+      <section>
+        <div class="panel__head">
+          <h2 class="panel__title">Chamados encontrados <span class="subtle" style="font-weight: 400">(1)</span></h2>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th scope="col">Chamado</th>
+                <th scope="col">Sala</th>
+                <th scope="col">Equipamento</th>
+                <th scope="col">Abertura</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><a href="#">#78 — [L-0009] Kelvin — projetor sala 16 não liga</a></td>
+                <td>Sala 16</td>
+                <td>Projetor</td>
+                <td class="num">25/09/2026 15:27</td>
+                <td><span class="badge badge--blue">Novo</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <button class="btn btn--sm">&laquo; Anterior</button>
+          <span>Página 1 de 1</span>
+          <button class="btn btn--sm">Próxima &raquo;</button>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+</body>
+</html>

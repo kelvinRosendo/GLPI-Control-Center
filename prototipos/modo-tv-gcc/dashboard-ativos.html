@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard Operacional — Protótipo GCC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/app.css" />
+<link rel="stylesheet" href="css/tv.css" />
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <img class="sidebar__logo" src="../../Frontend/assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite" />
+      <div class="sidebar__brand-text">
+        <span class="sidebar__brand-name">GLPI Control Center</span>
+        <span class="sidebar__brand-sub">Central de T.I.</span>
+      </div>
+    </div>
+
+    <nav class="sidebar__nav">
+      <div>
+        <div class="sidebar__group-label">Principal</div>
+        <button class="sidebar__item sidebar__item--active"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/dashboard.svg" alt="" /></span><span>Dashboard</span></button>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Operação</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Inventário</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/tickets.svg" alt="" /></span><span>Chamados</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/tickets.svg" alt="" /></span><span>Chamados das salas</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/projector.svg" alt="" /></span><span>Projetores</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/assistance.svg" alt="" /></span><span>Assistências</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Gestão</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/chromebook.svg" alt="" /></span><span>Alunos</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/cart.svg" alt="" /></span><span>Carrinhos</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Salas/Turmas</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Exibição</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/printer.svg" alt="" /></span><span>Impressoras</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Inventário Geral</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/reports.svg" alt="" /></span><span>Relatórios</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/audit.svg" alt="" /></span><span>Auditoria</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Integrações</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/suppliers.svg" alt="" /></span><span>Fornecedores</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/integrations.svg" alt="" /></span><span>Integrações</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Administração</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/settings.svg" alt="" /></span><span>Configurações</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/refresh.svg" alt="" /></span><span>Sincronização GLPI</span></button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar__footer">Protótipo · versão dark institucional</div>
+  </aside>
+
+  <!-- CONTEÚDO -->
+  <div class="main">
+    <header class="topbar">
+      <span class="conn"><span class="conn__dot"></span> Conectado ao GLPI</span>
+
+      <div class="topbar__search">
+        <span class="gcc-icon gcc-icon--sm"><img src="assets/icons/search.svg" alt="" /></span>
+        <input type="text" placeholder="Pesquisar ativo, patrimonio, sala..." />
+        <span class="topbar__kbd">Ctrl+K</span>
+      </div>
+
+      <div class="topbar__right">
+        <button class="icon-btn" title="Central de Notificações"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/notifications.svg" alt="" /></span></button>
+        <div class="user">
+          <div class="user__avatar">T</div>
+          <div>
+            <div class="user__name">Equipe T.I.</div>
+            <div class="user__role">Administrador</div>
+          </div>
+        </div>
+        <button class="icon-btn" title="Sair"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/logout.svg" alt="" /></span></button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- CABEÇALHO -->
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Principal</p>
+          <h1 class="page-head__title">Dashboard Operacional</h1>
+          <p class="page-head__sub">Visão geral da infraestrutura e operação de T.I.</p>
+        </div>
+        <div class="page-head__actions">
+          <span class="updated"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/clock.svg" alt="" /></span> Atualizado agora</span>
+          <button class="btn"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/refresh.svg" alt="" /></span> Atualizar</button>
+          <a class="btn btn--yellow" href="tv-ativos.html"><span class="gcc-icon gcc-icon--md"><img src="assets/icons/tv.svg" alt="" /></span> Ativar modo TV</a>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <article class="kpi">
+          <div class="kpi__icon"><span class="gcc-icon gcc-icon--lg"><img src="assets/icons/dashboard.svg" alt="" /></span></div>
+          <div>
+            <span class="kpi__value">558</span>
+            <span class="kpi__label">Total de Ativos</span>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi__icon"><span class="gcc-icon gcc-icon--lg"><img src="assets/icons/computer.svg" alt="" /></span></div>
+          <div>
+            <span class="kpi__value">71</span>
+            <span class="kpi__label">Computadores</span>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi__icon kpi__icon--green"><span class="gcc-icon gcc-icon--lg"><img src="assets/icons/chromebook.svg" alt="" /></span></div>
+          <div>
+            <span class="kpi__value">447</span>
+            <span class="kpi__label">Chromebooks</span>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi__icon kpi__icon--yellow"><span class="gcc-icon gcc-icon--lg"><img src="assets/icons/projector.svg" alt="" /></span></div>
+          <div>
+            <span class="kpi__value">32</span>
+            <span class="kpi__label">Projetores</span>
+          </div>
+        </article>
+        <article class="kpi">
+          <div class="kpi__icon kpi__icon--red"><span class="gcc-icon gcc-icon--lg"><img src="assets/icons/printer.svg" alt="" /></span></div>
+          <div>
+            <span class="kpi__value">8</span>
+            <span class="kpi__label">Impressoras</span>
+          </div>
+        </article>
+      </div>
+
+      <!-- ACESSOS RÁPIDOS -->
+      <div class="quick-grid">
+        <button class="quick-btn"><span class="gcc-icon gcc-icon--lg"><img src="assets/icons/plus.svg" alt="" /></span> Abrir Chamado</button>
+        <button class="quick-btn"><span class="gcc-icon gcc-icon--lg"><img src="assets/icons/search.svg" alt="" /></span> Buscar Ativo</button>
+        <button class="quick-btn"><span class="gcc-icon gcc-icon--lg"><img src="assets/icons/projector.svg" alt="" /></span> Projetores</button>
+        <button class="quick-btn"><span class="gcc-icon gcc-icon--lg"><img src="assets/icons/reports.svg" alt="" /></span> Relatórios</button>
+      </div>
+
+      <!-- GRÁFICO + CHAMADOS -->
+      <div class="grid-2">
+        <section class="panel">
+          <div class="panel__head">
+            <h2 class="panel__title">Ativos por Tipo</h2>
+            <span class="panel__hint">558 ativos classificados</span>
+          </div>
+
+          <div class="bar-row">
+            <span class="bar-row__label"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/chromebook.svg" alt="" /></span> Chromebooks</span>
+            <span class="bar-row__track"><span class="bar-row__fill" style="width: 100%"></span></span>
+            <span class="bar-row__value">447 · 80,1%</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-row__label"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span> Computadores</span>
+            <span class="bar-row__track"><span class="bar-row__fill" style="width: 15.9%"></span></span>
+            <span class="bar-row__value">71 · 12,7%</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-row__label"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/projector.svg" alt="" /></span> Projetores</span>
+            <span class="bar-row__track"><span class="bar-row__fill bar-row__fill--yellow" style="width: 7.2%"></span></span>
+            <span class="bar-row__value">32 · 5,7%</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-row__label"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/printer.svg" alt="" /></span> Impressoras</span>
+            <span class="bar-row__track"><span class="bar-row__fill bar-row__fill--red" style="width: 1.8%"></span></span>
+            <span class="bar-row__value">8 · 1,4%</span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel__head">
+            <h2 class="panel__title">Chamados</h2>
+            <span class="panel__hint">Últimos 30 dias</span>
+          </div>
+
+          <div class="tickets-total">
+            <span class="tickets-total__value">4</span>
+            <span class="tickets-total__label">Abertos</span>
+          </div>
+
+          <div class="tickets-list">
+            <div class="tickets-list__row">
+              <span class="tickets-list__dot" style="background: #f59e0b"></span>
+              <span class="tickets-list__label">Novos</span>
+              <span class="tickets-list__count">2</span>
+            </div>
+            <div class="tickets-list__row">
+              <span class="tickets-list__dot" style="background: #3b82f6"></span>
+              <span class="tickets-list__label">Em andamento</span>
+              <span class="tickets-list__count">1</span>
+            </div>
+            <div class="tickets-list__row">
+              <span class="tickets-list__dot" style="background: #f97316"></span>
+              <span class="tickets-list__label">Pendentes</span>
+              <span class="tickets-list__count">1</span>
+            </div>
+          </div>
+
+          <div class="chip-row">
+            <button class="chip chip--active">Todos</button>
+            <button class="chip">7 dias</button>
+            <button class="chip">30 dias</button>
+            <button class="chip">90 dias</button>
+            <button class="chip">Personalizado</button>
+          </div>
+        </section>
+      </div>
+
+      <!-- ATENÇÃO + STATUS -->
+      <div class="grid-2">
+        <section class="panel">
+          <div class="panel__head">
+            <h2 class="panel__title">Atenção Necessária</h2>
+            <span class="panel__hint">Máximo de 3 itens</span>
+          </div>
+          <div class="list-rows">
+            <div class="list-rows__item">
+              <span class="gcc-icon gcc-icon--sm" style="color: var(--yellow)"><img src="assets/icons/warning.svg" alt="" /></span>
+              <span class="list-rows__label">1 chamado de sala aguardando</span>
+              <span class="badge badge--yellow">Ver chamados</span>
+            </div>
+            <div class="list-rows__item">
+              <span class="gcc-icon gcc-icon--sm" style="color: var(--green)"><img src="assets/icons/success.svg" alt="" /></span>
+              <span class="list-rows__label">Nenhum projetor com alerta crítico</span>
+              <span class="badge badge--green">Normal</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel__head">
+            <h2 class="panel__title">Status</h2>
+            <span class="panel__hint">Infraestrutura</span>
+          </div>
+          <div class="list-rows">
+            <div class="list-rows__item">
+              <span class="dot dot--green"></span>
+              <span class="list-rows__label">GLPI</span>
+              <span class="list-rows__value" style="color: var(--green)">Online</span>
+            </div>
+            <div class="list-rows__item">
+              <span class="dot dot--green"></span>
+              <span class="list-rows__label">Backend</span>
+              <span class="list-rows__value" style="color: var(--green)">Online</span>
+            </div>
+            <div class="list-rows__item">
+              <span class="dot dot--green"></span>
+              <span class="list-rows__label">OAuth</span>
+              <span class="list-rows__value" style="color: var(--green)">Online</span>
+            </div>
+            <div class="list-rows__item">
+              <span class="dot dot--yellow"></span>
+              <span class="list-rows__label">Integrações</span>
+              <span class="list-rows__value" style="color: var(--yellow)">3/4</span>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

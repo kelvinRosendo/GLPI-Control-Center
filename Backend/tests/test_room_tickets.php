@@ -55,6 +55,7 @@ check(count($normalized['items']) === 7, 'Exclusões e deduplicação');
 $result = RoomTicketsService::aggregate($normalized['items'], $filters);
 check($result['summary']['total'] === 6, 'Todos os status no período');
 check($result['summary']['open'] === 5, 'Resolvido não conta como aberto');
+check($result['latest']['id'] === 10, 'Último chamado independe da ordenação por urgência');
 check($result['summary']['withoutRoom'] === 1, 'Referência sem local fica visível para revisão');
 check($result['rankings']['rooms'][0]['count'] === 3, 'Sala 010 e campo Sala 10 unificados');
 check(count($result['rankings']['rooms']) === 3, 'Hierarquia e entidade preservadas');

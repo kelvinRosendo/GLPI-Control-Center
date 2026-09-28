@@ -1,0 +1,109 @@
+/**
+ * PROTOTIPO GCC — tokens.css
+ * -----------------------------------------------------------------------------
+ * Tokens visuais do prototipo dark institucional do GLPI Control Center.
+ * Direcao: azul-marinho escuro, identidade azul + amarela do Colegio Satelite,
+ * bordas discretas, raio entre 6px e 8px, sem gradientes/brilhos/sombras fortes.
+ *
+ * Este arquivo nao substitui Frontend/css/design-system.css: e um prototipo
+ * isolado em prototipos/modo-tv-gcc/.
+ */
+
+:root {
+  /* ── Fundos (marinho) ──────────────────────────────────────────────────── */
+  --navy-950: #060b17;
+  --navy-900: #0a1120;
+  --navy-850: #0d1729;
+  --navy-800: #101d33;
+  --navy-750: #14243f;
+
+  /* ── Superficies / bordas ─────────────────────────────────────────────── */
+  --surface: var(--navy-850);
+  --surface-2: var(--navy-800);
+  --surface-3: var(--navy-750);
+  --line: #1d2c4a;
+  --line-strong: #2b3f66;
+  --line-soft: #16233c;
+
+  /* ── Marca Colegio Satelite ───────────────────────────────────────────── */
+  --blue: #2563eb;
+  --blue-500: #3b82f6;
+  --blue-300: #93b4ff;
+  --blue-soft: rgba(59, 130, 246, 0.14);
+  --yellow: #facc15;
+  --yellow-600: #eab308;
+  --yellow-soft: rgba(250, 204, 21, 0.14);
+
+  /* ── Status ───────────────────────────────────────────────────────────── */
+  --green: #22c55e;
+  --green-soft: rgba(34, 197, 94, 0.14);
+  --red: #ef4444;
+  --red-soft: rgba(239, 68, 68, 0.14);
+  --orange: #f59e0b;
+  --orange-soft: rgba(245, 158, 11, 0.14);
+
+  /* ── Texto ────────────────────────────────────────────────────────────── */
+  --text: #e9eefb;
+  --text-2: #a7b6d4;
+  --text-3: #7186ad;
+  --text-inverse: #0a1120;
+
+  /* ── Tipografia ───────────────────────────────────────────────────────── */
+  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+
+  --fs-xs: 10px;
+  --fs-sm: 11px;
+  --fs-base: 13px;
+  --fs-md: 14px;
+  --fs-lg: 15px;
+  --fs-xl: 16px;
+  --fs-2xl: 18px;
+  --fs-3xl: 22px;
+  --fs-4xl: 26px;
+  --fs-5xl: 32px;
+  --fs-6xl: 40px;
+
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --ls-wide: 0.03em;
+  --ls-wider: 0.06em;
+
+  /* ── Espacamento (4px) ────────────────────────────────────────────────── */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 28px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* ── Raios (6 a 8px) ──────────────────────────────────────────────────── */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-pill: 999px;
+
+  /* ── Sombras (reduzidas) ──────────────────────────────────────────────── */
+  --shadow-none: none;
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.35);
+
+  /* ── Layout ───────────────────────────────────────────────────────────── */
+  --sidebar-w: 236px;
+  --topbar-h: 56px;
+  --content-max: 1600px;
+
+  /* ── Transicoes ───────────────────────────────────────────────────────── */
+  --t-fast: 0.15s ease;
+  --t-normal: 0.2s ease;
+
+  /* ── Z-index ──────────────────────────────────────────────────────────── */
+  --z-overlay: 900;
+  --z-alert: 950;
+}

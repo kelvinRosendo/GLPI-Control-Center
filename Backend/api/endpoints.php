@@ -419,6 +419,7 @@ function authorizeRequest(string $path, string $method, array $config): void
     '#^/api/sync/cache-state#' => ['computadores', 'view'],
     '#^/api/projetors(?:/\d+/maintenance)?$#' => ['projetores', $method === 'GET' ? 'view' : 'maintenance'],
     '#^/api/projetors#' => ['projetores', $method === 'GET' ? 'view' : 'edit'],
+    '#^/api/tickets/salas/\d+/aceite$#' => ['chamados', 'edit'],
     '#^/api/tickets#' => ['chamados', $method === 'GET' ? 'view' : 'create'],
     '#^/api/chat$#' => ['assistente', 'chat'],
     '#^/api/integration#' => ['integrations', $method === 'GET' ? 'view' : 'manage'],
@@ -530,6 +531,14 @@ try {
       default => TicketsEndpoint::listAll($config),
     },
     default => (function () use ($path, $config) {
+      if (preg_match('#^/api/tickets/salas/(\d+)/aceite$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        RoomTicketsEndpoint::accept((int) $m[1]);
+        return;
+      }
+
       if ($path === '/api/tickets/workflow') {
         if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
           Responde::erro('Método não permitido.', 405);

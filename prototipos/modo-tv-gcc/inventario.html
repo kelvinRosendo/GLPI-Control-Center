@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inventário Geral — Protótipo GCC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/app.css" />
+<link rel="stylesheet" href="css/tv.css" />
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <img class="sidebar__logo" src="../../Frontend/assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite" />
+      <div class="sidebar__brand-text">
+        <span class="sidebar__brand-name">GLPI Control Center</span>
+        <span class="sidebar__brand-sub">Central de T.I.</span>
+      </div>
+    </div>
+
+    <nav class="sidebar__nav">
+      <div>
+        <div class="sidebar__group-label">Principal</div>
+        <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/dashboard.svg" alt="" /></span><span>Dashboard</span></button>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Operação</div>
+        <div class="col gap-2">
+          <button class="sidebar__item sidebar__item--active"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Inventário</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/tickets.svg" alt="" /></span><span>Chamados</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/tickets.svg" alt="" /></span><span>Chamados das salas</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/projector.svg" alt="" /></span><span>Projetores</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/assistance.svg" alt="" /></span><span>Assistências</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Gestão</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/chromebook.svg" alt="" /></span><span>Alunos</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/cart.svg" alt="" /></span><span>Carrinhos</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Salas/Turmas</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Exibição</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/printer.svg" alt="" /></span><span>Impressoras</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Inventário Geral</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/reports.svg" alt="" /></span><span>Relatórios</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/audit.svg" alt="" /></span><span>Auditoria</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Integrações</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/suppliers.svg" alt="" /></span><span>Fornecedores</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/integrations.svg" alt="" /></span><span>Integrações</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Administração</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/settings.svg" alt="" /></span><span>Configurações</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/refresh.svg" alt="" /></span><span>Sincronização GLPI</span></button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar__footer">Protótipo · versão dark institucional</div>
+  </aside>
+
+  <!-- CONTEÚDO -->
+  <div class="main">
+    <header class="topbar">
+      <span class="conn"><span class="conn__dot"></span> Conectado ao GLPI</span>
+
+      <div class="topbar__search">
+        <span class="gcc-icon gcc-icon--sm"><img src="assets/icons/search.svg" alt="" /></span>
+        <input type="text" placeholder="Pesquisar ativo, patrimonio, sala..." />
+        <span class="topbar__kbd">Ctrl+K</span>
+      </div>
+
+      <div class="topbar__right">
+        <button class="icon-btn" title="Central de Notificações"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/notifications.svg" alt="" /></span></button>
+        <div class="user">
+          <div class="user__avatar">T</div>
+          <div>
+            <div class="user__name">Equipe T.I.</div>
+            <div class="user__role">Administrador</div>
+          </div>
+        </div>
+        <button class="icon-btn" title="Sair"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/logout.svg" alt="" /></span></button>
+      </div>
+    </header>
+
+    <main class="content">
+      <!-- CABEÇALHO -->
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Operação</p>
+          <h1 class="page-head__title">Inventário Geral</h1>
+          <p class="page-head__sub">558 ativos classificados no sistema</p>
+        </div>
+        <div class="page-head__actions">
+          <span class="updated"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/clock.svg" alt="" /></span> Sincronização de 11/09/2026</span>
+          <button class="btn"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/refresh.svg" alt="" /></span> Sincronizar</button>
+          <a class="btn btn--yellow" href="tv-ativos.html"><span class="gcc-icon gcc-icon--md"><img src="assets/icons/tv.svg" alt="" /></span> Ativar modo TV</a>
+        </div>
+      </div>
+
+      <!-- BUSCA E FILTROS -->
+      <div class="inv-toolbar">
+        <div class="inv-search">
+          <span class="gcc-icon gcc-icon--sm"><img src="assets/icons/search.svg" alt="" /></span>
+          <input type="text" placeholder="Buscar por nome, serial, patrimonio, grupo..." />
+        </div>
+        <div class="inv-filters">
+          <select class="select">
+            <option>Todas categorias</option>
+            <option>Computador CS</option>
+            <option>Chromebook Aluno</option>
+            <option>Chromebook Apoio</option>
+            <option>Chromebook Exibição</option>
+            <option>Projetor</option>
+            <option>Impressora</option>
+          </select>
+          <select class="select">
+            <option>Todos tipos</option>
+            <option>Computer</option>
+            <option>Printer</option>
+          </select>
+          <select class="select">
+            <option>Todos estados</option>
+            <option>Em uso</option>
+            <option>Comodato</option>
+            <option>Devolvido</option>
+            <option>Substituído</option>
+            <option>Baixa</option>
+            <option>Desconhecido</option>
+          </select>
+          <button class="btn">Limpar filtros</button>
+        </div>
+      </div>
+
+      <p class="inv-count">558 de 558 ativos</p>
+
+      <!-- TABELA -->
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th scope="col">Nome ▲</th>
+              <th scope="col">Categoria</th>
+              <th scope="col">Tipo</th>
+              <th scope="col">Estado</th>
+              <th scope="col">Grupo/Turma</th>
+              <th scope="col">Serial</th>
+              <th scope="col">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>CS-002</td>
+              <td><span class="tag tag--blue">Computador CS</span></td>
+              <td class="num">Computer</td>
+              <td>Em uso</td>
+              <td class="truncate">(sem grupo)</td>
+              <td class="num">SN999</td>
+              <td><button class="btn btn--sm">Ver dados completos</button></td>
+            </tr>
+            <tr>
+              <td>CS-003</td>
+              <td><span class="tag tag--blue">Computador CS</span></td>
+              <td class="num">Computer</td>
+              <td>Em uso</td>
+              <td class="truncate">3º Médio B</td>
+              <td class="num">—</td>
+              <td><button class="btn btn--sm">Ver dados completos</button></td>
+            </tr>
+            <tr>
+              <td>CB-APOIO-14</td>
+              <td><span class="tag tag--green">Chromebook Apoio</span></td>
+              <td class="num">Computer</td>
+              <td>Comodato</td>
+              <td class="truncate">Geekie &gt; Carrinho &gt; Carrinho 1</td>
+              <td class="num">—</td>
+              <td><button class="btn btn--sm">Ver dados completos</button></td>
+            </tr>
+            <tr>
+              <td>CB-ALUNO-77</td>
+              <td><span class="tag tag--green">Chromebook Aluno</span></td>
+              <td class="num">Computer</td>
+              <td>Em uso</td>
+              <td class="truncate">2º Médio A</td>
+              <td class="num">—</td>
+              <td><button class="btn btn--sm">Ver dados completos</button></td>
+            </tr>
+            <tr>
+              <td>CB-EXIB-01</td>
+              <td><span class="tag tag--neutral">Chromebook Exibição</span></td>
+              <td class="num">Computer</td>
+              <td>Em uso</td>
+              <td class="truncate">Apoio &gt; Eduinfo</td>
+              <td class="num">—</td>
+              <td><button class="btn btn--sm">Ver dados completos</button></td>
+            </tr>
+            <tr>
+              <td>Projetor Sala 01</td>
+              <td><span class="tag tag--yellow">Projetor</span></td>
+              <td class="num">Computer</td>
+              <td>Em uso</td>
+              <td class="truncate">(sem grupo)</td>
+              <td class="num">PROJ001</td>
+              <td><button class="btn btn--sm">Ver dados completos</button></td>
+            </tr>
+            <tr>
+              <td>EPSON</td>
+              <td><span class="tag tag--red">Impressora</span></td>
+              <td class="num">Printer</td>
+              <td>Em uso</td>
+              <td class="truncate">(sem grupo)</td>
+              <td class="num">—</td>
+              <td><button class="btn btn--sm">Ver dados completos</button></td>
+            </tr>
+            <tr>
+              <td>HP-LASER-02</td>
+              <td><span class="tag tag--red">Computador Impressora</span></td>
+              <td class="num">Printer</td>
+              <td>Comodato</td>
+              <td class="truncate">Apoio</td>
+              <td class="num">—</td>
+              <td><button class="btn btn--sm">Ver dados completos</button></td>
+            </tr>
+            <tr>
+              <td>CB-APOIO-03</td>
+              <td><span class="tag tag--green">Chromebook Apoio</span></td>
+              <td class="num">Computer</td>
+              <td>Devolvido</td>
+              <td class="truncate">Geekie &gt; Finalizado</td>
+              <td class="num">—</td>
+              <td><button class="btn btn--sm">Ver dados completos</button></td>
+            </tr>
+            <tr>
+              <td>TI-Sala3</td>
+              <td><span class="tag tag--blue">Computador CS</span></td>
+              <td class="num">Computer</td>
+              <td>Desconhecido</td>
+              <td class="truncate">1º Médio B</td>
+              <td class="num">—</td>
+              <td><button class="btn btn--sm">Ver dados completos</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="pagination">
+        <button class="btn btn--sm">&laquo; Anterior</button>
+        <span>Página 1 de 23 (558 ativos)</span>
+        <button class="btn btn--sm">Próxima &raquo;</button>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

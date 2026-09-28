@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Protótipo GCC — Dark Institucional + Modo TV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/app.css" />
+<link rel="stylesheet" href="css/tv.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <img class="sidebar__logo" src="../../Frontend/assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite" />
+    </div>
+    <nav class="sidebar__nav">
+      <div>
+        <div class="sidebar__group-label">Protótipo</div>
+        <button class="sidebar__item sidebar__item--active"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/dashboard.svg" alt="" /></span><span>Índice das telas</span></button>
+      </div>
+    </nav>
+    <div class="sidebar__footer">prototipos/modo-tv-gcc</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <span class="conn"><span class="conn__dot"></span> Conectado ao GLPI</span>
+      <div class="topbar__search">
+        <span class="gcc-icon gcc-icon--sm"><img src="assets/icons/search.svg" alt="" /></span>
+        <input type="text" placeholder="Pesquisar ativo, patrimonio, sala..." />
+        <span class="topbar__kbd">Ctrl+K</span>
+      </div>
+      <div class="topbar__right">
+        <button class="icon-btn" title="Central de Notificações"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/notifications.svg" alt="" /></span></button>
+        <div class="user">
+          <div class="user__avatar">T</div>
+          <div>
+            <div class="user__name">Equipe T.I.</div>
+            <div class="user__role">Administrador</div>
+          </div>
+        </div>
+        <button class="icon-btn" title="Sair"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/logout.svg" alt="" /></span></button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Protótipo estático · sem backend</p>
+          <h1 class="page-head__title">GLPI Control Center — versão dark institucional</h1>
+          <p class="page-head__sub">Telas de referência para a versão escura do GCC e para o Modo TV do monitor da equipe de T.I.</p>
+        </div>
+        <div class="page-head__actions">
+          <span class="badge badge--yellow badge--plain">HTML + CSS estáticos</span>
+          <span class="badge badge--blue badge--plain">Sem JavaScript funcional</span>
+        </div>
+      </div>
+
+      <div class="banner banner--info">
+        <span class="gcc-icon gcc-icon--md"><img src="assets/icons/info.svg" alt="" /></span>
+        Nenhum arquivo de produção foi alterado. Os números exibidos vêm dos arquivos de sincronização e dos fixtures do próprio repositório.
+      </div>
+
+      <div class="index-grid">
+        <a class="index-card" href="dashboard-ativos.html">
+          <span class="index-card__tag">Desktop</span>
+          <span class="index-card__title">Dashboard de ativos</span>
+          <span class="index-card__text">KPIs de infraestrutura, ativos por tipo, chamados, atenção e status. Inclui o botão <strong>Ativar modo TV</strong>.</span>
+        </a>
+        <a class="index-card" href="dashboard-chamados.html">
+          <span class="index-card__tag">Desktop</span>
+          <span class="index-card__title">Chamados de salas</span>
+          <span class="index-card__text">Filtros, resumo do período, rankings de salas, equipamentos e ativos, tabela de chamados e paginação.</span>
+        </a>
+        <a class="index-card" href="inventario.html">
+          <span class="index-card__tag">Desktop</span>
+          <span class="index-card__title">Inventário de ativos</span>
+          <span class="index-card__text">Busca, filtros por categoria, tipo e estado, tabela com ordenação e paginação.</span>
+        </a>
+        <a class="index-card" href="estados.html">
+          <span class="index-card__tag">Estados</span>
+          <span class="index-card__title">Carregando, vazio, erro, offline e alerta</span>
+          <span class="index-card__text">Galeria dos estados visuais previstos para a interface normal e para o painel da TV.</span>
+        </a>
+        <a class="index-card" href="tv-ativos.html">
+          <span class="index-card__tag index-card__tag--tv">Modo TV · 1920 × 1080</span>
+          <span class="index-card__title">Painel de ativos</span>
+          <span class="index-card__text">Tela cheia sem sidebar, pesquisa, usuário e robô. Indicador de painel, contagem da próxima troca e controles do modo TV.</span>
+        </a>
+        <a class="index-card" href="tv-chamados.html">
+          <span class="index-card__tag index-card__tag--tv">Modo TV · 1920 × 1080</span>
+          <span class="index-card__title">Painel de chamados</span>
+          <span class="index-card__text">Último chamado em evidência, sala em destaque, botão Aceitar e indicadores de chamados abertos.</span>
+        </a>
+        <a class="index-card" href="tv-alerta.html">
+          <span class="index-card__tag index-card__tag--tv">Modo TV · estado</span>
+          <span class="index-card__title">Alerta de chamado novo</span>
+          <span class="index-card__text">Faixa de alerta com contagem regressiva de 15 segundos, indicador sonoro e fila de chamados aguardando.</span>
+        </a>
+      </div>
+    </main>
+  </div>
+</div>
+</body>
+</html>

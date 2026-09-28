@@ -2,6 +2,7 @@
 declare(strict_types=1);
 require_once __DIR__ . '/services/RoomTicketsService.php';
 require_once __DIR__ . '/services/RoomTicketsReader.php';
+require_once __DIR__ . '/services/RoomTicketAcknowledgementStore.php';
 
 final class RoomTicketsEndpoint
 {
@@ -65,6 +66,7 @@ final class RoomTicketsEndpoint
             if ($restrictedLookups) $warnings[] = 'O GLPI restringe os cadastros de locais ou categorias. Os nomes foram consultados nos próprios chamados.';
             if (!$assets && $tickets) $warnings[] = 'Nomes e patrimônios de ativos indisponíveis no cache. Os vínculos são exibidos por tipo e ID.';
             if ($normalized['invalidDates']) $warnings[] = 'Há chamados com data inválida que não puderam ser contados.';
+            $result = RoomTicketAcknowledgementStore::attach($result);
             $result['meta'] = [
                 'collectedAt' => date(DATE_ATOM), 'complete' => $normalized['invalidDates'] === 0,
                 'warnings' => $warnings, 'source' => 'GLPI',
@@ -86,5 +88,28 @@ final class RoomTicketsEndpoint
             return;
         }
         Responde::ok(['data' => $result]);
+    }
+
+    public static function accept(int $ticketId): void
+    {
+        Request::rateLimit('room-ticket-accept', 60, 60);
+        $body = Request::json(4096);
+        try {
+            $entry = RoomTicketAcknowledgementStore::accept($ticketId, [
+                'reference' => $body['reference'] ?? '',
+                'openedAt' => $body['openedAt'] ?? '',
+            ], [
+                'name' => PermissionMiddleware::getUserName() ?? '',
+                'email' => PermissionMiddleware::getUserEmail() ?? '',
+            ]);
+        } catch (InvalidArgumentException $error) {
+            Responde::erro($error->getMessage(), 422);
+            return;
+        } catch (Throwable $error) {
+            error_log('[room-tickets] Falha ao registrar aceite: ' . get_class($error));
+            Responde::erro('Não foi possível registrar o aceite do alerta.', 500);
+            return;
+        }
+        Responde::ok(['data' => ['acknowledgement' => $entry]]);
     }
 }

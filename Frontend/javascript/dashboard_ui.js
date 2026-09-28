@@ -105,6 +105,10 @@ window.DashboardUI = {
         </div>
         <div class="dash-header-right">
           <span class="dash-updated">Atualizado agora</span>
+          <button class="dash-refresh-btn dash-tv-btn" id="dash-tv-mode" title="Exibir os painéis em tela cheia">
+            <span class="gcc-icon gcc-icon--sm"><img src="css/icons/dashboard.svg" alt="" /></span>
+            Ativar modo TV
+          </button>
           <button class="dash-refresh-btn" id="dash-refresh" title="Atualizar dados">
             <span class="gcc-icon gcc-icon--sm"><img src="css/icons/refresh.svg" alt="" /></span>
             Atualizar
@@ -422,6 +426,8 @@ _renderQuickActions(actions) {
   // ══════════════════════════════════════════════════════════════════════════
 
   _bindEvents() {
+    this._replaceBtn('dash-tv-mode', () => window.RoomTicketsTV?.open());
+
     // Refresh
     this._replaceBtn('dash-refresh', async () => {
       const btn = document.getElementById('dash-refresh');

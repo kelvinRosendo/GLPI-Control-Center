@@ -284,12 +284,16 @@ final class RoomTicketsService
         $knownTypes = array_values(array_filter($types, static fn($r) => !in_array($r['key'], ['unknown', 'other'], true)));
         $summary['topRooms'] = $leaders($rooms);
         $summary['topTypes'] = $leaders($knownTypes);
+        $latestCandidates = array_values($periodItems);
+        usort($latestCandidates, static fn($a, $b) => strcmp($b['openedAt'], $a['openedAt']) ?: ($b['id'] <=> $a['id']));
+        $latest = $latestCandidates[0] ?? null;
         $selected = array_values($selected);
         usort($selected, static fn($a, $b) => ($b['urgency'] <=> $a['urgency']) ?: strcmp($a['openedAt'], $b['openedAt']) ?: ($a['id'] <=> $b['id']));
         $pages = max(1, (int) ceil(count($selected) / $filters['per_page']));
         $page = min($pages, $filters['page']);
         return [
             'items' => array_slice($selected, ($page - 1) * $filters['per_page'], $filters['per_page']),
+            'latest' => $latest,
             'summary' => $summary, 'rankings' => ['rooms' => $rooms, 'types' => $types, 'assets' => $assets],
             'options' => ['rooms' => array_map(static fn($key, $label) => ['key' => (string) $key, 'label' => $label], array_keys($roomOptions), array_values($roomOptions)), 'types' => self::TYPES],
             'pagination' => ['page' => $page, 'perPage' => $filters['per_page'], 'pages' => $pages, 'total' => count($selected)],

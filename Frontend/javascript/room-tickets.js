@@ -1,5 +1,5 @@
 /**
- * Chamados das salas: isolated read-only view. No ticket data persisted in storage.
+ * Chamados das salas: operational view backed by the GLPI report endpoint.
  */
 window.RoomTickets = (() => {
   'use strict';
@@ -13,7 +13,7 @@ window.RoomTickets = (() => {
     campo_equipamento: 'Campo Equipamento da descrição' };
   const defaults = () => ({ period: '30d', from: '', to: '', room: '', type: '', status: '', asset: '', q: '', page: 1 });
   let filters = defaults(), data = null, loading = false, error = '', generation = 0;
-  let timer = null, auto = false, initialized = false;
+  let timer = null, auto = true, initialized = false;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const active = () => window.STATE?.tab === 'chamados-salas';
   const formatDate = value => {
@@ -66,6 +66,31 @@ window.RoomTickets = (() => {
       : '<p class="rt-muted">Nenhum registro identificado neste recorte.</p>') + '</section>';
   }
 
+  function latestTicket() {
+    if (data?.latest) return data.latest;
+    return [...(data?.items || [])].sort((a, b) => String(b.openedAt).localeCompare(String(a.openedAt)) || b.id - a.id)[0] || null;
+  }
+
+  function renderOperational() {
+    if (loading && !data) return '<section class="rt-live rt-panel"><div class="rt-message" role="status">Consultando o chamado mais recente…</div></section>';
+    if (!data) return '';
+    const ticket = latestTicket();
+    if (!ticket) return '<section class="rt-live rt-panel"><div><p class="rt-eyebrow">ÚLTIMO CHAMADO RECEBIDO</p><h2>Nenhum chamado no período</h2><p class="rt-muted">A consulta é atualizada automaticamente a cada minuto.</p></div></section>';
+    const summary = data.summary || {};
+    const room = summary.topRooms?.[0];
+    const type = summary.topTypes?.[0];
+    const accepted = Boolean(ticket.acknowledgement);
+    return '<section class="rt-live" aria-labelledby="rt-live-title"><article class="rt-live-ticket rt-panel">' +
+      '<div class="rt-live-heading"><div><p class="rt-eyebrow">ÚLTIMO CHAMADO RECEBIDO</p><h2 id="rt-live-title">' + esc(ticket.room) + '</h2></div><span class="rt-status rt-status--' + (accepted ? 'accepted' : 'new') + '">' + (accepted ? 'Alerta aceito' : 'Novo') + '</span></div>' +
+      '<div class="rt-live-meta"><strong>' + esc((ticket.types || []).map(key => TYPES[key] || key).join(', ')) + '</strong><span>#' + ticket.id + (ticket.reference ? ' · ' + esc(ticket.reference) : '') + '</span><span>' + esc(formatDate(ticket.openedAt)) + '</span></div>' +
+      '<h3>' + esc(ticket.title || 'Sem título') + '</h3><p class="rt-muted">' + esc(ticket.description || 'Sem descrição.') + '</p>' +
+      '<div class="rt-live-actions"><button type="button" class="rt-primary" data-rt-action="accept" data-ticket-id="' + ticket.id + '"' + (accepted ? ' disabled' : '') + '>' + (accepted ? 'Aceito' : 'Aceitar alerta') + '</button>' +
+      '<button type="button" data-rt-ticket="' + ticket.id + '">Ver detalhes</button></div></article>' +
+      '<aside class="rt-live-stats"><article class="rt-card"><h2>Chamados abertos</h2><strong>' + (summary.open || 0) + '</strong><p>Atualização a cada minuto</p></article>' +
+      '<article class="rt-card"><h2>Sala recorrente</h2><strong>' + esc(room?.label || 'Sem identificação') + '</strong><p>' + (room ? room.count + ' chamado' + (room.count === 1 ? '' : 's') : 'Sem sala identificada') + '</p></article>' +
+      '<article class="rt-card"><h2>Dispositivo recorrente</h2><strong>' + esc(type?.label || 'Sem identificação') + '</strong><p>' + (type ? type.count + ' chamado' + (type.count === 1 ? '' : 's') : 'Sem tipo identificado') + '</p></article></aside></section>';
+  }
+
   function renderData() {
     if (loading) return '<div class="rt-message" role="status">Consultando chamados e vínculos no GLPI…</div>';
     if (error) return '<div class="rt-message rt-error" role="alert">' + esc(error) +
@@ -111,9 +136,11 @@ window.RoomTickets = (() => {
     const rooms = Object.fromEntries((data?.options?.rooms || []).map(r => [r.key, r.label]));
     if (filters.room && !rooms[filters.room]) rooms[filters.room] = filters.room === 'unknown' ? 'Sala não identificada' : filters.room;
     const lastUpdate = data?.meta?.collectedAt ? new Date(data.meta.collectedAt).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : 'Ainda não consultado';
-    root.innerHTML = '<div class="rt-dashboard"><header class="rt-header"><div><p class="rt-eyebrow">ATENDIMENTO · ESCOLA</p>' +
+    root.innerHTML = '<div class="rt-dashboard"><header class="rt-header"><div><p class="rt-eyebrow">OPERAÇÃO · CHAMADOS</p>' +
       '<h1>Chamados das salas</h1><p class="rt-muted">Identifique onde os problemas se repetem e quais equipamentos precisam de atenção.</p></div>' +
-      '<button type="button" data-rt-action="refresh"' + (loading ? ' disabled' : '') + '>Atualizar agora</button></header>' +
+      '<div class="rt-header-actions"><button type="button" data-rt-action="refresh"' + (loading ? ' disabled' : '') + '>Atualizar agora</button>' +
+      '<button type="button" class="rt-tv-button" data-rt-action="tv">Ativar modo TV</button></div></header>' +
+      renderOperational() + '<div class="rt-analysis-head"><p class="rt-eyebrow">ANÁLISE DETALHADA</p><h2>Histórico e recorrências</h2><p class="rt-muted">Use os filtros para investigar períodos, salas e equipamentos.</p></div>' +
       '<form id="rt-filters" class="rt-panel"><fieldset' + (loading ? ' disabled' : '') + '><legend>Filtrar chamados</legend><div class="rt-filters">' +
       '<label>Período<select name="period"><option value="30d"' + (filters.period === '30d' ? ' selected' : '') + '>Últimos 30 dias</option>' +
       '<option value="previous_month"' + (filters.period === 'previous_month' ? ' selected' : '') + '>Mês anterior completo</option>' +
@@ -127,7 +154,7 @@ window.RoomTickets = (() => {
       '<button type="submit">Aplicar filtros</button><button type="button" data-rt-action="clear">Limpar</button></div></fieldset></form>' +
       (filters.asset ? '<p class="rt-quality">Ativo selecionado: ' + esc(filters.asset) + ' <button type="button" data-rt-action="clear-asset">Remover filtro</button></p>' : '') +
       '<div class="rt-toolbar"><span class="rt-muted">Última consulta: ' + esc(lastUpdate) + '</span>' +
-      '<label><input id="rt-auto" type="checkbox"' + (auto ? ' checked' : '') + '> Atualizar a cada 5 minutos</label></div>' +
+      '<label><input id="rt-auto" type="checkbox"' + (auto ? ' checked' : '') + '> Atualizar a cada 1 minuto</label></div>' +
       '<div id="rt-results" aria-busy="' + loading + '">' + renderData() + '</div>' +
       '<dialog id="rt-detail" aria-labelledby="rt-detail-title"><div class="rt-detail-body"></div></dialog></div>';
     root.querySelector('.rt-dashboard').addEventListener('click', onClick);
@@ -168,6 +195,7 @@ window.RoomTickets = (() => {
       filters.page = data.pagination.page;
       filters.from = data.filters.from; filters.to = data.filters.to;
       writeUrl();
+      window.RoomTicketsTV?.update(data);
     } catch (failure) {
       if (id !== generation) return;
       if (failure.status === 401) error = 'Sua sessão expirou. Entre novamente para consultar os chamados.';
@@ -191,10 +219,28 @@ window.RoomTickets = (() => {
     if (button.dataset.rtTicket) { detail(Number(button.dataset.rtTicket)); return; }
     switch (button.dataset.rtAction) {
       case 'refresh': load(); break;
+      case 'tv': window.RoomTicketsTV?.open(data); break;
+      case 'accept': acceptTicket(Number(button.dataset.ticketId), button); break;
       case 'clear': filters = defaults(); load(); break;
       case 'clear-asset': filters.asset = ''; filters.page = 1; load(); break;
       case 'previous': filters.page = Math.max(1, filters.page - 1); load(); break;
       case 'next': filters.page += 1; load(); break;
+    }
+  }
+
+  async function acceptTicket(id, button = null) {
+    const ticket = [data?.latest, ...(data?.items || [])].find(item => item && Number(item.id) === Number(id));
+    if (!ticket || ticket.acknowledgement) return;
+    if (button) button.disabled = true;
+    try {
+      const acknowledgement = await window.RoomTicketsTV.accept(ticket);
+      if (data?.latest?.id === ticket.id) data.latest.acknowledgement = acknowledgement;
+      for (const item of data?.items || []) if (item.id === ticket.id) item.acknowledgement = acknowledgement;
+      mount();
+    } catch (failure) {
+      if (button) button.disabled = false;
+      error = failure.status === 403 ? 'Seu perfil não pode aceitar este alerta.' : 'Não foi possível registrar o aceite. Tente novamente.';
+      mount();
     }
   }
 
@@ -225,19 +271,29 @@ window.RoomTickets = (() => {
 
   function startTimer() {
     if (timer !== null) clearInterval(timer);
-    timer = auto && active() ? setInterval(() => { if (!document.hidden && !loading) load(); }, 300000) : null;
+    timer = auto && active() ? setInterval(() => { if (!document.hidden && !loading) load(); }, 60000) : null;
   }
   function unmount() {
     if (timer !== null) clearInterval(timer);
     timer = null;
   }
   function reset() {
-    unmount(); generation++; loading = false; data = null; error = ''; filters = defaults(); auto = false;
+    unmount(); generation++; loading = false; data = null; error = ''; filters = defaults(); auto = true;
     // Do not restore the previous user's filters on a subsequent login.
     initialized = true;
     const url = new URL(window.location.href);
     for (const key of Object.keys(filters)) url.searchParams.delete('rt_' + key);
     window.history.replaceState(null, '', url);
+  }
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('roomtickets:accepted', event => {
+      const ticketId = Number(event.detail?.ticketId);
+      const acknowledgement = event.detail?.acknowledgement;
+      if (!ticketId || !acknowledgement || !data) return;
+      if (Number(data.latest?.id) === ticketId) data.latest.acknowledgement = acknowledgement;
+      for (const item of data.items || []) if (Number(item.id) === ticketId) item.acknowledgement = acknowledgement;
+      if (active()) mount();
+    });
   }
   return { mount, reset, unmount };
 })();

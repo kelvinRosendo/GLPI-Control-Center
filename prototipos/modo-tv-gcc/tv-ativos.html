@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Modo TV — Painel de Ativos — Protótipo GCC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/app.css" />
+<link rel="stylesheet" href="css/tv.css" />
+</head>
+<body class="tv-mode">
+<div class="tv-canvas">
+
+  <!-- ═══ TOPO: logotipo, painel ativo, conexão, atualização e relógio ═══ -->
+  <header class="tv-topbar">
+    <div class="tv-brand">
+      <img class="tv-brand__logo" src="../../Frontend/assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite" />
+      <span class="tv-brand__divider"></span>
+      <span class="tv-brand__kicker">
+        <strong>Painel Operacional</strong>
+        <span>Central de T.I.</span>
+      </span>
+    </div>
+
+    <nav class="tv-indicator" aria-label="Painéis do modo TV">
+      <span class="tv-indicator__item tv-indicator__item--active" aria-current="true">
+        <span class="tv-indicator__num">01</span>
+        <span class="gcc-icon gcc-icon--lg"><img src="assets/icons/tv.svg" alt="" /></span>
+        Ativos
+      </span>
+      <a class="tv-indicator__item" href="tv-chamados.html">
+        <span class="tv-indicator__num">02</span>
+        <span class="gcc-icon gcc-icon--lg"><img src="assets/icons/tickets.svg" alt="" /></span>
+        Chamados
+      </a>
+    </nav>
+
+    <div class="tv-status">
+      <div class="tv-status__block">
+        <span class="gcc-icon gcc-icon--lg"><img src="assets/icons/wifi.svg" alt="" /></span>
+        <span class="tv-status__meta">
+          <span class="tv-status__label">Conexão</span>
+          <span class="tv-status__value tv-status__value--ok">Conectado ao GLPI</span>
+        </span>
+      </div>
+      <div class="tv-status__block">
+        <span class="gcc-icon gcc-icon--lg"><img src="assets/icons/refresh.svg" alt="" /></span>
+        <span class="tv-status__meta">
+          <span class="tv-status__label">Última atualização</span>
+          <span class="tv-status__value">14:00</span>
+        </span>
+      </div>
+      <div class="tv-status__block">
+        <span class="tv-status__meta">
+          <span class="tv-status__label">Hora atual</span>
+          <span class="tv-status__value tv-status__value--clock">14:07</span>
+        </span>
+      </div>
+      <span class="tv-fs"><span class="gcc-icon gcc-icon--md"><img src="assets/icons/expand.svg" alt="" /></span> Tela cheia</span>
+    </div>
+  </header>
+
+  <!-- ═══ CONTEÚDO DO PAINEL ═══ -->
+  <main class="tv-body">
+    <div class="tv-section-title">
+      <span>Ativos da infraestrutura</span>
+      <span class="subtle" style="font-size: 18px; text-transform: none; letter-spacing: 0">558 ativos classificados</span>
+    </div>
+
+    <div class="tv-kpi-grid">
+      <article class="tv-kpi">
+        <div class="tv-kpi__top">
+          <span class="tv-kpi__icon"><span class="gcc-icon"><img src="assets/icons/dashboard.svg" alt="" /></span></span>
+        </div>
+        <span class="tv-kpi__value">558</span>
+        <span class="tv-kpi__label">Total de Ativos</span>
+      </article>
+      <article class="tv-kpi">
+        <div class="tv-kpi__top">
+          <span class="tv-kpi__icon"><span class="gcc-icon"><img src="assets/icons/computer.svg" alt="" /></span></span>
+        </div>
+        <span class="tv-kpi__value">71</span>
+        <span class="tv-kpi__label">Computadores</span>
+      </article>
+      <article class="tv-kpi">
+        <div class="tv-kpi__top">
+          <span class="tv-kpi__icon tv-kpi__icon--green"><span class="gcc-icon"><img src="assets/icons/chromebook.svg" alt="" /></span></span>
+        </div>
+        <span class="tv-kpi__value">447</span>
+        <span class="tv-kpi__label">Chromebooks</span>
+      </article>
+      <article class="tv-kpi">
+        <div class="tv-kpi__top">
+          <span class="tv-kpi__icon tv-kpi__icon--yellow"><span class="gcc-icon"><img src="assets/icons/projector.svg" alt="" /></span></span>
+        </div>
+        <span class="tv-kpi__value">32</span>
+        <span class="tv-kpi__label">Projetores</span>
+      </article>
+      <article class="tv-kpi">
+        <div class="tv-kpi__top">
+          <span class="tv-kpi__icon tv-kpi__icon--red"><span class="gcc-icon"><img src="assets/icons/printer.svg" alt="" /></span></span>
+        </div>
+        <span class="tv-kpi__value">8</span>
+        <span class="tv-kpi__label">Impressoras</span>
+      </article>
+    </div>
+
+    <div class="tv-note-strip">
+      <span class="tv-note-strip__title">Atenção necessária</span>
+      <span class="tv-note-strip__item"><span class="gcc-icon"><img src="assets/icons/warning.svg" alt="" /></span> 1 chamado de sala aguardando</span>
+      <span class="tv-note-strip__item"><span class="gcc-icon"><img src="assets/icons/success.svg" alt="" /></span> Nenhum alerta crítico em projetores</span>
+      <span class="tv-note-strip__item"><span class="gcc-icon"><img src="assets/icons/clock.svg" alt="" /></span> Consulta automática a cada 5 minutos</span>
+    </div>
+
+    <div class="grid-2" style="flex: 1; min-height: 0">
+      <section class="tv-panel">
+        <h2 class="tv-panel__title">Ativos por tipo</h2>
+
+        <div class="tv-bar-row">
+          <span class="tv-bar-row__label"><span class="gcc-icon"><img src="assets/icons/chromebook.svg" alt="" /></span> Chromebooks</span>
+          <span class="tv-bar-row__track"><span class="tv-bar-row__fill" style="width: 100%"></span></span>
+          <span class="tv-bar-row__value">447 · 80,1%</span>
+        </div>
+        <div class="tv-bar-row">
+          <span class="tv-bar-row__label"><span class="gcc-icon"><img src="assets/icons/computer.svg" alt="" /></span> Computadores</span>
+          <span class="tv-bar-row__track"><span class="tv-bar-row__fill" style="width: 15.9%"></span></span>
+          <span class="tv-bar-row__value">71 · 12,7%</span>
+        </div>
+        <div class="tv-bar-row">
+          <span class="tv-bar-row__label"><span class="gcc-icon"><img src="assets/icons/projector.svg" alt="" /></span> Projetores</span>
+          <span class="tv-bar-row__track"><span class="tv-bar-row__fill tv-bar-row__fill--yellow" style="width: 7.2%"></span></span>
+          <span class="tv-bar-row__value">32 · 5,7%</span>
+        </div>
+        <div class="tv-bar-row">
+          <span class="tv-bar-row__label"><span class="gcc-icon"><img src="assets/icons/printer.svg" alt="" /></span> Impressoras</span>
+          <span class="tv-bar-row__track"><span class="tv-bar-row__fill" style="width: 1.8%"></span></span>
+          <span class="tv-bar-row__value">8 · 1,4%</span>
+        </div>
+      </section>
+
+      <section class="tv-panel tv-panel--fill">
+        <h2 class="tv-panel__title">Status da infraestrutura</h2>
+        <div class="tv-list__item">
+          <span class="dot dot--green"></span>
+          <span class="tv-list__label">GLPI</span>
+          <span class="tv-list__value" style="color: var(--green)">Online</span>
+        </div>
+        <div class="tv-list__item">
+          <span class="dot dot--green"></span>
+          <span class="tv-list__label">Backend</span>
+          <span class="tv-list__value" style="color: var(--green)">Online</span>
+        </div>
+        <div class="tv-list__item">
+          <span class="dot dot--green"></span>
+          <span class="tv-list__label">OAuth</span>
+          <span class="tv-list__value" style="color: var(--green)">Online</span>
+        </div>
+        <div class="tv-list__item">
+          <span class="dot dot--yellow"></span>
+          <span class="tv-list__label">Integrações</span>
+          <span class="tv-list__value" style="color: var(--yellow)">3/4</span>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- ═══ CONTROLES DO MODO TV ═══ -->
+  <footer class="tv-controls">
+    <div class="tv-rotation">
+      <div class="tv-countdown">
+        <svg viewBox="0 0 74 74" aria-hidden="true">
+          <circle class="tv-countdown__track" cx="37" cy="37" r="32" fill="none" stroke-width="6"></circle>
+          <circle class="tv-countdown__fill" cx="37" cy="37" r="32" fill="none" stroke-width="6"
+                  stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="131"></circle>
+        </svg>
+        <span class="tv-countdown__value">07</span>
+      </div>
+      <div class="tv-rotation__text">
+        <span class="tv-rotation__label">Próxima troca em</span>
+        <span class="tv-rotation__next">Painel 01 · <span>Ativos</span></span>
+      </div>
+    </div>
+
+    <div class="tv-controls__buttons">
+      <button class="tv-btn"><span class="gcc-icon"><img src="assets/icons/pause.svg" alt="" /></span> Pausar rotação</button>
+      <button class="tv-btn"><span class="gcc-icon"><img src="assets/icons/skip-forward.svg" alt="" /></span> Trocar painel</button>
+      <button class="tv-btn tv-btn--primary"><span class="gcc-icon"><img src="assets/icons/volume.svg" alt="" /></span> Ativar som</button>
+      <a class="tv-btn tv-btn--outline" href="dashboard-ativos.html"><span class="gcc-icon"><img src="assets/icons/exit-tv.svg" alt="" /></span> Sair do modo TV</a>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Modo TV — Alerta de chamado novo — Protótipo GCC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/app.css" />
+<link rel="stylesheet" href="css/tv.css" />
+</head>
+<body class="tv-mode">
+<div class="tv-canvas">
+
+  <!-- ═══ TOPO ═══ -->
+  <header class="tv-topbar">
+    <div class="tv-brand">
+      <img class="tv-brand__logo" src="../../Frontend/assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite" />
+      <span class="tv-brand__divider"></span>
+      <span class="tv-brand__kicker">
+        <strong>Painel Operacional</strong>
+        <span>Central de T.I.</span>
+      </span>
+    </div>
+
+    <nav class="tv-indicator" aria-label="Painéis do modo TV">
+      <a class="tv-indicator__item" href="tv-ativos.html">
+        <span class="tv-indicator__num">01</span>
+        <span class="gcc-icon gcc-icon--lg"><img src="assets/icons/tv.svg" alt="" /></span>
+        Ativos
+      </a>
+      <span class="tv-indicator__item tv-indicator__item--active" aria-current="true">
+        <span class="tv-indicator__num">02</span>
+        <span class="gcc-icon gcc-icon--lg"><img src="assets/icons/tickets.svg" alt="" /></span>
+        Chamados
+      </span>
+    </nav>
+
+    <div class="tv-status">
+      <div class="tv-status__block">
+        <span class="gcc-icon gcc-icon--lg"><img src="assets/icons/wifi.svg" alt="" /></span>
+        <span class="tv-status__meta">
+          <span class="tv-status__label">Conexão</span>
+          <span class="tv-status__value tv-status__value--ok">Conectado ao GLPI</span>
+        </span>
+      </div>
+      <div class="tv-status__block">
+        <span class="gcc-icon gcc-icon--lg"><img src="assets/icons/refresh.svg" alt="" /></span>
+        <span class="tv-status__meta">
+          <span class="tv-status__label">Última atualização</span>
+          <span class="tv-status__value">15:27</span>
+        </span>
+      </div>
+      <div class="tv-status__block">
+        <span class="tv-status__meta">
+          <span class="tv-status__label">Hora atual</span>
+          <span class="tv-status__value tv-status__value--clock">15:27</span>
+        </span>
+      </div>
+      <span class="tv-fs"><span class="gcc-icon gcc-icon--md"><img src="assets/icons/expand.svg" alt="" /></span> Tela cheia</span>
+    </div>
+  </header>
+
+  <!-- ═══ CONTEÚDO COM ALERTA ═══ -->
+  <main class="tv-body tv-body--alert">
+
+    <!-- ALERTA: visível por 15 segundos ou até alguém aceitar -->
+    <section class="tv-alert" role="alert">
+      <span class="tv-alert__flag">
+        <span class="gcc-icon"><img src="assets/icons/bell.svg" alt="" /></span>
+        Novo chamado
+      </span>
+
+      <div class="tv-alert__main">
+        <span class="tv-alert__room">Sala 16</span>
+        <span class="tv-alert__device">
+          <span class="gcc-icon gcc-icon--lg"><img src="assets/icons/projector.svg" alt="" /></span>
+          Projetor
+        </span>
+        <span class="tv-alert__meta">#78 · L-0009 · Aberto às 15:27 · Painel de chamados acionado automaticamente</span>
+      </div>
+
+      <span class="tv-alert__sound">
+        <span class="gcc-icon"><img src="assets/icons/volume.svg" alt="" /></span>
+        Alerta sonoro
+      </span>
+
+      <span class="tv-alert__countdown">
+        <span>Some em</span>
+        <strong>12</strong>
+      </span>
+
+      <button class="tv-alert__accept">
+        <span class="gcc-icon"><img src="assets/icons/check.svg" alt="" /></span>
+        Aceitar
+      </button>
+    </section>
+
+    <!-- FILA -->
+    <div class="tv-queue">
+      <span class="tv-queue__title">
+        <span class="gcc-icon"><img src="assets/icons/queue.svg" alt="" /></span>
+        Fila · nenhum chamado
+      </span>
+      <div class="tv-queue__items">
+        <span class="tv-queue__empty">Novos chamados aparecerão aqui, na ordem de chegada · alerta visível por 15 segundos ou até o aceite · última atualização 15:27</span>
+      </div>
+    </div>
+
+    <!-- PAINEL DE CHAMADOS ABAIXO DO ALERTA -->
+    <div class="tv-ticket" style="flex: 1; min-height: 0">
+      <section class="tv-ticket__main">
+        <div class="tv-ticket__eyebrow">
+          <span>Último chamado recebido</span>
+          <span class="tv-ticket__id">#78 · L-0009</span>
+        </div>
+
+        <div class="tv-ticket__room">
+          <span class="tv-ticket__room-icon"><span class="gcc-icon"><img src="assets/icons/room.svg" alt="" /></span></span>
+          <div>
+            <div class="tv-ticket__room-name">Sala 16</div>
+            <div class="tv-ticket__room-sub">Sala de aula</div>
+          </div>
+        </div>
+
+        <div class="tv-ticket__device">
+          <span class="tv-ticket__device-chip">
+            <span class="gcc-icon"><img src="assets/icons/projector.svg" alt="" /></span>
+            Projetor
+          </span>
+          <span class="badge badge--blue badge--plain" style="font-size: 18px; padding: 9px 14px">Identificado pela categoria do GLPI</span>
+        </div>
+
+        <p class="tv-ticket__summary">
+          <span>Resumo do chamado</span>
+          Não consigo ligar o projetor aqui na sala 16.
+        </p>
+
+        <div class="tv-ticket__facts">
+          <div class="tv-fact">
+            <div class="tv-fact__label">Abertura</div>
+            <div class="tv-fact__value tv-fact__value--mono">15:27</div>
+          </div>
+          <div class="tv-fact">
+            <div class="tv-fact__label">Tempo decorrido</div>
+            <div class="tv-fact__value tv-fact__value--mono">00:00</div>
+          </div>
+          <div class="tv-fact">
+            <div class="tv-fact__label">Status</div>
+            <div class="tv-fact__value" style="font-size: 28px; color: var(--blue-300)">Novo</div>
+          </div>
+        </div>
+
+        <div class="tv-ticket__actions">
+          <button class="tv-accept"><span class="gcc-icon"><img src="assets/icons/check.svg" alt="" /></span> Aceitar</button>
+        </div>
+      </section>
+
+      <aside class="tv-side">
+        <div class="tv-stat tv-stat--accent">
+          <span class="tv-stat__label"><span class="gcc-icon"><img src="assets/icons/tickets.svg" alt="" /></span> Chamados abertos</span>
+          <span class="tv-stat__value" style="color: var(--yellow)">1</span>
+          <span class="tv-stat__note">1 novo desde a última atualização</span>
+        </div>
+
+        <div class="tv-stat">
+          <span class="tv-stat__label"><span class="gcc-icon"><img src="assets/icons/room.svg" alt="" /></span> Sala com mais chamados</span>
+          <span class="tv-stat__value tv-stat__value--text">Sala 16</span>
+          <span class="tv-stat__note">1 chamado</span>
+        </div>
+
+        <div class="tv-stat">
+          <span class="tv-stat__label"><span class="gcc-icon"><img src="assets/icons/projector.svg" alt="" /></span> Dispositivo com mais chamados</span>
+          <span class="tv-stat__value tv-stat__value--text">Projetor</span>
+          <span class="tv-stat__note">1 chamado</span>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <!-- ═══ CONTROLES ═══ -->
+  <footer class="tv-controls">
+    <div class="tv-rotation">
+      <div class="tv-countdown">
+        <svg viewBox="0 0 74 74" aria-hidden="true">
+          <circle class="tv-countdown__track" cx="37" cy="37" r="32" fill="none" stroke-width="6"></circle>
+          <circle class="tv-countdown__fill" cx="37" cy="37" r="32" fill="none" stroke-width="6"
+                  stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="175"></circle>
+        </svg>
+        <span class="tv-countdown__value">03</span>
+      </div>
+      <div class="tv-rotation__text">
+        <span class="tv-rotation__label">Rotação em espera durante o alerta</span>
+        <span class="tv-rotation__next">Painel 02 · <span>Chamados</span></span>
+      </div>
+    </div>
+
+    <div class="tv-controls__buttons">
+      <button class="tv-btn"><span class="gcc-icon"><img src="assets/icons/pause.svg" alt="" /></span> Pausar rotação</button>
+      <button class="tv-btn"><span class="gcc-icon"><img src="assets/icons/skip-forward.svg" alt="" /></span> Trocar painel</button>
+      <button class="tv-btn tv-btn--primary"><span class="gcc-icon"><img src="assets/icons/volume.svg" alt="" /></span> Ativar som</button>
+      <a class="tv-btn tv-btn--outline" href="dashboard-chamados.html"><span class="gcc-icon"><img src="assets/icons/exit-tv.svg" alt="" /></span> Sair do modo TV</a>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>

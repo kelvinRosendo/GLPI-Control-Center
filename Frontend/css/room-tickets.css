@@ -3,6 +3,7 @@
 .rt-header, .rt-toolbar, .rt-pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .rt-header { margin-bottom: 22px; }
 .rt-header h1 { font-size: clamp(24px, 3vw, 34px); margin: 4px 0 10px; }
+.rt-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .rt-eyebrow { color: var(--color-accent, #4f7ef7); font-size: 12px; font-weight: 700; letter-spacing: .08em; }
 .rt-muted, .rt-card p, .rt-dashboard small { color: var(--color-text-secondary, var(--text2, #9299b8)); }
 .rt-muted, .rt-quality, .rt-card p { font-size: 13px; line-height: 1.6; }
@@ -16,9 +17,27 @@
 .rt-dashboard button { font: inherit; color: inherit; border: 1px solid var(--color-border, #454d61); background: var(--color-bg-secondary, var(--bg2, #171c2b)); padding: 10px 14px; border-radius: 8px; cursor: pointer; min-height: 42px; }
 .rt-dashboard button:hover:not(:disabled) { border-color: var(--color-accent, #4f7ef7); }
 .rt-dashboard button:disabled { opacity: .5; cursor: default; }
-.rt-dashboard button[type=submit], .rt-header > button { background: var(--color-accent, #315ed0); color: #fff; border-color: transparent; }
+.rt-dashboard button[type=submit], .rt-header-actions > button:first-child { background: var(--color-accent, #315ed0); color: #fff; border-color: transparent; }
+.rt-dashboard .rt-tv-button, .rt-dashboard .rt-primary { background: var(--color-yellow, #f2c522); color: #101521; border-color: var(--color-yellow, #f2c522); font-weight: 700; }
 .rt-dashboard :focus-visible { outline: 3px solid var(--color-accent, #6e9aff); outline-offset: 3px; }
 .rt-toolbar { margin: 16px 0; font-size: 13px; }
+.rt-live { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(260px, .8fr); gap: 16px; margin-bottom: 28px; }
+.rt-live-ticket { border-top: 3px solid var(--color-yellow, #f2c522); }
+.rt-live-heading, .rt-live-meta, .rt-live-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.rt-live-heading { justify-content: space-between; }
+.rt-live-heading h2 { margin: 4px 0 0; font-size: clamp(30px, 4vw, 52px); }
+.rt-live-meta { color: var(--color-text-secondary, #9299b8); font-size: 13px; margin: 14px 0; }
+.rt-live-meta strong { color: var(--color-yellow, #f2c522); }
+.rt-live-ticket > h3 { margin: 18px 0 8px; font-size: 19px; }
+.rt-live-actions { margin-top: 20px; }
+.rt-status { display: inline-flex; border-radius: 999px; padding: 7px 11px; font-size: 11px; font-weight: 800; text-transform: uppercase; }
+.rt-status--new { color: #8ab1ff; background: rgba(79,126,247,.16); }.rt-status--accepted { color: #43dbad; background: rgba(29,214,161,.14); }
+.rt-live-stats { display: grid; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rt-live-stats .rt-card { display: flex; flex-direction: column; justify-content: center; padding: 16px 18px; }
+.rt-live-stats .rt-card h2 { margin-bottom: 6px; color: var(--color-text-secondary, #9299b8); font-size: 12px; text-transform: uppercase; }
+.rt-live-stats .rt-card strong { font-size: clamp(20px, 2vw, 28px); }
+.rt-analysis-head { margin: 0 0 16px; }
+.rt-analysis-head h2 { margin: 3px 0; font-size: 22px; }
 .rt-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
 .rt-card strong { display: block; font-size: clamp(19px, 2vw, 28px); overflow-wrap: anywhere; }
 .rt-card p { margin: 8px 0 0; }
@@ -46,5 +65,6 @@
 .rt-dashboard dd { margin: 0; overflow-wrap: anywhere; }
 .rt-description { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
 .rt-dashboard a { color: var(--color-accent, #84aaff); }
-@media (max-width: 1100px) { .rt-cards, .rt-filters { grid-template-columns: repeat(2,minmax(0,1fr)); } .rt-charts { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .rt-cards, .rt-filters { grid-template-columns: repeat(2,minmax(0,1fr)); } .rt-charts { grid-template-columns: 1fr; } .rt-live { grid-template-columns: 1fr; } .rt-live-stats { grid-template-columns: repeat(3, minmax(0,1fr)); grid-template-rows: auto; } }
 @media (max-width: 600px) { .rt-cards, .rt-filters { grid-template-columns: 1fr; } .rt-panel, .rt-card { padding: 16px; } .rt-dashboard dl { grid-template-columns: 1fr; } .rt-dashboard dt { font-weight: 600; } }
+@media (max-width: 700px) { .rt-live-stats { grid-template-columns: 1fr; } .rt-header-actions { width: 100%; } .rt-header-actions button { flex: 1; } }

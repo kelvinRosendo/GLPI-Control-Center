@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Estados visuais — Protótipo GCC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="css/tokens.css" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/app.css" />
+<link rel="stylesheet" href="css/tv.css" />
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar__brand">
+      <img class="sidebar__logo" src="../../Frontend/assets/branding/logo/logotextoesquerdabranco.png" alt="Colégio Satélite" />
+      <div class="sidebar__brand-text">
+        <span class="sidebar__brand-name">GLPI Control Center</span>
+        <span class="sidebar__brand-sub">Central de T.I.</span>
+      </div>
+    </div>
+
+    <nav class="sidebar__nav">
+      <div>
+        <div class="sidebar__group-label">Principal</div>
+        <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/dashboard.svg" alt="" /></span><span>Dashboard</span></button>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Operação</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Inventário</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/tickets.svg" alt="" /></span><span>Chamados</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/tickets.svg" alt="" /></span><span>Chamados das salas</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/projector.svg" alt="" /></span><span>Projetores</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/assistance.svg" alt="" /></span><span>Assistências</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Gestão</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/chromebook.svg" alt="" /></span><span>Alunos</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/cart.svg" alt="" /></span><span>Carrinhos</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Salas/Turmas</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Exibição</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/printer.svg" alt="" /></span><span>Impressoras</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/computer.svg" alt="" /></span><span>Inventário Geral</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/reports.svg" alt="" /></span><span>Relatórios</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/audit.svg" alt="" /></span><span>Auditoria</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Integrações</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/suppliers.svg" alt="" /></span><span>Fornecedores</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/integrations.svg" alt="" /></span><span>Integrações</span></button>
+        </div>
+      </div>
+
+      <div>
+        <div class="sidebar__group-label">Administração</div>
+        <div class="col gap-2">
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/settings.svg" alt="" /></span><span>Configurações</span></button>
+          <button class="sidebar__item"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/refresh.svg" alt="" /></span><span>Sincronização GLPI</span></button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar__footer">Protótipo · versão dark institucional</div>
+  </aside>
+
+  <!-- CONTEÚDO -->
+  <div class="main">
+    <header class="topbar">
+      <span class="conn"><span class="conn__dot"></span> Conectado ao GLPI</span>
+
+      <div class="topbar__search">
+        <span class="gcc-icon gcc-icon--sm"><img src="assets/icons/search.svg" alt="" /></span>
+        <input type="text" placeholder="Pesquisar ativo, patrimonio, sala..." />
+        <span class="topbar__kbd">Ctrl+K</span>
+      </div>
+
+      <div class="topbar__right">
+        <button class="icon-btn" title="Central de Notificações"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/notifications.svg" alt="" /></span></button>
+        <div class="user">
+          <div class="user__avatar">T</div>
+          <div>
+            <div class="user__name">Equipe T.I.</div>
+            <div class="user__role">Administrador</div>
+          </div>
+        </div>
+        <button class="icon-btn" title="Sair"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/logout.svg" alt="" /></span></button>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Design system</p>
+          <h1 class="page-head__title">Estados visuais</h1>
+          <p class="page-head__sub">Carregamento, vazio, erro, sem conexão e alertas — aplicados ao tema dark do GCC.</p>
+        </div>
+        <div class="page-head__actions">
+          <a class="btn" href="index.html"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/dashboard.svg" alt="" /></span> Voltar ao índice</a>
+        </div>
+      </div>
+
+      <div class="state-grid">
+
+        <!-- 1. CARREGANDO -->
+        <section class="state-card">
+          <header class="state-card__head">
+            <h2>Carregando</h2>
+            <span class="badge badge--blue">loading</span>
+          </header>
+          <p class="state-card__desc">Tabela e cartões mantêm a estrutura com skeleton. O texto carregando indica o módulo.</p>
+          <div class="state-body">
+            <p class="loading-text"><span class="spinner"></span> Carregando Chamados do GLPI...</p>
+            <div class="skeleton-row">
+              <span class="skeleton skeleton--text" style="width: 42%"></span>
+              <span class="skeleton skeleton--text" style="width: 24%"></span>
+              <span class="skeleton skeleton--text" style="width: 18%"></span>
+            </div>
+            <div class="skeleton-row">
+              <span class="skeleton skeleton--text" style="width: 56%"></span>
+              <span class="skeleton skeleton--text" style="width: 20%"></span>
+              <span class="skeleton skeleton--text" style="width: 14%"></span>
+            </div>
+            <div class="skeleton-row">
+              <span class="skeleton skeleton--text" style="width: 35%"></span>
+              <span class="skeleton skeleton--text" style="width: 30%"></span>
+              <span class="skeleton skeleton--text" style="width: 22%"></span>
+            </div>
+            <div class="skeleton skeleton--kpi"></div>
+          </div>
+        </section>
+
+        <!-- 2. SEM DADOS -->
+        <section class="state-card">
+          <header class="state-card__head">
+            <h2>Sem dados</h2>
+            <span class="badge badge--neutral">empty</span>
+          </header>
+          <p class="state-card__desc">Resultado de busca ou período sem registros. Sempre com ação de recarregar.</p>
+          <div class="state-body">
+            <div class="state state--empty">
+              <span class="gcc-icon state__icon"><img src="assets/icons/inbox.svg" alt="" /></span>
+              <p class="state__title">Nenhum chamado encontrado</p>
+              <p class="state__text">Não há registros para os filtros selecionados (Sala 01–05 · últimos 7 dias).</p>
+              <button class="btn"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/refresh.svg" alt="" /></span> Limpar filtros</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. ERRO -->
+        <section class="state-card">
+          <header class="state-card__head">
+            <h2>Erro</h2>
+            <span class="badge badge--red">error</span>
+          </header>
+          <p class="state-card__desc">Falha ao consultar o GLPI. Explica o que houve e oferece nova tentativa.</p>
+          <div class="state-body">
+            <div class="state state--error">
+              <span class="gcc-icon state__icon"><img src="assets/icons/error.svg" alt="" /></span>
+              <p class="state__title">Erro ao carregar os dados</p>
+              <p class="state__text">O GLPI respondeu <code class="mono">HTTP 504 Gateway Timeout</code> às 13:52.</p>
+              <button class="btn btn--red"><span class="gcc-icon gcc-icon--sm"><img src="assets/icons/refresh.svg" alt="" /></span> Tentar novamente</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. SEM CONEXÃO -->
+        <section class="state-card">
+          <header class="state-card__head">
+            <h2>Sem conexão</h2>
+            <span class="badge badge--yellow">offline</span>
+          </header>
+          <p class="state-card__desc">Perda de rede. No modo TV, fica na topbar junto com a última atualização.</p>
+          <div class="state-body">
+            <div class="state state--offline">
+              <span class="gcc-icon state__icon"><img src="assets/icons/wifi-off.svg" alt="" /></span>
+              <p class="state__title">Sem conexão com o backend</p>
+              <p class="state__text">Exibindo os últimos dados salvos às <span class="mono">14:00</span>. O painel reconecta automaticamente.</p>
+              <span class="conn conn--off"><span class="conn__dot"></span> Desconectado do GLPI</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- 5. AVISO -->
+        <section class="state-card">
+          <header class="state-card__head">
+            <h2>Aviso</h2>
+            <span class="badge badge--yellow">warning</span>
+          </header>
+          <p class="state-card__desc">Atenção sem bloquear a leitura: manutenção próxima, fila grande, dados incompletos.</p>
+          <div class="state-body col gap-3">
+            <div class="banner banner--warning">
+              <span class="gcc-icon gcc-icon--md"><img src="assets/icons/warning.svg" alt="" /></span>
+              <div>
+                <strong>Sincronização parcial</strong>
+                <p>Há ativos sem estado definido. Os 558 registros do inventário continuam disponíveis.</p>
+              </div>
+            </div>
+            <div class="banner banner--warning">
+              <span class="gcc-icon gcc-icon--md"><img src="assets/icons/clock.svg" alt="" /></span>
+              <div>
+                <strong>Fila de chamados em alta</strong>
+                <p>4 chamados em aberto e 1 sem sala identificada.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6. ALERTA (MODO TV) -->
+        <section class="state-card">
+          <header class="state-card__head">
+            <h2>Alerta (modo TV)</h2>
+            <span class="badge badge--yellow">critical</span>
+          </header>
+          <p class="state-card__desc">Chamado novo interrompe a rotação por 15 s, sem cobrir o painel. Ver <a href="tv-alerta.html">tv-alerta.html</a>.</p>
+          <div class="state-body">
+            <div class="tv-alert" style="position: static">
+              <span class="tv-alert__flag">
+                <span class="gcc-icon"><img src="assets/icons/bell.svg" alt="" /></span>
+                Novo chamado
+              </span>
+              <div class="tv-alert__main">
+                <span class="tv-alert__room" style="font-size: 34px">Sala 05</span>
+                <span class="tv-alert__device" style="font-size: 16px">
+                  <span class="gcc-icon gcc-icon--md"><img src="assets/icons/projector.svg" alt="" /></span>
+                  Projetor
+                </span>
+              </div>
+              <span class="tv-alert__sound" style="font-size: 14px">
+                <span class="gcc-icon"><img src="assets/icons/volume.svg" alt="" /></span>
+                Alerta sonoro
+              </span>
+              <span class="tv-alert__countdown">
+                <span>Some em</span>
+                <strong>12</strong>
+              </span>
+              <button class="tv-alert__accept" style="padding: 8px 16px; font-size: 15px">
+                <span class="gcc-icon"><img src="assets/icons/check.svg" alt="" /></span>
+                Aceitar
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+
+      <!-- CATALOGO DE BADGES -->
+      <section class="state-card" style="margin-top: var(--s-6)">
+        <header class="state-card__head">
+          <h2>Badges e indicadores</h2>
+          <span class="badge badge--blue">tokens</span>
+        </header>
+        <p class="state-card__desc">Status de chamado, ativo, conexão e severidade — variações usadas em todas as telas.</p>
+        <div class="state-body">
+          <div class="badges-row">
+            <span class="badge badge--blue">Aberto</span>
+            <span class="badge badge--blue badge--bright">Novo</span>
+            <span class="badge badge--yellow">Aguardando</span>
+            <span class="badge badge--green">Aceito</span>
+            <span class="badge badge--green badge--bright">Em andamento</span>
+            <span class="badge badge--neutral">Resolvido</span>
+            <span class="badge badge--red">Falha</span>
+            <span class="badge badge--red badge--plain">Baixa</span>
+          </div>
+          <div class="badges-row" style="margin-top: var(--s-4)">
+            <span class="conn"><span class="conn__dot"></span> Conectado ao GLPI</span>
+            <span class="conn conn--off"><span class="conn__dot"></span> Sem conexão</span>
+            <span class="dot dot--green"></span>
+            <span class="dot dot--yellow"></span>
+            <span class="dot dot--red"></span>
+            <span class="mono" style="color: var(--text-muted)">MONO · 558 / 14:00 / SN999</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+</body>
+</html>
