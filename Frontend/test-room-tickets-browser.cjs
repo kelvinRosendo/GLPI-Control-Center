@@ -14,7 +14,7 @@ window.STATE = {tab:'chamados-salas'};
 window.CONFIG = {glpiUrl:'https://glpi.example.test'};
 window.calls = [];
 window.posts = [];
-const spNow = secondsAgo => new Date(Date.now() - secondsAgo * 1000 + 3 * 3600 * 1000).toISOString().slice(0,19).replace('T',' ');
+const spNow = secondsAgo => new Date(Date.now() - secondsAgo * 1000 - 3 * 3600 * 1000).toISOString().slice(0,19).replace('T',' ');
 const isoNow = () => new Date().toISOString();
 const fresh = {id:9,room:'Sala 10',types:['projector'],openedAt:spNow(20),eligible:true,
   acknowledgement:null,title:'<img src=x onerror=alert(1)>',description:'Teste de descrição',

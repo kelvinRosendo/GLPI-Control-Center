@@ -14,11 +14,12 @@ window.DATA={computadores:Array(71),chromebooksGeekiees:Array(447),chromebooksEx
 window.Dashboard={getIndicators:()=>({total_ativos:558,computadores:71,chromebooks_total:447,projetores:32,impressoras:8})};
 window.UserContext={isAuthenticated:()=>true};
 window.posts=[];
-const spNow = secondsAgo => new Date(Date.now() - secondsAgo * 1000 + 3 * 3600 * 1000).toISOString().slice(0,19).replace('T',' ');
+const spNow = secondsAgo => new Date(Date.now() - secondsAgo * 1000 - 3 * 3600 * 1000).toISOString().slice(0,19).replace('T',' ');
 const isoNow = () => new Date().toISOString();
 const ticket = (id, secondsAgo) => ({id,reference:'L-00'+id,room:'Sala 16',title:'Projetor da sala 16 não liga',
   description:'Não consigo ligar o projetor aqui na sala 16.',types:['projector'],openedAt:spNow(secondsAgo),
-  status:'aberto',acknowledgement:null,eligible:true,roomSource:'local_glpi',typeSource:'categoria_glpi',assets:[]});
+  status:'aberto',acknowledgement:null,eligible:true,roomSource:'local_glpi',typeSource:'categoria_glpi',assets:[],
+  statusId:1,work:{handlerName:'',handlerSource:''},assignee:{userId:0,name:''}});
 const older = ticket(79, 40);
 const latest = ticket(78, 15);
 window.seed = {
@@ -38,6 +39,12 @@ check(document.querySelector('.rt-tv'),'opens overlay');check(document.body.clas
 check(document.querySelector('.rt-tv-alert'),'shows unacknowledged alert');
 check(document.querySelector('.rt-tv-alert').textContent.includes('#79'),'alert shows the oldest waiting ticket');
 check(document.querySelector('.rt-tv-connection-state'),'connection state shown');
+check(document.body.textContent.includes('Responsável não definido'),'responsible is explicit when nobody owns the ticket');
+check(!!document.querySelector('[data-tv-action="assume"]'),'assume action available in TV mode');
+window.__assumeRequested = null;
+document.addEventListener('roomtickets:assume-request', event => { window.__assumeRequested = event.detail.ticket.id; });
+document.querySelector('[data-tv-action="assume"][data-ticket-id="79"]').click(); await pause();
+check(window.__assumeRequested === 79,'assume request carries the ticket from the TV alert');
 check(document.body.textContent.includes('558'),'shows live asset total');
 check(document.body.textContent.includes('Status da infraestrutura'),'infrastructure status panel');
 document.querySelector('[data-tv-panel="calls"]').click();check(document.body.textContent.includes('Sala 16'),'renders latest room');

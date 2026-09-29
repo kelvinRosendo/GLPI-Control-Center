@@ -32,7 +32,7 @@ window.RoomTicketsMonitor = (() => {
   const CLAIM_SOUND = 'gcc-room-tickets-sound-claim';
   const PREF_MONITOR = 'gcc-room-tickets-monitor';
   const PREF_SOUND = 'gcc-room-tickets-sound';
-  const SP_OFFSET_MS = -3 * 3600 * 1000; // America/Sao_Paulo é UTC-3 o ano inteiro
+  const SP_TO_UTC_MS = 3 * 3600 * 1000; // America/Sao_Paulo é UTC-3 o ano inteiro
   const TYPES = { projector: 'Projetor', pc: 'PC', mouse: 'Mouse', keyboard: 'Teclado',
     chromebook: 'Chromebook', cart: 'Carrinho', other: 'Outros', unknown: 'Não identificado' };
   const LABELS = {
@@ -44,6 +44,14 @@ window.RoomTicketsMonitor = (() => {
     expired: 'Sessão expirada',
     paused: 'Monitoramento pausado',
   };
+  // Estado real do áudio, independente da preferência salva.
+  const AUDIO_LABELS = {
+    off: 'Som desativado',
+    ready: 'Som pronto',
+    blocked: 'Som bloqueado — clique em "Ativar som"',
+    unavailable: 'Som indisponível neste navegador',
+  };
+  const WRITE_SEGMENT = '/api/tickets/salas/';
 
   let running = false;
   let expired = false;
@@ -71,8 +79,13 @@ window.RoomTicketsMonitor = (() => {
   let monitorEnabled = readBool(PREF_MONITOR, true);
   let soundEnabled = readBool(PREF_SOUND, false);
   let audioContext = null;
+  let soundState = 'off';
   let widget = null;
   let banner = null;
+  let bannerHost = null;
+  let bannerObserver = null;
+  const requestIds = {};
+  const pendingWrites = {};
   let lastChange = 'init';
   const TAB_ID = Math.random().toString(36).slice(2, 10);
 
@@ -112,7 +125,15 @@ window.RoomTicketsMonitor = (() => {
   function parseOpenedAt(value) {
     const match = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(String(value || ''));
     if (!match) return NaN;
-    return Date.UTC(+match[1], +match[2] - 1, +match[3], +match[4], +match[5], +match[6]) + SP_OFFSET_MS;
+    const [, year, month, day, hour, minute, second] = match;
+    const wall = Date.UTC(+year, +month - 1, +day, +hour, +minute, +second);
+    // Rejeita datas que o Date.UTC normalizou (ex.: 2026-02-30, hora 25).
+    const probe = new Date(wall);
+    if (probe.getUTCFullYear() !== +year || probe.getUTCMonth() !== +month - 1
+      || probe.getUTCDate() !== +day || probe.getUTCHours() !== +hour
+      || probe.getUTCMinutes() !== +minute || probe.getUTCSeconds() !== +second) return NaN;
+    // Horário de parede de São Paulo para instante UTC: soma 3 h.
+    return wall + SP_TO_UTC_MS;
   }
 
   function acquireLock(key, windowMs, forceAfterMs) {
@@ -155,8 +176,11 @@ window.RoomTicketsMonitor = (() => {
       queueLength: queue.length,
       monitorEnabled,
       soundEnabled,
+      sound: audioStatus(),
       running,
       expired,
+      /** Horário da última consulta bem-sucedida ao GLPI (não do cache). */
+      collectedAt: lastData?.meta?.collectedAt || null,
     };
   }
 
@@ -375,6 +399,88 @@ window.RoomTicketsMonitor = (() => {
     return acknowledgement;
   }
 
+  // ── escrita no GLPI: assumir, mover e concluir ───────────────────────────
+
+  /** Identificador único por submissão: evita gravações repetidas. */
+  function requestId(scope) {
+    if (requestIds[scope]) return requestIds[scope];
+    const parts = String(scope).split(':').filter(Boolean);
+    requestIds[scope] = 'rt-' + parts.join('-') + '-' + Date.now().toString(36)
+      + Math.random().toString(36).slice(2, 8);
+    return requestIds[scope];
+  }
+
+  /**
+   * Envia uma movimentação e só confirma depois da resposta do servidor.
+   * Em caso de falha, o estado anterior permanece e o erro é devolvido.
+   * Uma submissão repetida enquanto a anterior está em voo não vira outra
+   * requisição: reaproveita a mesma promessa e o mesmo requestId.
+   */
+  function writeTicket(id, action, payload, scope) {
+    const ticketId = Number(id);
+    if (!ticketId) return Promise.reject(new Error('Chamado inválido.'));
+    const key = scope || action + ':' + ticketId;
+    if (pendingWrites[key]) return pendingWrites[key];
+    const promise = (async () => {
+      const response = await window.ApiClient.post(
+        WRITE_SEGMENT + encodeURIComponent(ticketId) + '/' + action,
+        { ...payload, requestId: requestId(key) },
+        { cache: false, retries: 0, timeout: 30000 }
+      );
+      const data = response?.data;
+      if (!data || data.ok === false) throw new Error('Resposta incompleta do servidor.');
+      // Recalcula a fila e o alerta a partir do estado real devolvido.
+      dismiss(ticketId);
+      if (data.acknowledgement) applyAck(ticketId, data.acknowledgement, true);
+      invalidate('escrita:' + action);
+      emitDocument('roomtickets:changed', {
+        ticketId, action, data,
+        work: data.work || null,
+        // Falha parcial é real e precisa aparecer na interface.
+        partial: Boolean(data.partial),
+        message: data.partial ? 'Movimentação parcial: revise o histórico do chamado.' : '',
+      });
+      return data;
+    })();
+    pendingWrites[key] = promise;
+    const clear = () => { if (pendingWrites[key] === promise) delete pendingWrites[key]; };
+    promise.then(clear, clear);
+    return promise;
+  }
+
+  function assume(ticket, handlerName) {
+    return writeTicket(ticket?.id, 'assumir', { handler: String(handlerName || '').trim() }, 'assumir:' + Number(ticket?.id));
+  }
+
+  function move(ticket, action, solution) {
+    return writeTicket(ticket?.id, 'mover', { action, solution: String(solution || '') }, 'mover:' + action + ':' + Number(ticket?.id));
+  }
+
+  async function history(ticketId) {
+    const id = Number(ticketId);
+    if (!id) throw new Error('Chamado inválido.');
+    const response = await window.ApiClient.get(WRITE_SEGMENT + encodeURIComponent(id) + '/historico',
+      { cache: false, retries: 0, timeout: 15000 });
+    return response?.data || null;
+  }
+
+  async function technicians() {
+    const response = await window.ApiClient.get(WRITE_SEGMENT + 'responsaveis',
+      { cache: false, retries: 0, timeout: 15000 });
+    return response?.data || { available: false, technicians: [], message: 'Lista indisponível.' };
+  }
+
+  /**
+   * Invalida o cache de leitura e compartilha a mudança com as outras telas.
+   * A próxima leitura vai ao GLPI; nada é confirmado a partir do cache.
+   */
+  function invalidate(reason = 'manual') {
+    payloads.clear();
+    stamps.clear();
+    post({ type: 'invalidate', reason });
+    emit('data');
+  }
+
   // ── sincronização de aceites ─────────────────────────────────────────────
 
   function startAckTimer() {
@@ -431,6 +537,8 @@ window.RoomTicketsMonitor = (() => {
       document.addEventListener('user:restored', () => { expired = false; start(); });
       document.addEventListener('guard:expired', () => reset());
       document.addEventListener('guard:unauthenticated', () => reset());
+      // O alerta precisa voltar para o corpo quando um diálogo fecha.
+      document.addEventListener('close', () => renderBanner(), true);
       document.addEventListener('visibilitychange', () => {
         if (typeof document !== 'undefined' && document.hidden) return;
         if (running && monitorEnabled) { tickList(); syncAcks(); }
@@ -459,6 +567,13 @@ window.RoomTicketsMonitor = (() => {
         changed = true;
       }
       if (changed) emit('data');
+      return;
+    }
+    // Outra tela gravou no GLPI: descarta o cache para reler o estado real.
+    if (message.type === 'invalidate') {
+      payloads.clear();
+      stamps.clear();
+      emit('data');
       return;
     }
     if (message.type === 'reset') hardClear();
@@ -546,24 +661,89 @@ window.RoomTicketsMonitor = (() => {
   }
 
   function setSoundEnabled(enabled) {
-    soundEnabled = Boolean(enabled);
-    writeBool(PREF_SOUND, soundEnabled);
-    if (soundEnabled) { ensureAudio(); playTone(); }
+    // Enabling audio is only meaningful with an explicit user gesture.
+    if (enabled) { enableSound(); return; }
+    soundEnabled = false;
+    writeBool(PREF_SOUND, false);
+    refreshAudioState();
+    emit('status');
+  }
+
+  /**
+   * Ativa o som a partir de uma interação explícita e reflete o estado real do
+   * AudioContext: uma preferência salva não significa áudio pronto.
+   */
+  function enableSound() {
+    soundEnabled = true;
+    writeBool(PREF_SOUND, true);
+    const context = ensureAudio();
+    if (!context) { refreshAudioState(); emit('status'); return; }
+    try {
+      const resumed = context.resume?.();
+      if (resumed && typeof resumed.then === 'function') {
+        resumed.then(() => { refreshAudioState(); playTone(); }).catch(() => { refreshAudioState(); });
+      } else {
+        refreshAudioState();
+        playTone();
+      }
+    } catch { refreshAudioState(); }
+    refreshAudioState();
     emit('status');
   }
 
   function ensureAudio() {
-    if (audioContext) { audioContext.resume?.().catch(() => {}); return audioContext; }
+    if (audioContext) {
+      try { audioContext.resume?.().catch(() => {}); } catch { /* contexto indisponível */ }
+      return audioContext;
+    }
     const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return null;
-    try { audioContext = new AudioContext(); } catch { audioContext = null; }
-    audioContext?.resume?.().catch(() => {});
+    if (typeof AudioContext !== 'function') { soundState = 'unavailable'; return null; }
+    try { audioContext = new AudioContext(); } catch { audioContext = null; soundState = 'unavailable'; return null; }
+    try { audioContext.resume?.().catch(() => {}); } catch { /* resume negado */ }
+    refreshAudioState();
     return audioContext;
+  }
+
+  /** Lê o estado real do áudio; nunca assume "pronto" por causa da preferência. */
+  function refreshAudioState() {
+    if (!soundEnabled) { soundState = 'off'; return soundState; }
+    if (!audioContext) {
+      soundState = (typeof window.AudioContext === 'function' || typeof window.webkitAudioContext === 'function')
+        ? 'blocked' : 'unavailable';
+      return soundState;
+    }
+    const state = String(audioContext.state || '');
+    // Só um AudioContext em execução significa que o som vai sair.
+    soundState = state === 'running' ? 'ready' : 'blocked';
+    return soundState;
+  }
+
+  function audioStatus() {
+    refreshAudioState();
+    return { state: soundState, label: AUDIO_LABELS[soundState] || AUDIO_LABELS.off, enabled: soundEnabled };
+  }
+
+  /** Reproduz um aviso curto. Devolve o estado real para a interface. */
+  function testSound() {
+    if (!soundEnabled) { enableSound(); return audioStatus(); }
+    const context = ensureAudio();
+    if (!context) { refreshAudioState(); emit('status'); return audioStatus(); }
+    try {
+      const resumed = context.resume?.();
+      if (resumed && typeof resumed.then === 'function') {
+        return resumed.then(() => { refreshAudioState(); playTone(); return audioStatus(); })
+          .catch(() => { refreshAudioState(); emit('status'); return audioStatus(); });
+      }
+    } catch { /* segue para o tom */ }
+    refreshAudioState();
+    playTone();
+    emit('status');
+    return audioStatus();
   }
 
   function playTone() {
     const context = ensureAudio();
-    if (!context) return;
+    if (!context || String(context.state || '') === 'closed') return false;
     const start = context.currentTime;
     [0, 0.22].forEach(offset => {
       const oscillator = context.createOscillator();
@@ -575,27 +755,45 @@ window.RoomTicketsMonitor = (() => {
       oscillator.connect(gain); gain.connect(context.destination);
       oscillator.start(start + offset); oscillator.stop(start + offset + 0.18);
     });
+    return true;
   }
 
+  /**
+   * Uma única aba toca. Uma aba com áudio bloqueado NÃO segura a reivindicação:
+   * quem pode tocar assume e as demais seguem em silêncio.
+   */
   function claimAndPlaySound(id) {
     if (!soundEnabled) return;
-    const claim = { id, at: Date.now(), tab: TAB_ID };
-    try {
-      const raw = window.localStorage?.getItem(CLAIM_SOUND);
-      const previous = raw ? JSON.parse(raw) : null;
-      if (previous && Number(previous.id) === id && Date.now() - Number(previous.at || 0) < 3000) return;
-      window.localStorage?.setItem(CLAIM_SOUND, JSON.stringify(claim));
-    } catch { /* sem armazenamento: toca localmente mesmo assim */ }
-    if (typeof setTimeout !== 'function') { playTone(); return; }
-    // Confirmação entre abas: só a aba que detém a marca toca o alerta.
-    setTimeout(() => {
+    const context = ensureAudio();
+    if (!context) { refreshAudioState(); return; }
+    const resumed = context.resume?.();
+    const ready = () => {
+      refreshAudioState();
+      if (soundState !== 'ready') return;   // outra aba capaz pode tocar
+      if (String(context.state || '') === 'suspended') return;
+      const claim = { id, at: Date.now(), tab: TAB_ID };
       try {
         const raw = window.localStorage?.getItem(CLAIM_SOUND);
-        const current = raw ? JSON.parse(raw) : null;
-        if (current && current.tab !== TAB_ID && Number(current.id) === id) return;
-      } catch { /* segue e toca */ }
-      if (soundEnabled) playTone();
-    }, 80);
+        const previous = raw ? JSON.parse(raw) : null;
+        if (previous && Number(previous.id) === id && Date.now() - Number(previous.at || 0) < 3000) return;
+        window.localStorage?.setItem(CLAIM_SOUND, JSON.stringify(claim));
+      } catch { /* sem armazenamento: toca localmente mesmo assim */ }
+      if (typeof setTimeout !== 'function') { playTone(); return; }
+      // Confirmação entre abas: só a aba que detém a marca toca o alerta.
+      setTimeout(() => {
+        try {
+          const raw = window.localStorage?.getItem(CLAIM_SOUND);
+          const current = raw ? JSON.parse(raw) : null;
+          if (current && current.tab !== TAB_ID && Number(current.id) === id) return;
+        } catch { /* segue e toca */ }
+        if (soundEnabled) playTone();
+      }, 80);
+    };
+    if (resumed && typeof resumed.then === 'function') {
+      resumed.then(ready).catch(() => { refreshAudioState(); });
+      return;
+    }
+    ready();
   }
 
   // ── áudio e fila: renderização ───────────────────────────────────────────
@@ -614,32 +812,75 @@ window.RoomTicketsMonitor = (() => {
     startAckTimer();
   }
 
+  /**
+   * Onde o banner de alerta deve viver. Um <dialog> aberto cria a camada
+   * superior do navegador: apenas aumentar o z-index não colocaria o alerta
+   * acima dele. Com o diálogo aberto, o banner é movido para dentro dele.
+   */
+  function alertHost() {
+    if (typeof document === 'undefined') return null;
+    let open = null;
+    const dialogs = document.querySelectorAll?.('dialog[open]');
+    if (dialogs) for (const dialog of dialogs) open = dialog;
+    return open || document.body;
+  }
+
+  /** Rehospeda o alerta quando um diálogo abre ou fecha (camada superior). */
+  function syncAlertHost() {
+    if (!banner) return;
+    const host = alertHost();
+    if (host && banner.parentElement !== host) renderBanner();
+  }
+
+  function watchAlertHost() {
+    if (bannerObserver || typeof MutationObserver !== 'function' || typeof document === 'undefined') return;
+    if (!document.body) return;
+    // Observa abertura/fechamento de diálogos em qualquer módulo do GCC.
+    bannerObserver = new MutationObserver(() => syncAlertHost());
+    bannerObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open'] });
+  }
+
   function renderBanner() {
     if (!canUseDom()) return;
     const tvActive = Boolean(window.RoomTicketsTV?.isActive?.());
     const alert = tvActive ? null : currentAlert();
-    if (!alert) { banner?.remove(); banner = null; return; }
+    if (!alert) { banner?.remove(); banner = null; bannerHost = null; return; }
     const ticket = alert.ticket;
     const types = (ticket.types || []).map(key => TYPES[key] || key).join(', ');
     const seconds = Math.max(0, Math.ceil((alert.until - Date.now()) / 1000));
+    const audio = audioStatus();
+    const handler = ticket.work?.handlerName || ticket.assignee?.name || '';
     const html = '<span class="rt-monitor-alert-label">NOVO CHAMADO</span>' +
       '<strong>' + esc(ticket.room) + '</strong>' +
       (types ? '<span class="rt-monitor-alert-types">' + esc(types) + '</span>' : '') +
       '<small>#' + esc(ticket.id) + (ticket.reference ? ' · ' + esc(ticket.reference) : '') + '</small>' +
+      (handler ? '<span class="rt-monitor-alert-owner">Responsável: ' + esc(handler) + '</span>' : '') +
       '<span class="rt-monitor-alert-count">Some em <b data-monitor-alert-count>' + seconds + '</b></span>' +
-      '<span class="rt-monitor-alert-sound">' + (soundEnabled ? 'Som ativado' : 'Som desativado') + '</span>' +
+      '<span class="rt-monitor-alert-sound">' + esc(audio.label) + '</span>' +
       '<span class="rt-monitor-alert-actions">' +
+      '<button type="button" data-monitor-action="assume" data-ticket-id="' + esc(ticket.id) + '">Assumir chamado</button>' +
       '<button type="button" data-monitor-action="accept" data-ticket-id="' + esc(ticket.id) + '">Aceitar</button>' +
       '<button type="button" data-monitor-action="dismiss" data-ticket-id="' + esc(ticket.id) + '">Dispensar</button>' +
-      '<button type="button" data-monitor-action="sound">' + (soundEnabled ? 'Desativar som' : 'Ativar som') + '</button>' +
+      '<button type="button" data-monitor-action="sound">' + (soundEnabled ? 'Silenciar' : 'Ativar som') + '</button>' +
+      '<button type="button" data-monitor-action="test-sound">Testar som</button>' +
       '</span>';
+    const host = alertHost();
     if (!banner) {
       banner = document.createElement('aside');
       banner.className = 'rt-monitor-alert';
       banner.setAttribute('role', 'alert');
       banner.addEventListener('click', onBannerClick);
-      document.body.appendChild(banner);
     }
+    // Mantém o alerta na camada superior correta (dialogo aberto ou corpo).
+    if (host && banner.parentElement !== host) {
+      // Dentro do diálogo ele entra no topo: um scroll longo não esconde o alerta.
+      if (host === document.body || !host.firstChild) host.appendChild(banner);
+      else host.insertBefore(banner, host.firstChild);
+    }
+    bannerHost = host;
+    watchAlertHost();
+    // Dentro de um <dialog> o alerta precisa ser bloco: fixed seria recortado.
+    banner.classList.toggle('is-in-dialog', Boolean(host) && host !== document.body);
     banner.innerHTML = html;
   }
 
@@ -647,8 +888,15 @@ window.RoomTicketsMonitor = (() => {
     const button = event.target.closest?.('button');
     if (!button) return;
     const id = Number(button.dataset.ticketId);
-    if (button.dataset.monitorAction === 'sound') { setSoundEnabled(!soundEnabled); return; }
+    if (button.dataset.monitorAction === 'sound') { setSoundEnabled(!soundEnabled); renderBanner(); return; }
+    if (button.dataset.monitorAction === 'test-sound') { await testSound(); renderBanner(); return; }
     if (button.dataset.monitorAction === 'dismiss') { dismiss(id); return; }
+    if (button.dataset.monitorAction === 'assume') {
+      const alert = queue.find(item => item.id === id);
+      if (!alert) return;
+      emitDocument('roomtickets:assume-request', { ticket: alert.ticket, source: 'alert' });
+      return;
+    }
     if (button.dataset.monitorAction === 'accept') {
       const alert = queue.find(item => item.id === id);
       if (!alert) return;
@@ -660,12 +908,13 @@ window.RoomTicketsMonitor = (() => {
   function renderWidget() {
     if (!canUseDom()) return;
     const view = snapshot();
+    const audio = view.sound;
     const html = '<span class="rt-monitor-widget-state is-' + esc(view.state) + '" aria-hidden="true"></span>' +
       '<span class="rt-monitor-widget-label">' + esc(view.label) + '</span>' +
       '<button type="button" data-monitor-action="toggle-monitor">' +
       (monitorEnabled ? 'Pausar monitoramento' : 'Retomar monitoramento') + '</button>' +
-      '<button type="button" data-monitor-action="toggle-sound">' +
-      (soundEnabled ? 'Som ativo' : 'Som inativo') + '</button>';
+      '<button type="button" data-monitor-action="toggle-sound" data-sound-state="' + esc(audio.state) + '">' +
+      esc(audio.label) + '</button>';
     if (!widget) {
       widget = document.createElement('aside');
       widget.className = 'rt-monitor-widget';
@@ -681,11 +930,17 @@ window.RoomTicketsMonitor = (() => {
     const button = event.target.closest?.('button');
     if (!button) return;
     if (button.dataset.monitorAction === 'toggle-monitor') setMonitorEnabled(!monitorEnabled);
-    if (button.dataset.monitorAction === 'toggle-sound') setSoundEnabled(!soundEnabled);
+    // "Som bloqueado" e "indisponível" exigem uma ação do usuário, não um toggle.
+    if (button.dataset.monitorAction === 'toggle-sound') {
+      if (!soundEnabled || soundState === 'blocked' || soundState === 'unavailable') enableSound();
+      else setSoundEnabled(false);
+    }
   }
 
   function removeOverlays() {
-    banner?.remove(); banner = null;
+    bannerObserver?.disconnect();
+    bannerObserver = null;
+    banner?.remove(); banner = null; bannerHost = null;
     widget?.remove(); widget = null;
   }
 
@@ -716,9 +971,16 @@ window.RoomTicketsMonitor = (() => {
     isSoundEnabled: () => soundEnabled,
     setMonitorEnabled,
     setSoundEnabled,
-    testSound: () => { ensureAudio(); playTone(); },
+    enableSound,
+    audioStatus,
+    testSound,
+    assume,
+    move,
+    history,
+    technicians,
+    invalidate,
     removeOverlays,
-    dismissBanner: () => { banner?.remove(); banner = null; },
+    dismissBanner: () => { banner?.remove(); banner = null; bannerHost = null; renderBanner(); },
     syncUi: () => emit('alert'),
     queryFor: () => DEFAULT_QUERY,
     parseOpenedAt,

@@ -6,6 +6,13 @@ Escopo: implementação do painel de chamados + modo TV com alertas em qualquer 
 aceite compartilhado entre dispositivos, encerramento limpo de sessão, refresh real
 de ativos e testes/documentação. Sem merge e sem deploy nesta etapa.
 
+> Etapa seguinte (Kanban, responsável, sincronização com o GLPI, áudio verificado
+> e atualização automática com cache) documentada em
+> `Docs/KANBAN-CHAMADOS-SALAS.md`. O que mudou em relação a este documento:
+> o monitor passou a expor `assume/move/history/technicians/invalidate`,
+> `audioStatus()` com estado real, e a hospedar o alerta dentro de diálogos
+> abertos (camada superior).
+
 ## 1. Arquitetura
 
 Um único módulo é a fonte da verdade da consulta de chamados:
@@ -117,11 +124,13 @@ chamado é persistido no navegador — só duas preferências booleanas
 | Suíte | Comando | Resultado |
 | --- | --- | --- |
 | Agregação/paginação | `php Backend/tests/test_room_tickets.php` | 63 verificações |
-| Endpoint + aceite + monitor | `php Backend/tests/test_room_tickets_endpoint.php` | 58 checks |
+| Kanban, responsável, histórico | `php Backend/tests/test_room_tickets_kanban.php` | 88 verificações |
+| Endpoint + aceite + assumir + mover | `php Backend/tests/test_room_tickets_endpoint.php` | 210 checks |
 | Aceite compartilhado (loja) | `php Backend/tests/test_room_ticket_acknowledgements.php` | 16 verificações |
-| UI simulada (monitor + relatório) | `node --test Frontend/test-room-tickets.cjs` | 12 testes |
+| UI simulada (monitor + relatório + Kanban) | `node --test Frontend/test-room-tickets.cjs` | 26 testes |
 | Navegador relatório (2 viewports) | `node Frontend/test-room-tickets-browser.cjs` | 24 checks × 2 |
-| Navegador modo TV (2 viewports) | `node Frontend/test-room-tickets-tv-browser.cjs` | 16 checks × 2 |
+| Navegador Kanban e formulários (2 viewports) | `node Frontend/test-room-tickets-kanban-browser.cjs` | 47 checks × 2 |
+| Navegador modo TV (2 viewports) | `node Frontend/test-room-tickets-tv-browser.cjs` | 19 checks × 2 |
 | Regressão de inventário | `node --test Frontend/test-inventory-sync.cjs` | 5 testes |
 | Sintaxe | `php -l` (arquivos alterados) e `node --check` (JS alterados) | OK |
 
@@ -138,4 +147,5 @@ testes PHP de chamados, a suíte de UI e os dois testes de navegador.
 ## 10. Permissões
 
 - `GET /api/tickets` (lista) e `GET /api/tickets/salas/aceites` → `chamados view`
-- `POST /api/tickets/salas/{id}/aceite` → `chamados edit`
+- `GET /api/tickets/salas/responsaveis` e `GET /api/tickets/salas/{id}/historico` → `chamados view`
+- `POST /api/tickets/salas/{id}/aceite`, `/{id}/assumir` e `/{id}/mover` → `chamados edit`

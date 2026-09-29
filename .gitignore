@@ -42,3 +42,4 @@ temp/
 /Backend/data/sync_report.json
 /Backend/data/inventario_*.json
 /Backend/data/room-ticket-acknowledgements.json
+/Backend/data/room-ticket-work.json

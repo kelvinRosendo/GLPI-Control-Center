@@ -420,6 +420,9 @@ function authorizeRequest(string $path, string $method, array $config): void
     '#^/api/projetors(?:/\d+/maintenance)?$#' => ['projetores', $method === 'GET' ? 'view' : 'maintenance'],
     '#^/api/projetors#' => ['projetores', $method === 'GET' ? 'view' : 'edit'],
     '#^/api/tickets/salas/\d+/aceite$#' => ['chamados', 'edit'],
+    '#^/api/tickets/salas/\d+/(?:assumir|mover)$#' => ['chamados', 'edit'],
+    '#^/api/tickets/salas/\d+/historico$#' => ['chamados', 'view'],
+    '#^/api/tickets/salas/responsaveis$#' => ['chamados', 'view'],
     '#^/api/tickets/salas/aceites$#' => ['chamados', 'view'],
     '#^/api/tickets#' => ['chamados', $method === 'GET' ? 'view' : 'create'],
     '#^/api/chat$#' => ['assistente', 'chat'],
@@ -530,6 +533,9 @@ try {
     '/api/tickets/salas/aceites' => $method === 'GET'
       ? RoomTicketsEndpoint::acknowledgements()
       : Responde::erro('Método não permitido.', 405),
+    '/api/tickets/salas/responsaveis' => $method === 'GET'
+      ? RoomTicketsEndpoint::responsaveis($config)
+      : Responde::erro('Método não permitido.', 405),
     '/api/tickets' => match ($_SERVER['REQUEST_METHOD'] ?? 'GET') {
       'POST' => TicketsEndpoint::create($config),
       default => TicketsEndpoint::listAll($config),
@@ -542,6 +548,28 @@ try {
         RoomTicketsEndpoint::accept((int) $m[1], $config);
         return;
       }
+      if (preg_match('#^/api/tickets/salas/(\d+)/assumir$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        RoomTicketsEndpoint::assume((int) $m[1], $config);
+        return;
+      }
+      if (preg_match('#^/api/tickets/salas/(\d+)/mover$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        RoomTicketsEndpoint::move((int) $m[1], $config);
+        return;
+      }
+      if (preg_match('#^/api/tickets/salas/(\d+)/historico$#', $path, $m)) {
+        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'GET') {
+          Responde::erro('Método não permitido.', 405);
+        }
+        RoomTicketsEndpoint::historico((int) $m[1]);
+        return;
+      }
+
 
       if ($path === '/api/tickets/workflow') {
         if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {

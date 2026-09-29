@@ -40,6 +40,14 @@ window.RoomTicketsTV = (() => {
     return [...(data?.items || [])].sort((a, b) => String(b.openedAt).localeCompare(String(a.openedAt)) || b.id - a.id)[0] || null;
   }
 
+  /** Responsável do chamado: nome informado no GCC ou técnico do GLPI. */
+  function ownerLabel(ticket) {
+    const work = ticket?.work || null;
+    if (work?.handlerName) return `${work.handlerName} (${work.handlerSource === 'glpi_user' ? 'GLPI' : 'informado'})`;
+    if (ticket?.assignee?.name) return `${ticket.assignee.name} (GLPI)`;
+    return 'Responsável não definido';
+  }
+
   function monitorApi() { return window.RoomTicketsMonitor; }
 
   function assetIndicators() {
@@ -125,8 +133,9 @@ window.RoomTicketsTV = (() => {
           <div class="rt-tv-ticket-head"><span>ÚLTIMO CHAMADO RECEBIDO</span><strong>#${ticket.id}${ticket.reference ? ` · ${esc(ticket.reference)}` : ''}</strong></div>
           <h2>${esc(ticket.room)}</h2><p class="rt-tv-device">${esc((ticket.types || []).map(typeKey => TYPES[typeKey] || typeKey).join(', '))}</p>
           <h3>${esc(ticket.title || 'Sem título')}</h3><p>${esc(ticket.description || 'Sem descrição.')}</p>
-          <div class="rt-tv-ticket-meta"><span>Abertura<strong>${formatDate(ticket.openedAt, true)}</strong></span><span>Status<strong>${accepted ? 'Alerta aceito' : 'Aguardando aceite'}</strong></span></div>
-          <button type="button" data-tv-action="accept" data-ticket-id="${ticket.id}" ${accepted ? 'disabled' : ''}>${accepted ? 'Aceito' : 'Aceitar alerta'}</button>
+          <div class="rt-tv-ticket-meta"><span>Abertura<strong>${formatDate(ticket.openedAt, true)}</strong></span><span>Status<strong>${accepted ? 'Alerta aceito' : 'Aguardando aceite'}</strong></span><span>Responsável<strong>${esc(ownerLabel(ticket))}</strong></span></div>
+          <div class="rt-tv-card-actions"><button type="button" data-tv-action="assume" data-ticket-id="${ticket.id}">Assumir chamado</button>
+          <button type="button" data-tv-action="accept" data-ticket-id="${ticket.id}" ${accepted ? 'disabled' : ''}>${accepted ? 'Aceito' : 'Aceitar alerta'}</button></div>
         </article>
         <aside class="rt-tv-stats">
           <article><span>Chamados abertos</span><strong>${summary.open || 0}</strong><small>Atualização a cada minuto</small></article>
@@ -142,12 +151,14 @@ window.RoomTicketsTV = (() => {
     if (!alertInfo?.ticket || Date.now() >= alertInfo.until) return '';
     const ticket = alertInfo.ticket;
     const types = (ticket.types || []).map(key => TYPES[key] || key).join(', ');
-    const soundEnabled = monitorApi()?.isSoundEnabled?.() ?? false;
+    const audio = monitorApi()?.audioStatus?.() || { label: 'Som desativado' };
     return `<section class="rt-tv-alert" role="alert">
       <span class="rt-tv-alert-label">NOVO CHAMADO</span><strong>${esc(ticket.room)}</strong><span>${esc(types)}</span>
       <small>#${esc(ticket.id)}${ticket.reference ? ` · ${esc(ticket.reference)}` : ''} · ${formatDate(ticket.openedAt, true)}</small>
-      <span class="rt-tv-alert-sound">${soundEnabled ? 'Som ativado' : 'Som desativado'}</span>
+      <span class="rt-tv-alert-owner">${esc(ownerLabel(ticket))}</span>
+      <span class="rt-tv-alert-sound">${esc(audio.label)}</span>
       <span class="rt-tv-alert-count">Some em <b data-tv-alert-count>${Math.max(0, Math.ceil((alertInfo.until - Date.now()) / 1000))}</b></span>
+      <button type="button" data-tv-action="assume" data-ticket-id="${esc(ticket.id)}">Assumir chamado</button>
       <button type="button" data-tv-action="accept" data-ticket-id="${esc(ticket.id)}">Aceitar</button>
     </section>`;
   }
@@ -166,7 +177,7 @@ window.RoomTicketsTV = (() => {
       ${connectionStatus()}</header>
       ${alertBanner()}${panel === 'assets' ? assetPanel() : callPanel()}
       <footer class="rt-tv-footer"><div><b data-tv-countdown>${String(rotationRemaining).padStart(2, '0')}</b><span>${alertInfo ? 'Rotação em espera durante o alerta' : paused ? 'Rotação pausada' : 'Próxima troca'}<small>Painel ${panel === 'assets' ? '01 · Ativos' : '02 · Chamados'}</small></span></div>
-      <div class="rt-tv-controls"><button type="button" data-tv-action="pause">${paused ? 'Retomar rotação' : 'Pausar rotação'}</button><button type="button" data-tv-action="switch">Trocar painel</button><button type="button" data-tv-action="sound">${monitorApi()?.isSoundEnabled?.() ? 'Desativar som' : 'Ativar som'}</button><button type="button" data-tv-action="close">Sair do modo TV</button></div></footer>
+      <div class="rt-tv-controls"><button type="button" data-tv-action="pause">${paused ? 'Retomar rotação' : 'Pausar rotação'}</button><button type="button" data-tv-action="switch">Trocar painel</button><button type="button" data-tv-action="sound">${monitorApi()?.isSoundEnabled?.() ? 'Silenciar' : 'Ativar som'}</button><button type="button" data-tv-action="close">Sair do modo TV</button></div></footer>
     </div>`;
   }
 
@@ -235,8 +246,21 @@ window.RoomTicketsTV = (() => {
       case 'pause': paused = !paused; render(); break;
       case 'sound': {
         const api = monitorApi();
-        api?.setSoundEnabled?.(!api?.isSoundEnabled?.());
+        const audio = api?.audioStatus?.() || { state: 'off' };
+        // Som bloqueado ou indisponível precisa de uma ação explícita do usuário.
+        if (audio.state === 'off' || audio.state === 'blocked' || audio.state === 'unavailable') api?.enableSound?.();
+        else api?.setSoundEnabled?.(false);
         render();
+        break;
+      }
+      case 'assume': {
+        // O formulário de atendimento vive fora do overlay e sobrevive à rotação.
+        const alertTicket = alertInfo?.ticket && Number(alertInfo.ticket.id) === Number(button.dataset.ticketId) ? alertInfo.ticket : null;
+        const ticket = alertTicket || [latest()].find(item => item && Number(item.id) === Number(button.dataset.ticketId));
+        if (!ticket) return;
+        if (typeof document !== 'undefined' && typeof CustomEvent === 'function') {
+          document.dispatchEvent(new CustomEvent('roomtickets:assume-request', { detail: { ticket, source: 'tv' } }));
+        }
         break;
       }
       case 'accept': {

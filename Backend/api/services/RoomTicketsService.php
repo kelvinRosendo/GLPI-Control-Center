@@ -17,6 +17,28 @@ final class RoomTicketsService
         4 => 'pendente', 5 => 'resolvido', 6 => 'fechado',
     ];
 
+    /**
+     * Colunas do Kanban. "Em andamento" recebe em atendimento, planejado e
+     * pendente; pendente carrega a marcacao "Aguardando" no cartao.
+     */
+    public const KANBAN_COLUMNS = [
+        'abertos' => ['label' => 'Abertos', 'statuses' => [1]],
+        'andamento' => ['label' => 'Em andamento', 'statuses' => [2, 3, 4]],
+        'concluidos' => ['label' => 'Concluídos', 'statuses' => [5, 6]],
+    ];
+
+    /** Movimentacoes aceitas pelo GCC, a partir do status atual do GLPI. */
+    public const TRANSITIONS = [
+        'assumir' => ['from' => [1, 3, 4], 'to' => 2],
+        'pendente' => ['from' => [2, 3], 'to' => 4],
+        'retomar' => ['from' => [4], 'to' => 2],
+        'concluir' => ['from' => [1, 2, 3, 4], 'to' => 5],
+        'reabrir' => ['from' => [5, 6], 'to' => 1],
+    ];
+
+    public const DEFAULT_KANBAN_LIMIT = 25;
+    public const MAX_KANBAN_LIMIT = 100;
+
     public static function filters(array $query, ?DateTimeImmutable $now = null): array
     {
         $tz = new DateTimeZone('America/Sao_Paulo');
@@ -65,6 +87,12 @@ final class RoomTicketsService
             || !ctype_digit($perPage) || (int) $perPage < 1 || (int) $perPage > 100) {
             throw new InvalidArgumentException('Paginação inválida.');
         }
+        // Limite explicito por coluna do Kanban; a contagem nunca depende dele.
+        $kanbanLimit = $read('kanban_limit', (string) self::DEFAULT_KANBAN_LIMIT);
+        if (!ctype_digit($kanbanLimit) || (int) $kanbanLimit < 1
+            || (int) $kanbanLimit > self::MAX_KANBAN_LIMIT) {
+            throw new InvalidArgumentException('Limite do Kanban inválido.');
+        }
         return [
             'period' => $period, 'from' => $start->format('Y-m-d'),
             'to' => $end->modify('-1 day')->format('Y-m-d'),
@@ -72,6 +100,7 @@ final class RoomTicketsService
             'timezone' => $tz->getName(), 'room' => $read('room'), 'type' => $type,
             'status' => $status, 'asset' => $read('asset'), 'q' => $read('q'),
             'page' => (int) $page, 'per_page' => (int) $perPage,
+            'kanban_limit' => (int) $kanbanLimit,
         ];
     }
 
@@ -153,6 +182,109 @@ final class RoomTicketsService
     public static function isAlertEligible(array $ticket): bool
     {
         return in_array($ticket['status'] ?? '', ['aberto', 'em_andamento', 'pendente'], true);
+    }
+
+    /**
+     * Tecnico atribuido no GLPI. O nome do campo difere entre versoes
+     * (`users_id_recipient` no GLPI 10, `users_id_assign` em versoes antigas):
+     * a leitura aceita ambos e nunca deduz o responsavel por semelhanca de nome.
+     */
+    public static function assignee(array $ticket): array
+    {
+        foreach (['users_id_recipient', 'users_id_assign'] as $field) {
+            if (!array_key_exists($field, $ticket)) continue;
+            $userId = is_numeric($ticket[$field]) ? (int) $ticket[$field] : 0;
+            $name = self::text($ticket[$field . '_name'] ?? '');
+            if ($userId > 0 || $name !== '') return ['userId' => $userId, 'name' => $name];
+        }
+        return ['userId' => 0, 'name' => ''];
+    }
+
+    /**
+     * Campo usado para atribuir o tecnico. Descoberto no proprio registro lido
+     * do GLPI, com sobrescrita por GCC_ROOM_TICKET_ASSIGN_FIELD para
+     * instalacoes que usem outro nome de campo.
+     */
+    public static function assigneeField(array $row): string
+    {
+        $override = trim((string) getenv('GCC_ROOM_TICKET_ASSIGN_FIELD'));
+        if ($override !== '' && preg_match('/^[a-z_]{3,40}$/', $override) === 1) return $override;
+        foreach (['users_id_recipient', 'users_id_assign'] as $field) {
+            if (array_key_exists($field, $row)) return $field;
+        }
+        return 'users_id_recipient';
+    }
+
+    public static function kanbanColumn(int $statusId): ?string
+    {
+        foreach (self::KANBAN_COLUMNS as $key => $column) {
+            if (in_array($statusId, $column['statuses'], true)) return $key;
+        }
+        return null;
+    }
+
+    /** Coluna de destino de uma movimentacao a partir do status atual do GLPI. */
+    public static function transition(string $action, int $currentStatusId): ?int
+    {
+        $rule = self::TRANSITIONS[$action] ?? null;
+        if ($rule === null || !in_array($currentStatusId, $rule['from'], true)) return null;
+        return (int) $rule['to'];
+    }
+
+    /** Cartao compacto do Kanban: numero, sala, resumo, equipamento, abertura, status e responsavel. */
+    public static function kanbanCard(array $ticket): array
+    {
+        $statusId = (int) ($ticket['statusId'] ?? 0);
+        return [
+            'id' => (int) $ticket['id'],
+            'reference' => (string) ($ticket['reference'] ?? ''),
+            'title' => (string) ($ticket['title'] ?? ''),
+            'room' => (string) ($ticket['room'] ?? ''),
+            'roomKey' => (string) ($ticket['roomKey'] ?? ''),
+            'types' => array_values($ticket['types'] ?? []),
+            'openedAt' => (string) ($ticket['openedAt'] ?? ''),
+            'status' => (string) ($ticket['status'] ?? ''),
+            'statusId' => $statusId,
+            'column' => self::kanbanColumn($statusId),
+            'waiting' => $statusId === 4,
+            'urgency' => (int) ($ticket['urgency'] ?? 0),
+            'assignee' => is_array($ticket['assignee'] ?? null) ? $ticket['assignee'] : ['userId' => 0, 'name' => ''],
+            'review' => (bool) ($ticket['review'] ?? false),
+        ];
+    }
+
+    /**
+     * Colunas do Kanban montadas sobre o conjunto filtrado INTEIRO: a contagem
+     * nao depende da pagina da tabela, do limite por coluna nem da lista de 30
+     * chamados recentes do monitor.
+     */
+    public static function kanban(array $selected, int $limit): array
+    {
+        $limit = max(1, min(self::MAX_KANBAN_LIMIT, $limit));
+        $buckets = [];
+        foreach (array_keys(self::KANBAN_COLUMNS) as $key) $buckets[$key] = [];
+        $unmapped = 0;
+        foreach ($selected as $ticket) {
+            $column = self::kanbanColumn((int) ($ticket['statusId'] ?? 0));
+            if ($column === null) { $unmapped++; continue; }
+            $buckets[$column][] = $ticket;
+        }
+        $columns = [];
+        foreach (self::KANBAN_COLUMNS as $key => $meta) {
+            $rows = $buckets[$key];
+            // Mais antigo primeiro: o que espera ha mais tempo fica no topo.
+            usort($rows, static fn($a, $b) => strcmp($a['openedAt'], $b['openedAt']) ?: ($a['id'] <=> $b['id']));
+            $columns[$key] = [
+                'key' => $key, 'label' => $meta['label'], 'statuses' => $meta['statuses'],
+                'count' => count($rows), 'shown' => min($limit, count($rows)),
+                'hasMore' => count($rows) > $limit,
+                'items' => array_map([self::class, 'kanbanCard'], array_slice($rows, 0, $limit)),
+            ];
+        }
+        return [
+            'limit' => $limit, 'columns' => $columns,
+            'total' => count($selected), 'unmapped' => $unmapped,
+        ];
     }
 
     /**
@@ -282,7 +414,8 @@ final class RoomTicketsService
             $items[$id] = [
                 'id' => $id, 'title' => $title, 'description' => $description,
                 'openedAt' => $dateString, 'status' => self::STATUSES[(int) ($ticket['status'] ?? 0)] ?? 'desconhecido',
-                'urgency' => (int) ($ticket['urgency'] ?? 0), 'category' => $category,
+                'statusId' => (int) ($ticket['status'] ?? 0), 'urgency' => (int) ($ticket['urgency'] ?? 0), 'category' => $category,
+                'assignee' => self::assignee($ticket),
                 'roomKey' => $roomKey, 'room' => $room ?? 'Sala não identificada',
                 'roomSource' => $roomSource, 'types' => array_values(array_unique($types)),
                 'typeSource' => $typeSource, 'assets' => $ticketAssets,
@@ -354,6 +487,8 @@ final class RoomTicketsService
         return [
             'items' => array_slice($selected, ($page - 1) * $filters['per_page'], $filters['per_page']),
             'latest' => $latest,
+            // Kanban calculado sobre $selected completo, antes de qualquer paginacao.
+            'kanban' => self::kanban($selected, (int) ($filters['kanban_limit'] ?? self::DEFAULT_KANBAN_LIMIT)),
             'summary' => $summary, 'rankings' => ['rooms' => $rooms, 'types' => $types, 'assets' => $assets],
             'options' => ['rooms' => array_map(static fn($key, $label) => ['key' => (string) $key, 'label' => $label], array_keys($roomOptions), array_values($roomOptions)), 'types' => self::TYPES],
             'pagination' => ['page' => $page, 'perPage' => $filters['per_page'], 'pages' => $pages, 'total' => count($selected)],

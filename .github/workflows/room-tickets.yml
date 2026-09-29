@@ -22,9 +22,12 @@ on:
       - 'Backend/api/endpoints.php'
       - 'Backend/tests/test_room_tickets.php'
       - 'Backend/tests/test_room_tickets_endpoint.php'
+      - 'Backend/tests/test_room_tickets_kanban.php'
+      - 'Backend/tests/accept_subprocess.php'
       - 'Backend/tests/test_room_ticket_acknowledgements.php'
       - 'Frontend/javascript/room-tickets.js'
       - 'Frontend/javascript/room-tickets-monitor.js'
+      - 'Frontend/javascript/room-tickets-kanban.js'
       - 'Frontend/javascript/room-tickets-tv.js'
       - 'Frontend/javascript/dashboard.js'
       - 'Frontend/javascript/app.js'
@@ -35,6 +38,7 @@ on:
       - 'Frontend/index.html'
       - 'Frontend/test-room-tickets.cjs'
       - 'Frontend/test-room-tickets-browser.cjs'
+      - 'Frontend/test-room-tickets-kanban-browser.cjs'
       - 'Frontend/test-room-tickets-tv-browser.cjs'
       - '.github/workflows/room-tickets.yml'
 permissions:
@@ -64,12 +68,14 @@ jobs:
           php -l Backend/api/services/RoomTicketsService.php
           php -l Backend/api/services/RoomTicketsReader.php
           php -l Backend/api/services/RoomTicketAcknowledgementStore.php
+          php -l Backend/api/services/RoomTicketWorkStore.php
           php -l Backend/api/client.php
           php -l Backend/api/endpoints.php
           php -l Backend/scripts/sync-cron.php
       - name: Room aggregation and pagination tests (no network or credentials)
         run: |
           php Backend/tests/test_room_tickets.php
+          php Backend/tests/test_room_tickets_kanban.php
           php Backend/tests/test_room_tickets_endpoint.php
           php Backend/tests/test_room_ticket_acknowledgements.php
       - name: Inventory regression tests (isolated data, no network)
@@ -80,6 +86,7 @@ jobs:
         run: |
           node --check Frontend/javascript/room-tickets.js
           node --check Frontend/javascript/room-tickets-monitor.js
+          node --check Frontend/javascript/room-tickets-kanban.js
           node --check Frontend/javascript/room-tickets-tv.js
           node --check Frontend/javascript/dashboard.js
           node --check Frontend/javascript/app.js
@@ -94,4 +101,5 @@ jobs:
       - name: Browser smoke test (isolated data, desktop and narrow screen)
         run: |
           node Frontend/test-room-tickets-browser.cjs
+          node Frontend/test-room-tickets-kanban-browser.cjs
           node Frontend/test-room-tickets-tv-browser.cjs
