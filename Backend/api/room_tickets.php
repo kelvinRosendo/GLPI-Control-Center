@@ -4,6 +4,7 @@ require_once __DIR__ . '/services/RoomTicketsService.php';
 require_once __DIR__ . '/services/RoomTicketsReader.php';
 require_once __DIR__ . '/services/RoomTicketAcknowledgementStore.php';
 require_once __DIR__ . '/services/RoomTicketWorkStore.php';
+require_once __DIR__ . '/services/RoomTicketsGlpi.php';
 
 final class RoomTicketsEndpoint
 {
@@ -61,12 +62,17 @@ final class RoomTicketsEndpoint
             $cache = AssetService::fromCache();
             $assets = is_array($cache['items'] ?? null) ? $cache['items']
                 : (is_array($cache) && $cache === array_values($cache) ? $cache : []);
-            $normalized = RoomTicketsService::normalize($tickets, $locations, $categories, $links, $assets);
+            // Responsáveis vêm dos ATORES do GLPI (uma leitura da relação), não
+            // de `users_id_recipient`, que é o autor do chamado.
+            $actors = RoomTicketsGlpi::readActorIndex($client, $session);
+            $normalized = RoomTicketsService::normalize($tickets, $locations, $categories, $links, $assets, $actors['index']);
             $result = RoomTicketsService::aggregate($normalized['items'], $filters);
             $warnings = [];
             if ($restrictedLookups) $warnings[] = 'O GLPI restringe os cadastros de locais ou categorias. Os nomes foram consultados nos próprios chamados.';
             if (!$assets && $tickets) $warnings[] = 'Nomes e patrimônios de ativos indisponíveis no cache. Os vínculos são exibidos por tipo e ID.';
             if ($normalized['invalidDates']) $warnings[] = 'Há chamados com data inválida que não puderam ser contados.';
+            if ($tickets && !$actors['available']) $warnings[] = 'Responsáveis do GLPI indisponíveis nesta consulta (' . $actors['reason'] . ') O responsável mostrado é o registrado no GCC.';
+            if ($actors['available'] && $actors['reason'] !== '') $warnings[] = $actors['reason'];
             $result = RoomTicketAcknowledgementStore::attach($result);
             $result = self::attachWork($result);
             $result['meta'] = [
@@ -76,6 +82,13 @@ final class RoomTicketsEndpoint
                 'scope' => 'Salas, laboratórios, biblioteca e auditório identificados no chamado; referências L- sem sala entram para revisão.',
                 'limitPerCollection' => 10000,
                 'restrictedLookups' => $restrictedLookups,
+                'glpiAssigneesAvailable' => (bool) $actors['available'],
+                'contract' => [
+                    'glpiMajor' => 10,
+                    'assigneeSource' => 'CommonITILActor type=ASSIGN (' . RoomTicketsGlpi::ACTORS_ITEMTYPE . ')',
+                    'solutionSource' => RoomTicketsGlpi::SOLUTION_ITEMTYPE,
+                    'realInstanceValidated' => false,
+                ],
             ];
             // Monitoring slice ignores report filters: one queue for every screen.
             $result['monitor'] = [
@@ -122,8 +135,8 @@ final class RoomTicketsEndpoint
         // A resposta só é enviada depois do withGlpiSession encerrar a sessão.
         try {
             $outcome = self::withGlpiSession($config, static function (GlpiClient $client, string $session) use ($ticketId, $actor): array {
-            $row = $client->getWithParams('/Ticket/' . $ticketId, $session, ['expand_dropdowns' => 'true']);
-            if (!is_array($row) || (int) ($row['id'] ?? 0) !== $ticketId) {
+            $row = RoomTicketsGlpi::readTicket($client, $session, $ticketId);
+            if ($row === []) {
                 return ['ok' => false, 'error' => 'Chamado não encontrado.', 'status' => 404];
             }
             $ticket = RoomTicketsService::fromGlpi($row);
@@ -142,7 +155,7 @@ final class RoomTicketsEndpoint
         } catch (RuntimeException $error) {
             $outcome = self::failure($error, 'Não foi possível verificar o chamado no GLPI. Tente novamente.', 502);
         } catch (Throwable $error) {
-            error_log('[room-tickets] Falha ao registrar aceite: ' . get_class($error));
+            self::logFailure('Falha ao registrar aceite', $error);
             $outcome = ['ok' => false, 'error' => 'Não foi possível registrar o aceite do alerta.', 'status' => 500];
         }
         self::answer($outcome);
@@ -229,26 +242,21 @@ final class RoomTicketsEndpoint
     }
 
     /**
-     * Exact technician match in GLPI. Never assigns by name similarity: a
-     * different or ambiguous name is recorded as "informado" only.
+     * Correspondência exata de um técnico do GLPI. Nunca atribui por
+     * semelhança de nome: um nome desconhecido, ambíguo ou fora da lista fica
+     * como "informado" e nenhum usuário é inventado.
      */
     private static function matchTechnician(GlpiClient $client, string $session, string $name): ?array
     {
         $wanted = self::matchKey($name);
         if ($wanted === '') return null;
-        $users = $client->getWithParams('/User', $session, [
-            'is_technician' => '1', 'range' => '0-199', 'expand_dropdowns' => 'false', 'sort' => 'name',
-        ]);
-        if (!is_array($users)) return null;
+        $users = RoomTicketsGlpi::optionalTechnicians($client, $session);
         $found = [];
         foreach ($users as $user) {
-            if (!is_array($user) || !isset($user['id'])) continue;
-            if (array_key_exists('is_technician', $user) && (int) $user['is_technician'] !== 1) continue;
-            $userName = RoomTicketsService::text($user['name'] ?? '');
-            if (self::matchKey($userName) !== $wanted) continue;
-            $found[(int) $user['id']] = $userName;
+            if (self::matchKey((string) $user['name']) !== $wanted) continue;
+            $found[(int) $user['id']] = (string) $user['name'];
         }
-        // Ambiguous name: two or more GLPI users with the same exact name.
+        // Nome ambíguo: dois ou mais usuários do GLPI com o mesmo nome exato.
         if (count($found) !== 1) return null;
         $id = (int) array_key_first($found);
         return ['id' => $id, 'name' => (string) $found[$id]];
@@ -267,50 +275,97 @@ final class RoomTicketsEndpoint
     }
 
     /**
-     * Applies a movement in GLPI and confirms the resulting status by re-reading
-     * the ticket. Every step is reported as it really happened: a partial write
-     * is never presented as a complete success.
+     * Aplica uma movimentação e confirma o resultado RELENDO o GLPI.
+     *
+     * Cada passo é persistido como aconteceu — inclusive quando falha. Um
+     * sucesso parcial nunca é reportado como sucesso completo, e a resposta diz
+     * exatamente o que foi aplicado e o que não foi.
+     *
+     * @return array{steps: array, confirmed: bool, partial: bool, applied: array}
      */
-    private static function applyMove(GlpiClient $client, string $session, int $ticketId, string $action, int $toStatus, array $plan): array
+    private static function applyMove(GlpiClient $client, string $session, int $ticketId,
+        string $action, int $toStatus, array $plan): array
     {
-        $input = ['status' => $toStatus];
-        $assignField = (string) ($plan['assignField'] ?? '');
-        $assignUserId = (int) ($plan['assignUserId'] ?? 0);
-        if ($assignField !== '' && $assignUserId > 0) $input[$assignField] = $assignUserId;
-        $solution = trim((string) ($plan['solution'] ?? ''));
-        if ($solution !== '') $input['resolution'] = $solution;
-
         $steps = [];
-        // Status (and assignment/resolution) in a single write.
-        $client->put('/Ticket/' . $ticketId, $session, ['input' => $input]);
-        $after = $client->getWithParams('/Ticket/' . $ticketId, $session, ['expand_dropdowns' => 'true']);
-        $observed = is_array($after) ? (int) ($after['status'] ?? 0) : 0;
-        $steps[] = ['step' => 'status', 'ok' => $observed === $toStatus,
-            'expected' => $toStatus, 'observed' => $observed];
-        if ($assignField !== '' && $assignUserId > 0) {
-            $assigned = is_array($after) ? (int) (RoomTicketsService::assignee($after)['userId'] ?? 0) : 0;
-            $steps[] = ['step' => 'atribuicao', 'ok' => $assigned === $assignUserId,
-                'expected' => $assignUserId, 'observed' => $assigned];
-        }
-        $confirmed = true;
-        foreach ($steps as $step) if (!$step['ok']) $confirmed = false;
+        $applied = [];
+        $solutionType = $plan['solutionType'] ?? null;
+        $solution = trim((string) ($plan['solution'] ?? ''));
 
-        // Solution follows the official ITIL mechanism of the ticket.
+        // ── Etapa 1: status ────────────────────────────────────────────────
+        // A gravação de status e a atribuição do técnico (quando pedida) vão na
+        // MESMA requisição: uma escrita por movimentação.
+        $input = ['status' => $toStatus];
+        if ($plan['assign'] ?? null) $input += $plan['assign'];
+        $client->put('/Ticket/' . $ticketId, $session, ['input' => $input]);
+        $applied['status'] = true;
+        $after = RoomTicketsGlpi::readTicket($client, $session, $ticketId);
+        $observedStatus = $after === [] ? 0 : RoomTicketsService::statusId($after);
+        $steps[] = ['step' => 'status', 'ok' => $observedStatus === $toStatus,
+            'expected' => $toStatus, 'observed' => $observedStatus,
+            'label' => 'Status no GLPI'];
+        $statusOk = $observedStatus === $toStatus;
+        if (!$statusOk) $applied['status'] = false;
+
+        // ── Etapa 2: atribuição do técnico pelos atores ───────────────────
+        if ($plan['assign'] ?? null) {
+            $expectedId = (int) ($plan['assignUserId'] ?? 0);
+            $actors = RoomTicketsGlpi::readActors($client, $session, $ticketId);
+            $assignee = RoomTicketsGlpi::assignee($actors, $plan['userNames'] ?? []);
+            $assignOk = $assignee['userId'] === $expectedId;
+            $steps[] = ['step' => 'atribuicao', 'ok' => $assignOk, 'expected' => $expectedId,
+                'observed' => $assignee['userId'], 'label' => 'Técnico responsável no GLPI'];
+            $applied['assign'] = $assignOk;
+        }
+
+        // ── Etapa 3: solução formal (ITILSolution) ────────────────────────
         if ($solution !== '') {
+            $content = '<p>' . htmlspecialchars($solution, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</p>';
             try {
-                $client->post('/ITILFollowup', $session, ['input' => [
-                    'itemtype' => 'Ticket', 'tickets_id' => $ticketId,
-                    'type_followup' => 3, 'content' => $solution,
-                ]]);
-                $steps[] = ['step' => 'solucao_glpi', 'ok' => true];
+                $client->post('/' . RoomTicketsGlpi::SOLUTION_ITEMTYPE, $session,
+                    ['input' => RoomTicketsGlpi::solutionInput($ticketId, $content, (int) ($solutionType['id'] ?? 0))]);
+                $applied['solution'] = true;
             } catch (Throwable $error) {
-                error_log('[room-tickets] Solução não registrada no histórico do GLPI: ' . get_class($error));
-                $steps[] = ['step' => 'solucao_glpi', 'ok' => false];
-                $confirmed = false;
+                self::logFailure('Solução não registrada no GLPI', $error);
+                $applied['solution'] = false;
+                $steps[] = ['step' => 'solucao', 'ok' => false, 'label' => 'Solução registrada no GLPI'];
+            }
+            if ($applied['solution'] ?? false) {
+                // Confirmar pela releitura, e não pelo-code-de-retorno da escrita.
+                try {
+                    $solutions = RoomTicketsGlpi::readSolutions($client, $session, $ticketId);
+                    $mine = false;
+                    foreach ($solutions as $row) {
+                        if (RoomTicketsService::text(strip_tags((string) ($row['content'] ?? ''))) === $solution) {
+                            $mine = true;
+                            break;
+                        }
+                    }
+                    $steps[] = ['step' => 'solucao_confirmada', 'ok' => $mine,
+                        'label' => 'Solução confirmada pela releitura do GLPI'];
+                    $applied['solution'] = $mine;
+                } catch (Throwable $error) {
+                    $steps[] = ['step' => 'solucao_confirmada', 'ok' => false,
+                        'label' => 'Solução confirmada pela releitura do GLPI'];
+                    $applied['solution'] = false;
+                }
+                // A solução no GLPI pode levar o status a Resolvido ou Fechado
+                // conforme `autoclose_delay` da entidade. O status observado
+                // depois da solução é o que vale.
+                $final = RoomTicketsGlpi::readTicket($client, $session, $ticketId);
+                $finalStatus = $final === [] ? 0 : RoomTicketsService::statusId($final);
+                $steps[] = ['step' => 'status_final', 'ok' => in_array($finalStatus, [5, 6], true),
+                    'expected' => 5, 'observed' => $finalStatus,
+                    'label' => 'Status final do chamado'];
+                $statusOk = $statusOk || in_array($finalStatus, [5, 6], true);
+                $observedStatus = $finalStatus;
             }
         }
-        return ['steps' => $steps, 'confirmed' => $confirmed, 'row' => $after,
-            'partial' => !$confirmed && $observed === $toStatus];
+
+        $confirmed = true;
+        foreach ($steps as $step) if (!$step['ok']) $confirmed = false;
+        return ['steps' => $steps, 'confirmed' => $confirmed,
+            'partial' => !$confirmed && $statusOk, 'applied' => $applied,
+            'observedStatus' => $observedStatus];
     }
 
     /**
@@ -333,113 +388,154 @@ final class RoomTicketsEndpoint
             return;
         }
         $requestId = self::requestKey($body);
-        $replay = RoomTicketWorkStore::findRequest($requestId);
-        if ($replay !== null && (int) ($replay['ticketId'] ?? 0) === $ticketId
-            && ($replay['action'] ?? '') === 'assumir') {
-            Responde::ok(['data' => self::replayed((array) ($replay['result'] ?? []))]);
-            return;
-        }
         $actor = self::actor();
+        $fingerprint = self::fingerprint(['action' => 'assumir', 'ticket' => $ticketId, 'handler' => $handler]);
         $outcome = ['ok' => false, 'error' => 'Não foi possível assumir o chamado. Tente novamente.', 'status' => 500];
+
+        // Serializa a sequência verificação→gravação entre requisições do GCC.
+        // Um lock por chamado impede dois técnicos do GCC de assumirem o mesmo
+        // chamado ao mesmo tempo sem que nenhum dos dois veja o resultado.
         try {
-            $outcome = self::withGlpiSession($config, static function (GlpiClient $client, string $session) use ($ticketId, $handler, $actor): array {
-                $row = $client->getWithParams('/Ticket/' . $ticketId, $session, ['expand_dropdowns' => 'true']);
-                if (!is_array($row) || (int) ($row['id'] ?? 0) !== $ticketId) {
-                    return ['ok' => false, 'error' => 'Chamado não encontrado.', 'status' => 404];
-                }
-                $ticket = RoomTicketsService::fromGlpi($row);
-                if ($ticket === null) {
-                    return ['ok' => false, 'error' => 'O chamado não pertence à fila de salas.', 'status' => 422];
-                }
-                $current = (int) ($ticket['statusId'] ?? 0);
-                $target = RoomTicketsService::transition('assumir', $current);
-                // Already Em andamento: only a claim without owner is allowed.
-                if ($target === null && $current === 2) $target = 2;
-                if ($target === null) {
-                    return ['ok' => false, 'status' => 409,
-                        'error' => 'O chamado está ' . self::statusLabel($current) . ' e não pode ser assumido agora.',
-                        'meta' => ['currentStatus' => $current, 'currentStatusLabel' => self::statusLabel($current)]];
-                }
-                $existing = RoomTicketWorkStore::forTicket($ticketId);
-                $assignment = is_array($existing['assignment'] ?? null) ? $existing['assignment'] : null;
-                $glpiAssignee = RoomTicketsService::assignee($row);
-                $owner = self::currentOwner($assignment, $glpiAssignee);
-                if ($owner['name'] !== '' && self::matchKey($owner['name']) !== self::matchKey($handler)) {
-                    // Another technician already owns it: report, never overwrite.
-                    return ['ok' => false, 'status' => 409,
-                        'error' => 'Este chamado já está com ' . $owner['name'] . '.',
-                        'meta' => ['currentHandler' => $owner['name'], 'currentSource' => $owner['source'],
-                            'currentUserId' => $owner['userId'], 'currentStatus' => $current,
-                            'currentStatusLabel' => self::statusLabel($current)]];
-                }
-                if ($assignment !== null && $current === $target) {
-                    // Same technician, already in the target status: no new write.
-                    return ['ok' => true, 'alreadyAssumed' => true, 'data' => [
-                        'ticketId' => $ticketId, 'fromStatus' => $current,
-                        'fromStatusLabel' => self::statusLabel($current), 'toStatus' => $target,
-                        'toStatusLabel' => self::statusLabel($target), 'handlerName' => $handler,
-                        'handlerSource' => (string) ($assignment['source'] ?? 'informado'),
-                        'glpiUserId' => (int) ($assignment['glpiUserId'] ?? 0),
-                        'glpiUserName' => (string) ($assignment['glpiUserName'] ?? ''),
-                        'recordedBy' => self::actor()['name'], 'at' => (string) ($assignment['at'] ?? date(DATE_ATOM)),
-                        'work' => RoomTicketWorkStore::summary($existing), 'steps' => [],
-                        'confirmed' => true, 'partial' => false,
-                    ]];
-                }
-                $match = $owner['name'] === '' ? self::matchTechnician($client, $session, $handler) : null;
-                $applied = self::applyMove($client, $session, $ticketId, 'assumir', $target, [
-                    'assignField' => $match === null ? '' : RoomTicketsService::assigneeField($row),
-                    'assignUserId' => $match === null ? 0 : (int) $match['id'],
-                    'solution' => '',
-                ]);
-                $written = RoomTicketWorkStore::recordAssignment($ticketId, $ticket, [
-                    'handlerName' => $handler,
-                    'source' => $match === null ? 'informado' : 'glpi_user',
-                    'glpiUserId' => $match === null ? 0 : (int) $match['id'],
-                    'glpiUserName' => $match === null ? '' : (string) $match['name'],
-                ], $actor);
-                RoomTicketWorkStore::recordMove($ticketId, [
-                    'action' => 'assumir', 'from' => $current, 'to' => $target,
-                    'confirmed' => (bool) $applied['confirmed'], 'partial' => (bool) $applied['partial'],
-                    'note' => $match === null ? 'Responsável informado, sem correspondência exata no GLPI.'
-                        : 'Responsável atribuído como técnico do GLPI.',
-                    'ticket' => $ticket,
-                ], $actor);
-                // The alert is acknowledged without overwriting an earlier one.
-                RoomTicketAcknowledgementStore::accept($ticketId, [
-                    'reference' => $ticket['reference'] ?? '', 'openedAt' => $ticket['openedAt'] ?? '',
-                ], $actor);
-                $data = [
-                    'ticketId' => $ticketId,
-                    'fromStatus' => $current, 'fromStatusLabel' => self::statusLabel($current),
-                    'toStatus' => $target, 'toStatusLabel' => self::statusLabel($target),
-                    'handlerName' => $handler,
-                    'handlerSource' => $match === null ? 'informado' : 'glpi_user',
-                    'glpiUserId' => $match === null ? 0 : (int) $match['id'],
-                    'glpiUserName' => $match === null ? '' : (string) $match['name'],
-                    'recordedBy' => $actor['name'],
-                    'at' => date(DATE_ATOM),
-                    'work' => RoomTicketWorkStore::summary($written['result']),
-                    'steps' => $applied['steps'],
-                    'confirmed' => (bool) $applied['confirmed'],
-                    'partial' => (bool) $applied['partial'],
-                ];
-                if (!$applied['confirmed']) {
-                    return ['ok' => false, 'status' => 502, 'data' => $data,
-                        'error' => $applied['partial']
-                            ? 'O chamado mudou de status, mas parte do registro não foi confirmada no GLPI. Revise o histórico.'
-                            : 'O GLPI não confirmou a movimentação. O chamado permanece como estava.'];
-                }
-                return ['ok' => true, 'data' => $data];
+            $outcome = RoomTicketWorkStore::withTicketLock($ticketId, static function () use (
+                $config, $ticketId, $handler, $requestId, $actor, $fingerprint
+            ): array {
+                $replay = self::replayable($requestId, $ticketId, 'assumir', $fingerprint, $actor);
+                if ($replay !== null) return $replay;
+                return self::withGlpiSession($config, static function (GlpiClient $client, string $session)
+                    use ($ticketId, $handler, $actor, $requestId): array {
+                    $row = RoomTicketsGlpi::readTicket($client, $session, $ticketId);
+                    if ($row === []) {
+                        return ['ok' => false, 'error' => 'Chamado não encontrado.', 'status' => 404];
+                    }
+                    $ticket = RoomTicketsService::fromGlpi($row);
+                    if ($ticket === null) {
+                        return ['ok' => false, 'error' => 'O chamado não pertence à fila de salas.', 'status' => 422];
+                    }
+                    $current = self::currentStatus($row, $ticket);
+                    $target = RoomTicketsService::transition('assumir', $current);
+                    // Já está em atendimento: só vale registrar quem assume.
+                    if ($target === null && $current === 2) $target = 2;
+                    if ($target === null) {
+                        return ['ok' => false, 'status' => 409,
+                            'error' => 'O chamado está ' . RoomTicketsService::statusLabel($current)
+                                . ' e não pode ser assumido agora.',
+                            'meta' => ['currentStatus' => $current,
+                                'currentStatusLabel' => RoomTicketsService::statusLabel($current),
+                                'allowedActions' => RoomTicketsService::availableActions($current)]];
+                    }
+                    // Responsável atual: registro do GCC e ator ASSIGN do GLPI.
+                    $actorRows = RoomTicketsGlpi::readActors($client, $session, $ticketId);
+                    $glpiOwner = RoomTicketsGlpi::assignee($actorRows, RoomTicketsGlpi::nameIndex(
+                        RoomTicketsGlpi::optionalTechnicians($client, $session)));
+                    $existing = RoomTicketWorkStore::forTicket($ticketId);
+                    $assignment = is_array($existing['assignment'] ?? null) ? $existing['assignment'] : null;
+                    $owner = self::currentOwner($assignment, $glpiOwner);
+                    if ($owner['name'] !== '' && self::matchKey($owner['name']) !== self::matchKey($handler)) {
+                        // Outro técnico já é o responsável: informar, nunca sobrescrever.
+                        return ['ok' => false, 'status' => 409,
+                            'error' => 'Este chamado já está com ' . $owner['name'] . '.',
+                            'meta' => ['currentHandler' => $owner['name'], 'currentSource' => $owner['source'],
+                                'currentUserId' => $owner['userId'], 'currentStatus' => $current,
+                                'currentStatusLabel' => RoomTicketsService::statusLabel($current),
+                                'allowedActions' => RoomTicketsService::availableActions($current)]];
+                    }
+                    $match = $owner['name'] === '' ? self::matchTechnician($client, $session, $handler) : null;
+                    if ($assignment !== null && $current === $target
+                        && self::matchKey((string) ($assignment['handlerName'] ?? '')) === self::matchKey($handler)) {
+                        // Mesmo técnico, já no status de destino: nada a gravar.
+                        return ['ok' => true, 'data' => [
+                            'alreadyAssumed' => true,
+                            'ticketId' => $ticketId, 'fromStatus' => $current,
+                            'fromStatusLabel' => RoomTicketsService::statusLabel($current),
+                            'toStatus' => $target, 'toStatusLabel' => RoomTicketsService::statusLabel($target),
+                            'handlerName' => $handler,
+                            'handlerSource' => (string) ($assignment['source'] ?? 'informado'),
+                            'glpiUserId' => (int) ($assignment['glpiUserId'] ?? 0),
+                            'glpiUserName' => (string) ($assignment['glpiUserName'] ?? ''),
+                            'recordedBy' => self::actor()['name'],
+                            'at' => (string) ($assignment['at'] ?? date(DATE_ATOM)),
+                            'work' => RoomTicketWorkStore::summary($existing), 'steps' => [],
+                            'applied' => [], 'confirmed' => true, 'partial' => false,
+                        ]];
+                    }
+                    $userNames = RoomTicketsGlpi::nameIndex(RoomTicketsGlpi::optionalTechnicians($client, $session));
+                    $plan = ['solution' => '', 'userNames' => $userNames, 'assign' => null, 'assignUserId' => 0];
+                    if ($match !== null) {
+                        $plan['assign'] = RoomTicketsGlpi::assignInput($actorRows, (int) $match['id']);
+                        $plan['assignUserId'] = (int) $match['id'];
+                    }
+                    $applied = self::applyMove($client, $session, $ticketId, 'assumir', $target, $plan);
+                    $written = RoomTicketWorkStore::recordAssignment($ticketId, $ticket, [
+                        'handlerName' => $handler,
+                        'source' => $match === null ? 'informado' : 'glpi_user',
+                        'glpiUserId' => $match === null ? 0 : (int) $match['id'],
+                        'glpiUserName' => $match === null ? '' : (string) $match['name'],
+                    ], $actor);
+                    $stored = is_array($written['result']['assignment'] ?? null) ? $written['result']['assignment'] : null;
+                    // created:false = outro técnico registrou primeiro enquanto esta
+                    // requisição estava em voo. O registro do servidor é o dono.
+                    if ($written['created'] === false && $stored !== null
+                        && self::matchKey((string) $stored['handlerName']) !== self::matchKey($handler)) {
+                        RoomTicketWorkStore::recordMove($ticketId, [
+                            'action' => 'assumir', 'from' => $current, 'to' => $target,
+                            'confirmed' => (bool) $applied['confirmed'], 'partial' => false,
+                            'note' => 'Conflito: ' . (string) $stored['handlerName'] . ' registrou primeiro.',
+                            'ticket' => $ticket,
+                        ], $actor);
+                        return ['ok' => false, 'status' => 409,
+                            'error' => 'Este chamado já está com ' . (string) $stored['handlerName'] . '.',
+                            'meta' => ['currentHandler' => (string) $stored['handlerName'],
+                                'currentSource' => (string) ($stored['source'] ?? 'gcc'),
+                                'currentUserId' => (int) ($stored['glpiUserId'] ?? 0),
+                                'currentStatus' => $applied['observedStatus'],
+                                'currentStatusLabel' => RoomTicketsService::statusLabel((int) $applied['observedStatus'])]];
+                    }
+                    RoomTicketWorkStore::recordMove($ticketId, [
+                        'action' => 'assumir', 'from' => $current, 'to' => $target,
+                        'confirmed' => (bool) $applied['confirmed'], 'partial' => (bool) $applied['partial'],
+                        'note' => $match === null
+                            ? 'Responsável informado, sem correspondência exata no GLPI.'
+                            : 'Responsável atribuído como técnico do GLPI (ator ASSIGN).',
+                        'ticket' => $ticket,
+                    ], $actor, $requestId);
+                    // O alerta é reconhecido sem sobrescrever um aceite anterior.
+                    RoomTicketAcknowledgementStore::accept($ticketId, [
+                        'reference' => $ticket['reference'] ?? '', 'openedAt' => $ticket['openedAt'] ?? '',
+                    ], $actor);
+                    $data = [
+                        'ticketId' => $ticketId,
+                        'fromStatus' => $current, 'fromStatusLabel' => RoomTicketsService::statusLabel($current),
+                        'toStatus' => $target, 'toStatusLabel' => RoomTicketsService::statusLabel($target),
+                        'handlerName' => (string) ($stored['handlerName'] ?? $handler),
+                        'handlerSource' => (string) ($stored['source'] ?? 'informado'),
+                        'glpiUserId' => (int) ($stored['glpiUserId'] ?? 0),
+                        'glpiUserName' => (string) ($stored['glpiUserName'] ?? ''),
+                        'recordedBy' => $actor['name'],
+                        'at' => (string) ($stored['at'] ?? date(DATE_ATOM)),
+                        'work' => RoomTicketWorkStore::summary($written['result']),
+                        'steps' => $applied['steps'], 'applied' => $applied['applied'],
+                        'confirmed' => (bool) $applied['confirmed'],
+                        'partial' => (bool) $applied['partial'],
+                    ];
+                    if (!$applied['confirmed']) {
+                        return ['ok' => false, 'status' => 502, 'data' => $data,
+                            'error' => $applied['partial']
+                                ? 'O chamado mudou de status no GLPI, mas parte do registro não foi confirmada. Revise o histórico antes de repetir.'
+                                : 'O GLPI não confirmou a movimentação. Nada foi alterado.'];
+                    }
+                    return ['ok' => true, 'data' => $data];
+                });
             });
         } catch (RuntimeException $error) {
             $outcome = self::failure($error, 'Não foi possível assumir o chamado. Tente novamente.', 502);
         } catch (Throwable $error) {
-            error_log('[room-tickets] Falha ao assumir chamado: ' . get_class($error));
+            self::logFailure('Falha ao assumir chamado', $error);
             $outcome = ['ok' => false, 'error' => 'Não foi possível registrar o atendimento. Tente novamente.', 'status' => 500];
         }
-        if ($outcome['ok'] && $requestId !== '') {
-            RoomTicketWorkStore::rememberRequest($requestId, $ticketId, 'assumir', (array) ($outcome['data'] ?? []));
+        // A intenção fica registrada mesmo quando falhou: um reenvio da MESMA
+        // operação devolve o primeiro desfecho em vez de repetir a escrita.
+        if ($requestId !== '' && ($outcome['ok'] || is_array($outcome['data'] ?? null))) {
+            RoomTicketWorkStore::rememberRequest($requestId, $ticketId, 'assumir', $fingerprint, $actor, $outcome);
         }
         self::answer($outcome);
     }
@@ -467,75 +563,99 @@ final class RoomTicketsEndpoint
             return;
         }
         $requestId = self::requestKey($body);
-        $replay = RoomTicketWorkStore::findRequest($requestId);
-        if ($replay !== null && (int) ($replay['ticketId'] ?? 0) === $ticketId
-            && ($replay['action'] ?? '') === $action) {
-            Responde::ok(['data' => self::replayed((array) ($replay['result'] ?? []))]);
-            return;
-        }
         $actor = self::actor();
+        $fingerprint = self::fingerprint(['action' => $action, 'ticket' => $ticketId, 'solution' => $solution]);
         $outcome = ['ok' => false, 'error' => 'Não foi possível mover o chamado. Tente novamente.', 'status' => 500];
         try {
-            $outcome = self::withGlpiSession($config, static function (GlpiClient $client, string $session) use ($ticketId, $action, $solution, $actor): array {
-                $row = $client->getWithParams('/Ticket/' . $ticketId, $session, ['expand_dropdowns' => 'true']);
-                if (!is_array($row) || (int) ($row['id'] ?? 0) !== $ticketId) {
-                    return ['ok' => false, 'error' => 'Chamado não encontrado.', 'status' => 404];
-                }
-                $ticket = RoomTicketsService::fromGlpi($row);
-                if ($ticket === null) {
-                    return ['ok' => false, 'error' => 'O chamado não pertence à fila de salas.', 'status' => 422];
-                }
-                $current = (int) ($ticket['statusId'] ?? 0);
-                $target = RoomTicketsService::transition($action, $current);
-                if ($target === null) {
-                    return ['ok' => false, 'status' => 409,
-                        'error' => 'Não é possível ' . self::movementLabel($action) . ' um chamado '
-                            . self::statusLabel($current) . ' no GLPI.',
-                        'meta' => ['currentStatus' => $current, 'currentStatusLabel' => self::statusLabel($current)]];
-                }
-                $applied = self::applyMove($client, $session, $ticketId, $action, $target, ['solution' => $solution]);
-                RoomTicketWorkStore::recordMove($ticketId, [
-                    'action' => $action, 'from' => $current, 'to' => $target,
-                    'confirmed' => (bool) $applied['confirmed'], 'partial' => (bool) $applied['partial'],
-                    'note' => $action === 'concluir' ? $solution : '',
-                    'ticket' => $ticket,
-                ], $actor);
-                if ($action === 'concluir') {
-                    $saved = RoomTicketWorkStore::recordSolution($ticketId, [
-                        'text' => $solution,
-                        'glpiFollowup' => in_array(true, array_column($applied['steps'], 'ok'), true),
+            $outcome = RoomTicketWorkStore::withTicketLock($ticketId, static function () use (
+                $config, $ticketId, $action, $solution, $requestId, $actor, $fingerprint
+            ): array {
+                $replay = self::replayable($requestId, $ticketId, $action, $fingerprint, $actor);
+                if ($replay !== null) return $replay;
+                return self::withGlpiSession($config, static function (GlpiClient $client, string $session)
+                    use ($ticketId, $action, $solution, $actor, $requestId): array {
+                    $row = RoomTicketsGlpi::readTicket($client, $session, $ticketId);
+                    if ($row === []) {
+                        return ['ok' => false, 'error' => 'Chamado não encontrado.', 'status' => 404];
+                    }
+                    $ticket = RoomTicketsService::fromGlpi($row);
+                    if ($ticket === null) {
+                        return ['ok' => false, 'error' => 'O chamado não pertence à fila de salas.', 'status' => 422];
+                    }
+                    $current = self::currentStatus($row, $ticket);
+                    $target = RoomTicketsService::transition($action, $current);
+                    if ($target === null) {
+                        return ['ok' => false, 'status' => 409,
+                            'error' => 'Não é possível ' . self::movementLabel($action) . ' um chamado '
+                                . RoomTicketsService::statusLabel($current) . ' no GLPI.',
+                            'meta' => ['currentStatus' => $current,
+                                'currentStatusLabel' => RoomTicketsService::statusLabel($current),
+                                'allowedActions' => RoomTicketsService::availableActions($current)]];
+                    }
+                    $plan = ['solution' => ''];
+                    if ($action === 'concluir') {
+                        $type = RoomTicketsGlpi::solutionTypeId($client, $session);
+                        if ($type['id'] === 0 && $type['ambiguous']) {
+                            // Mais de um tipo de solução e nenhum configurado: pedir
+                            // configuração em vez de chutar um ID do GLPI.
+                            return ['ok' => false, 'status' => 422,
+                                'error' => 'A conclusão precisa de um tipo de solução configurado no GLPI.'
+                                    . ' Tipos disponíveis: ' . $type['name'] . '.',
+                                'meta' => ['reason' => 'solution_type_required']];
+                        }
+                        $plan = ['solution' => $solution, 'solutionType' => $type];
+                    }
+                    $applied = self::applyMove($client, $session, $ticketId, $action, $target, $plan);
+                    RoomTicketWorkStore::recordMove($ticketId, [
+                        'action' => $action, 'from' => $current, 'to' => $target,
+                        'confirmed' => (bool) $applied['confirmed'], 'partial' => (bool) $applied['partial'],
+                        'note' => $action === 'concluir' ? $solution : '',
                         'ticket' => $ticket,
-                    ], $actor);
-                    $solutionSaved = is_array($saved['result']['solution'] ?? null);
-                } else {
+                    ], $actor, $requestId);
                     $solutionSaved = true;
-                }
-                $data = [
-                    'ticketId' => $ticketId, 'action' => $action,
-                    'fromStatus' => $current, 'fromStatusLabel' => self::statusLabel($current),
-                    'toStatus' => $target, 'toStatusLabel' => self::statusLabel($target),
-                    'solution' => $solution, 'recordedBy' => $actor['name'], 'at' => date(DATE_ATOM),
-                    'work' => RoomTicketWorkStore::summary(RoomTicketWorkStore::forTicket($ticketId) ?? []),
-                    'steps' => $applied['steps'],
-                    'confirmed' => (bool) $applied['confirmed'],
-                    'partial' => (bool) $applied['partial'],
-                ];
-                if (!$applied['confirmed'] || !$solutionSaved) {
-                    return ['ok' => false, 'status' => 502, 'data' => $data,
-                        'error' => $applied['confirmed'] && !$solutionSaved
-                            ? 'O status foi alterado no GLPI, mas a solução não ficou registrada no GCC.'
-                            : 'O GLPI não confirmou a movimentação. O chamado permanece como estava.'];
-                }
-                return ['ok' => true, 'data' => $data];
+                    if ($action === 'concluir') {
+                        // `solution.glpi` reflete ESPECIFICAMENTE a etapa do GLPI,
+                        // nunca "algum passo deu certo".
+                        $saved = RoomTicketWorkStore::recordSolution($ticketId, [
+                            'text' => $solution,
+                            'glpi' => (bool) ($applied['applied']['solution'] ?? false),
+                            'glpiFollowup' => false,
+                            'ticket' => $ticket,
+                        ], $actor, $requestId);
+                        $solutionSaved = is_array($saved['result']['solution'] ?? null);
+                    }
+                    $data = [
+                        'ticketId' => $ticketId, 'action' => $action,
+                        'fromStatus' => $current, 'fromStatusLabel' => RoomTicketsService::statusLabel($current),
+                        'toStatus' => $applied['observedStatus'] ?: $target,
+                        'toStatusLabel' => RoomTicketsService::statusLabel((int) ($applied['observedStatus'] ?: $target)),
+                        'solution' => $solution, 'recordedBy' => $actor['name'], 'at' => date(DATE_ATOM),
+                        'work' => RoomTicketWorkStore::summary(RoomTicketWorkStore::forTicket($ticketId) ?? []),
+                        'steps' => $applied['steps'], 'applied' => $applied['applied'],
+                        'confirmed' => (bool) $applied['confirmed'],
+                        'partial' => (bool) $applied['partial'],
+                    ];
+                    if (!$applied['confirmed'] || !$solutionSaved) {
+                        $message = 'Nada foi alterado no GLPI.';
+                        if ($applied['partial']) {
+                            $message = 'O status mudou no GLPI, mas a solução não ficou registrada.'
+                                . ' Confira o histórico do chamado antes de repetir.';
+                        } elseif ($applied['applied']['status'] ?? false) {
+                            $message = 'O GLPI aplicou parte da alteração. Confira o histórico antes de repetir.';
+                        }
+                        return ['ok' => false, 'status' => 502, 'data' => $data, 'error' => $message];
+                    }
+                    return ['ok' => true, 'data' => $data];
+                });
             });
         } catch (RuntimeException $error) {
             $outcome = self::failure($error, 'Não foi possível mover o chamado. Tente novamente.', 502);
         } catch (Throwable $error) {
-            error_log('[room-tickets] Falha ao mover chamado: ' . get_class($error));
+            self::logFailure('Falha ao mover chamado', $error);
             $outcome = ['ok' => false, 'error' => 'Não foi possível registrar a movimentação. Tente novamente.', 'status' => 500];
         }
-        if ($outcome['ok'] && $requestId !== '') {
-            RoomTicketWorkStore::rememberRequest($requestId, $ticketId, $action, (array) ($outcome['data'] ?? []));
+        if ($requestId !== '' && ($outcome['ok'] || is_array($outcome['data'] ?? null))) {
+            RoomTicketWorkStore::rememberRequest($requestId, $ticketId, $action, $fingerprint, $actor, $outcome);
         }
         self::answer($outcome);
     }
@@ -563,29 +683,22 @@ final class RoomTicketsEndpoint
         $fallback = ['available' => false, 'technicians' => [], 'message' => 'Lista de técnicos indisponível. Informe o nome.'];
         try {
             $result = self::withGlpiSession($config, static function (GlpiClient $client, string $session): array {
-                $users = $client->getWithParams('/User', $session, [
-                    'is_technician' => '1', 'range' => '0-199', 'expand_dropdowns' => 'false', 'sort' => 'name',
-                ]);
-                $rows = [];
-                foreach (is_array($users) ? $users : [] as $user) {
-                    if (!is_array($user) || !isset($user['id'])) continue;
-                    if (array_key_exists('is_technician', $user) && (int) $user['is_technician'] !== 1) continue;
-                    $name = RoomTicketsService::text($user['name'] ?? '');
-                    if ($name === '') continue;
-                    $rows[] = ['id' => (int) $user['id'], 'name' => $name];
+                $rows = RoomTicketsGlpi::readTechnicians($client, $session);
+                if (!$rows) {
+                    return ['available' => false, 'technicians' => [],
+                        'message' => 'Nenhum técnico encontrado no GLPI. Informe o nome.'];
                 }
-                usort($rows, static fn($a, $b) => strnatcasecmp($a['name'], $b['name']) ?: ($a['id'] <=> $b['id']));
                 return ['available' => true, 'technicians' => $rows, 'message' => ''];
             });
         } catch (RuntimeException $error) {
             if ((int) ($error->http_code ?? 0) === 403) {
                 $fallback['message'] = 'Seu acesso não permite listar os técnicos do GLPI. Informe o nome.';
-                Responde::ok(['data' => $fallback]);
+                Responde::ok(['data' => $fallback + ['checkedAt' => date(DATE_ATOM)]]);
                 return;
             }
             $result = $fallback;
         } catch (Throwable $error) {
-            error_log('[room-tickets] Falha ao listar técnicos: ' . get_class($error));
+            self::logFailure('Falha ao listar técnicos', $error);
             $result = $fallback;
         }
         Responde::ok(['data' => $result + ['checkedAt' => date(DATE_ATOM)]]);
@@ -601,20 +714,83 @@ final class RoomTicketsEndpoint
         ];
     }
 
+    /**
+     * Log de diagnóstico. Falhas do GLPI (RuntimeException) registram apenas a
+     * classe, porque a mensagem pode conter o corpo da resposta do GLPI.
+     * Erros de programação (TypeError, Error) registram também a mensagem,
+     * porque sãoOur bug e precisam ser encontrados.
+     */
+    private static function logFailure(string $context, Throwable $error): void
+    {
+        $suffix = $error instanceof RuntimeException ? '' : ' — ' . $error->getMessage();
+        error_log('[room-tickets] ' . $context . ': ' . get_class($error) . $suffix);
+    }
+
     private static function requestKey(array $body): string
     {
         $requestId = RoomTicketsService::text(is_scalar($body['requestId'] ?? null) ? $body['requestId'] : '');
         return preg_match('/^[A-Za-z0-9._-]{8,64}$/', $requestId) === 1 ? $requestId : '';
     }
 
-    private static function replayed(array $result): array
+    /**
+     * Impressão digital da intenção. O servidor vincula o requestId ao autor,
+     * chamado, ação e conteúdo: reenviar a MESMA intenção devolve o primeiro
+     * desfecho; reutilizar o identificador para outra operação é recusado, em
+     * vez de devolver um resultado antigo como se fosse novo.
+     */
+    private static function fingerprint(array $parts): string
     {
-        return $result + ['replayed' => true];
+        ksort($parts);
+        return hash('sha256', (string) json_encode($parts, JSON_UNESCAPED_UNICODE));
+    }
+
+    /**
+     * Devolve o desfecho registrado quando é realmente o mesmo reenvio.
+     * `null` significa "execute de novo".
+     */
+    private static function replayable(string $requestId, int $ticketId, string $action,
+        string $fingerprint, array $actor): ?array
+    {
+        $replay = RoomTicketWorkStore::findRequest($requestId);
+        if ($replay === null) return null;
+        if ((int) ($replay['ticketId'] ?? 0) !== $ticketId || ($replay['action'] ?? '') !== $action) {
+            return ['ok' => false, 'status' => 409,
+                'error' => 'Este identificador de operação já foi usado em outro chamado ou outra ação.',
+                'meta' => ['reason' => 'requestId_reused']];
+        }
+        if ((string) ($replay['fingerprint'] ?? '') !== $fingerprint) {
+            return ['ok' => false, 'status' => 409,
+                'error' => 'Este identificador de operação já foi usado com outro conteúdo.',
+                'meta' => ['reason' => 'requestId_content_mismatch']];
+        }
+        if ((string) ($replay['actor'] ?? '') !== (string) ($actor['email'] ?? $actor['name'] ?? '')) {
+            return ['ok' => false, 'status' => 409,
+                'error' => 'Este identificador de operação pertence a outro usuário.',
+                'meta' => ['reason' => 'requestId_other_user']];
+        }
+        $stored = is_array($replay['outcome'] ?? null) ? $replay['outcome'] : null;
+        if ($stored === null) return null;
+        $stored['data'] = ((array) ($stored['data'] ?? [])) + ['replayed' => true];
+        return $stored;
+    }
+
+    /**
+     * Status atual do chamado, lido do REGISTRO CRU (onde o GLPI devolve
+     * inteiro) e conferido contra o status da normalização. Se os dois
+     * divergirem, nenhuma transição é tentada.
+     */
+    private static function currentStatus(array $row, array $normalized): int
+    {
+        $raw = RoomTicketsService::statusId($row);
+        $projected = (int) ($normalized['statusId'] ?? -1);
+        if ($projected !== $raw) {
+            throw new ContractException('A leitura do status do chamado ficou inconsistente.');
+        }
+        return $raw;
     }
 
     private static function currentOwner(?array $assignment, array $glpiAssignee): array
-    {
-        if (is_array($assignment) && ($assignment['handlerName'] ?? '') !== '') {
+    {        if (is_array($assignment) && ($assignment['handlerName'] ?? '') !== '') {
             return ['name' => (string) $assignment['handlerName'], 'source' => 'gcc',
                 'userId' => (int) ($assignment['glpiUserId'] ?? 0)];
         }
@@ -625,51 +801,54 @@ final class RoomTicketsEndpoint
         return ['name' => '', 'source' => '', 'userId' => 0];
     }
 
-    private static function statusLabel(int $statusId): string
-    {
-        $labels = [
-            1 => 'Novo', 2 => 'Em atendimento', 3 => 'Planejado',
-            4 => 'Pendente', 5 => 'Resolvido', 6 => 'Fechado',
-        ];
-        return $labels[$statusId] ?? 'em status desconhecido';
-    }
-
     private static function movementLabel(string $action): string
     {
-        $labels = [
-            'pendente' => 'marcar como pendente', 'retomar' => 'retomar',
-            'concluir' => 'concluir', 'reabrir' => 'reabrir',
-        ];
-        return $labels[$action] ?? $action;
+        return RoomTicketsService::ACTION_LABELS[$action] ?? $action;
     }
 
     /** Upstream failures never expose GLPI payloads, tokens or messages. */
     private static function failure(RuntimeException $error, string $message, int $status): array
     {
+        // Resposta do GLPI em formato inesperado: dizer isso é melhor do que
+        // recusar toda movimentação com uma mensagem genérica.
+        if ($error instanceof ContractException) {
+            return ['ok' => false, 'error' => $error->getMessage(), 'status' => 502,
+                'meta' => ['reason' => 'glpi_contract']];
+        }
         $httpCode = (int) ($error->http_code ?? 0);
         if ($httpCode === 404) {
             return ['ok' => false, 'error' => 'Chamado não encontrado.', 'status' => 404];
         }
         if ($httpCode === 403) {
-            return ['ok' => false, 'error' => 'O GLPI recusou a alteração deste chamado.', 'status' => 403];
+            return ['ok' => false, 'status' => 403,
+                'error' => 'Sua conta não pode alterar este chamado no GLPI.'];
         }
         if ($httpCode === 400 || $httpCode === 422) {
             return ['ok' => false, 'status' => 422,
                 'error' => 'O GLPI recusou a alteração: dados ou transição inválida para este chamado.'];
         }
-        error_log('[room-tickets] Falha ao gravar no GLPI: ' . get_class($error));
+        self::logFailure('Falha ao gravar no GLPI', $error);
         return ['ok' => false, 'error' => $message, 'status' => $status];
     }
 
-    /** Sends the response only after the GLPI session has been closed. */
+    /**
+     * Envia a resposta só depois de a sessão do GLPI estar encerrada.
+     * Em erro, os metadados vêm em `meta` (conflito, falha parcial, passos) e a
+     * interface consegue explicar o que aconteceu em vez de mostrar "HTTP 502".
+     */
     private static function answer(array $outcome): void
     {
         $data = is_array($outcome['data'] ?? null) ? $outcome['data'] : [];
         $meta = is_array($outcome['meta'] ?? null) ? $outcome['meta'] : [];
+        $status = (int) ($outcome['status'] ?? 0);
         if ($outcome['ok']) {
-            Responde::ok(['data' => $data], (int) ($outcome['status'] ?? 200));
+            // Metadados de erro nunca convivem com um sucesso.
+            unset($data['partial'], $data['steps'], $data['applied'], $data['confirmed']);
+            Responde::ok(['data' => $data], $status === 0 ? 200 : $status);
             return;
         }
-        Responde::erro((string) $outcome['error'], (int) ($outcome['status'] ?? 500), $meta + $data);
+        $meta += ['status' => $status === 0 ? 500 : $status, 'ok' => false];
+        if (is_array($data) && $data !== []) $meta['data'] = $data;
+        Responde::erro((string) $outcome['error'], $status === 0 ? 500 : $status, $meta);
     }
 }

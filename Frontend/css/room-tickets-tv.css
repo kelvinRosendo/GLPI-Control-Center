@@ -63,3 +63,10 @@
 @keyframes rt-alert-in { from { opacity: 0; transform: translateY(-10px); } }
 @media (max-width: 1100px) { .rt-tv-top { grid-template-columns: 1fr auto; }.rt-tv-top nav { order: 3; grid-column: 1 / -1; justify-self: center; }.rt-tv-kpis { grid-template-columns: repeat(3, 1fr); }.rt-tv-alert { grid-template-columns: auto 1fr auto; }.rt-tv-alert small, .rt-tv-alert > span:nth-of-type(2) { display: none; }.rt-tv-grid, .rt-tv-grid--calls { grid-template-columns: 1fr; }.rt-tv-stats { grid-template-columns: repeat(3, 1fr); grid-template-rows: auto; }.rt-tv-footer { align-items: flex-start; }.rt-tv-controls { flex-wrap: wrap; justify-content: flex-end; } }
 @media (max-width: 700px) { .rt-tv-top { grid-template-columns: 1fr; }.rt-tv-connection { justify-self: start; }.rt-tv-top nav { grid-column: auto; width: 100%; }.rt-tv-top nav button { min-width: 0; flex: 1; }.rt-tv-kpis, .rt-tv-stats { grid-template-columns: 1fr; }.rt-tv-bar { grid-template-columns: 95px 1fr 46px; gap: 8px; }.rt-tv-footer { flex-direction: column; }.rt-tv-controls { width: 100%; }.rt-tv-controls button { flex: 1 1 45%; }.rt-tv-alert { margin-inline: 14px; }.rt-tv-alert-sound { display: none; } }
+
+/* Modo TV é somente leitura: o cartão não tem ações de atendimento. */
+.rt-tv-readonly-note {
+  margin: 14px 0 0; padding: 10px 12px; border-radius: 8px;
+  background: rgba(49, 94, 208, .12); border: 1px solid rgba(49, 94, 208, .35);
+  font-size: 14px; color: var(--color-text-secondary, #cfd6f0);
+}

@@ -1,15 +1,22 @@
 # Kanban de chamados, responsável e ciclo de atendimento
 
-Data: 28/09/2026
+Data: 28/09/2026 (revisão de 29/09/2026: ver
+`Docs/CORRECOES-CHAMADOS-SALAS-2026-09-29.md`)
 Branch: codex/dashboard-chamados-salas
 Escopo: Kanban de três colunas, sincronização de status com o GLPI, "assumir
 chamado" com identificação do responsável, conclusão com solução, histórico
 consultável, alerta global com som verificado, atualização automática com cache
 e tema sóbrio. Sem merge e sem deploy nesta etapa.
 
+> **Correção de contrato (29/09/2026).** O responsável do chamado **não** é mais
+> lido nem escrito em `users_id_recipient`, que no GLPI 10 é o **Writer**
+> (autor). A atribuição usa o mecanismo de atores (`CommonITILActor`,
+> `type = ASSIGN`) e a conclusão usa `ITILSolution`. A seção 3 abaixo descreve o
+> comportamento anterior e está superada pelo documento de correções.
+>
 > Nenhum chamado real foi alterado: todas as verificações usam simulação de
 > API. A compatibilidade com a instância do GLPI ainda precisa de homologação
-> manual (ver seção 10).
+> manual (ver seções 10 e "Pendências" do documento de correções).
 
 ## 1. Colunas do Kanban e contagens
 
@@ -206,7 +213,12 @@ silêncio. Não há dependência de notificações do sistema operacional.
 > caminho de reprodução, não que alguém ouviu. A confirmação de que o som foi
 > ouvido é humana (clique em "Testar som" com volume audible).
 
-## 9. Testes executados
+## 9. Testes executados (etapa de 28/09/2026 — superada)
+
+> A tabela abaixo registra a execução anterior. Os resultados atuais estão em
+> `Docs/CORRECOES-CHAMADOS-SALAS-2026-09-29.md`, seção 8: 63 + 115 + 250
+> verificações PHP, 41 testes Node, 118 checks de navegador e 52 checks de
+> caixa preta com os CSS completos.
 
 | Suíte | Comando | Resultado |
 | --- | --- | --- |

@@ -1,7 +1,20 @@
 /**
- * Operational TV mode for GCC.
- * Rotates the assets and room-ticket panels. Data, alerts, sound and
- * acknowledgement state come from RoomTicketsMonitor: this module only renders.
+ * Modo TV do GCC: EXCLUSIVAMENTE informativo.
+ *
+ * O atendimento acontece apenas na interface operacional do PC. Este módulo
+ * mostra chamados, salas, responsáveis, status, indicadores e alertas, e nada
+ * mais: não assume, não aceita, não atribui, não move, não conclui e não
+ * reabre. Não há botão, atalho de teclado nem manipulador que abra um
+ * formulário operacional a partir daqui.
+ *
+ * A separação é de interface, não de segurança: quem estiver na TV continua
+ * usando a sessão do GCC, e a proteção real continua sendo a permissão
+ * `chamados edit` no backend. Se um dia existir uma sessão exclusiva de TV, ela
+ * precisa ter somente leitura no backend também.
+ *
+ * A TV reflete o que acontece no PC pela atualização automática dos dados.
+ * BroadcastChannel só alcança abas do mesmo navegador: entre computadores
+ * diferentes, a propagação leva até um ciclo de consulta (60 s).
  */
 window.RoomTicketsTV = (() => {
   'use strict';
@@ -43,9 +56,21 @@ window.RoomTicketsTV = (() => {
   /** Responsável do chamado: nome informado no GCC ou técnico do GLPI. */
   function ownerLabel(ticket) {
     const work = ticket?.work || null;
-    if (work?.handlerName) return `${work.handlerName} (${work.handlerSource === 'glpi_user' ? 'GLPI' : 'informado'})`;
-    if (ticket?.assignee?.name) return `${ticket.assignee.name} (GLPI)`;
+    if (work?.handlerName) return `${work.handlerName} (${work.handlerSource === 'glpi_user' ? 'técnico GLPI' : 'informado'})`;
+    if (ticket?.assignee?.name) return `${ticket.assignee.name} (técnico GLPI)`;
     return 'Responsável não definido';
+  }
+
+  /**
+   * Status real do chamado, lido do GLPI. "Alerta aceito" é apenas a leitura
+   * do aviso: nunca é apresentado como se o chamado estivesse em atendimento.
+   */
+  function statusLabel(ticket) {
+    const id = Number(ticket?.statusId || 0);
+    const labels = { 1: 'Novo', 2: 'Em atendimento', 3: 'Planejado', 4: 'Pendente (aguardando)',
+      5: 'Resolvido', 6: 'Fechado' };
+    const base = labels[id] || 'Status desconhecido';
+    return ticket?.waiting && !base.includes('aguardando') ? `${base} · aguardando` : base;
   }
 
   function monitorApi() { return window.RoomTicketsMonitor; }
@@ -125,17 +150,28 @@ window.RoomTicketsTV = (() => {
           ${queue.map(item => `<li><strong>${esc(item.ticket.room)}</strong><span>#${esc(item.id)}${item.ticket.reference ? ` · ${esc(item.ticket.reference)}` : ''}</span><small>${formatDate(item.ticket.openedAt, true)}</small></li>`).join('')}
         </ul></article>`
       : '';
-    if (!ticket) return `<main class="rt-tv-main"><header class="rt-tv-section-head"><div><span>ATENDIMENTO</span><h1>Chamados das salas</h1></div></header><section class="rt-tv-empty">Nenhum chamado encontrado nos últimos 30 dias.</section></main>`;
+    if (!ticket) {
+      const state = (monitorView || monitorApi()?.snapshot?.() || {}).state;
+      const message = state === 'expired' ? 'Sessão expirada. Entre novamente no GCC.'
+        : state === 'error' ? 'Não foi possível atualizar os chamados. Aguardando nova tentativa automática.'
+        : !callData ? 'Carregando chamados das salas…'
+        : 'Nenhum chamado encontrado nos últimos 30 dias.';
+      return `<main class="rt-tv-main"><header class="rt-tv-section-head"><div><span>ATENDIMENTO</span><h1>Chamados das salas</h1></div></header><section class="rt-tv-empty">${message}</section></main>`;
+    }
     return `<main class="rt-tv-main">
-      <header class="rt-tv-section-head"><div><span>ATENDIMENTO</span><h1>Chamados das salas</h1></div><strong>${summary.total || 0} no período · ${summary.open || 0} em aberto${queue.length ? ` · ${queue.length} aguardando aceite` : ''}</strong></header>
+      <header class="rt-tv-section-head"><div><span>ATENDIMENTO</span><h1>Chamados das salas</h1></div><strong>${summary.total || 0} no período · ${summary.open || 0} em aberto${queue.length ? ` · ${queue.length} aguardando leitura` : ''}</strong></header>
       <section class="rt-tv-grid rt-tv-grid--calls">
         <article class="rt-tv-card rt-tv-card--latest">
           <div class="rt-tv-ticket-head"><span>ÚLTIMO CHAMADO RECEBIDO</span><strong>#${ticket.id}${ticket.reference ? ` · ${esc(ticket.reference)}` : ''}</strong></div>
           <h2>${esc(ticket.room)}</h2><p class="rt-tv-device">${esc((ticket.types || []).map(typeKey => TYPES[typeKey] || typeKey).join(', '))}</p>
           <h3>${esc(ticket.title || 'Sem título')}</h3><p>${esc(ticket.description || 'Sem descrição.')}</p>
-          <div class="rt-tv-ticket-meta"><span>Abertura<strong>${formatDate(ticket.openedAt, true)}</strong></span><span>Status<strong>${accepted ? 'Alerta aceito' : 'Aguardando aceite'}</strong></span><span>Responsável<strong>${esc(ownerLabel(ticket))}</strong></span></div>
-          <div class="rt-tv-card-actions"><button type="button" data-tv-action="assume" data-ticket-id="${ticket.id}">Assumir chamado</button>
-          <button type="button" data-tv-action="accept" data-ticket-id="${ticket.id}" ${accepted ? 'disabled' : ''}>${accepted ? 'Aceito' : 'Aceitar alerta'}</button></div>
+          <div class="rt-tv-ticket-meta">
+            <span>Abertura<strong>${formatDate(ticket.openedAt, true)}</strong></span>
+            <span>Status<strong>${esc(statusLabel(ticket))}</strong></span>
+            <span>Responsável<strong>${esc(ownerLabel(ticket))}</strong></span>
+            <span>Alerta<strong>${accepted ? 'Lido' : 'Não lido'}</strong></span>
+          </div>
+          <p class="rt-tv-readonly-note">Modo TV informativo. O atendimento é feito no computador da equipe de TI.</p>
         </article>
         <aside class="rt-tv-stats">
           <article><span>Chamados abertos</span><strong>${summary.open || 0}</strong><small>Atualização a cada minuto</small></article>
@@ -158,8 +194,6 @@ window.RoomTicketsTV = (() => {
       <span class="rt-tv-alert-owner">${esc(ownerLabel(ticket))}</span>
       <span class="rt-tv-alert-sound">${esc(audio.label)}</span>
       <span class="rt-tv-alert-count">Some em <b data-tv-alert-count>${Math.max(0, Math.ceil((alertInfo.until - Date.now()) / 1000))}</b></span>
-      <button type="button" data-tv-action="assume" data-ticket-id="${esc(ticket.id)}">Assumir chamado</button>
-      <button type="button" data-tv-action="accept" data-ticket-id="${esc(ticket.id)}">Aceitar</button>
     </section>`;
   }
 
@@ -177,7 +211,7 @@ window.RoomTicketsTV = (() => {
       ${connectionStatus()}</header>
       ${alertBanner()}${panel === 'assets' ? assetPanel() : callPanel()}
       <footer class="rt-tv-footer"><div><b data-tv-countdown>${String(rotationRemaining).padStart(2, '0')}</b><span>${alertInfo ? 'Rotação em espera durante o alerta' : paused ? 'Rotação pausada' : 'Próxima troca'}<small>Painel ${panel === 'assets' ? '01 · Ativos' : '02 · Chamados'}</small></span></div>
-      <div class="rt-tv-controls"><button type="button" data-tv-action="pause">${paused ? 'Retomar rotação' : 'Pausar rotação'}</button><button type="button" data-tv-action="switch">Trocar painel</button><button type="button" data-tv-action="sound">${monitorApi()?.isSoundEnabled?.() ? 'Silenciar' : 'Ativar som'}</button><button type="button" data-tv-action="close">Sair do modo TV</button></div></footer>
+      <div class="rt-tv-controls"><button type="button" data-tv-action="pause">${paused ? 'Retomar rotação' : 'Pausar rotação'}</button><button type="button" data-tv-action="switch">Trocar painel</button><button type="button" data-tv-action="sound">${monitorApi()?.isSoundEnabled?.() ? 'Silenciar' : 'Ativar som'}</button><button type="button" data-tv-action="fullscreen">${typeof document !== 'undefined' && document.fullscreenElement ? 'Sair da tela cheia' : 'Tela cheia'}</button><button type="button" data-tv-action="close">Sair do modo TV</button></div></footer>
     </div>`;
   }
 
@@ -229,13 +263,6 @@ window.RoomTicketsTV = (() => {
     if (changed) render();
   }
 
-  async function accept(ticket) {
-    const api = monitorApi();
-    if (!api?.accept) throw new Error('Monitor de chamados indisponível.');
-    if (!ticket?.id) throw new Error('Chamado inválido.');
-    try { return await api.accept(ticket); } finally { if (active) render(); }
-  }
-
   function onOverlayClick(event) {
     const button = event.target.closest('button');
     if (!button) return;
@@ -243,6 +270,7 @@ window.RoomTicketsTV = (() => {
     switch (button.dataset.tvAction) {
       case 'close': close(); break;
       case 'switch': switchPanel(); break;
+      case 'fullscreen': toggleFullscreen(); break;
       case 'pause': paused = !paused; render(); break;
       case 'sound': {
         const api = monitorApi();
@@ -253,25 +281,16 @@ window.RoomTicketsTV = (() => {
         render();
         break;
       }
-      case 'assume': {
-        // O formulário de atendimento vive fora do overlay e sobrevive à rotação.
-        const alertTicket = alertInfo?.ticket && Number(alertInfo.ticket.id) === Number(button.dataset.ticketId) ? alertInfo.ticket : null;
-        const ticket = alertTicket || [latest()].find(item => item && Number(item.id) === Number(button.dataset.ticketId));
-        if (!ticket) return;
-        if (typeof document !== 'undefined' && typeof CustomEvent === 'function') {
-          document.dispatchEvent(new CustomEvent('roomtickets:assume-request', { detail: { ticket, source: 'tv' } }));
-        }
-        break;
-      }
-      case 'accept': {
-        const alertTicket = alertInfo?.ticket && Number(alertInfo.ticket.id) === Number(button.dataset.ticketId) ? alertInfo.ticket : null;
-        const ticket = alertTicket || [latest()].find(item => item && Number(item.id) === Number(button.dataset.ticketId));
-        if (!ticket) return;
-        button.disabled = true;
-        accept(ticket).catch(() => { button.disabled = false; });
-        break;
-      }
+      // Nenhum outro botão existe aqui de propósito: a TV não escreve.
+      default: break;
     }
+  }
+
+  function toggleFullscreen() {
+    if (typeof document === 'undefined') return;
+    if (document.fullscreenElement) document.exitFullscreen?.().catch?.(() => {});
+    else overlay?.requestFullscreen?.().catch?.(() => {});
+    render();
   }
 
   function onKeydown(event) {
@@ -284,7 +303,7 @@ window.RoomTicketsTV = (() => {
     if (seedData) callData = seedData;
     overlay = document.createElement('section');
     overlay.className = 'rt-tv';
-    overlay.setAttribute('aria-label', 'Modo TV do GCC');
+    overlay.setAttribute('aria-label', 'Modo TV do GCC (somente leitura)');
     overlay.addEventListener('click', onOverlayClick);
     document.body.appendChild(overlay);
     document.body.classList.add('rt-tv-open');
@@ -295,8 +314,11 @@ window.RoomTicketsTV = (() => {
     if (api) {
       if (unsubscribe) unsubscribe();
       unsubscribe = api.subscribe(applyView);
+      // Entrar na TV não interrompe a atualização do painel: o monitor segue
+      // dono do ciclo de consulta e continua rodando por baixo da sobreposição.
       api.start();
       applyView(api.snapshot());
+      // A TV tem o próprio alerta, então o banner global sai da tela.
       api.dismissBanner?.();
     }
     overlay.requestFullscreen?.().catch(() => {});
@@ -315,5 +337,5 @@ window.RoomTicketsTV = (() => {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   }
 
-  return { open, close, accept, isActive: () => active };
+  return { open, close, isActive: () => active, isReadOnly: () => true };
 })();

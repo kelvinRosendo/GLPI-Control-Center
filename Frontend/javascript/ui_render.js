@@ -320,15 +320,15 @@ window.UI = {
     let normCount = 0;
     while (normCount < idx && origIdx < str.length) {
       const ch = str[origIdx];
-      const decomposed = ch.normalize('NFD');
+      const decomposed = ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       normCount += decomposed.length;
       origIdx++;
     }
-    const matchEnd = origIdx;
+    let matchEnd = origIdx;
     let matchNormCount = 0;
     while (matchNormCount < normalizedQ.length && matchEnd < str.length) {
       const ch = str[matchEnd];
-      const decomposed = ch.normalize('NFD');
+      const decomposed = ch.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       matchNormCount += decomposed.length;
       matchEnd++;
     }
@@ -629,7 +629,7 @@ window.UI = {
           <input type="text" class="inventory-search-input" id="inventory-search"
             placeholder="Buscar por nome, serial, patrimonio, grupo..."
             value="${this._escapeAttr(q)}" />
-          ${q ? '<button class="inventory-search-clear" id="inventory-search-clear">&times;</button>' : ''}
+          <button class="inventory-search-clear" id="inventory-search-clear" aria-label="Limpar busca" ${q ? '' : 'hidden'}>&times;</button>
         </div>
         <div class="inventory-filters">
           <select class="filter-select" id="filter-category">
@@ -647,7 +647,8 @@ window.UI = {
           ${clearFiltersBtn}
         </div>
       </div>
-      <p class="inventory-count">${filtered.length} de ${classified.length} ativo${classified.length !== 1 ? 's' : ''}</p>
+      <div id="inventory-results">
+      <p class="inventory-count" aria-live="polite">${filtered.length} de ${classified.length} ativo${classified.length !== 1 ? 's' : ''}</p>
       <div class="inventory-table-wrap">
         <table class="inventory-table">
           <thead>
@@ -659,6 +660,7 @@ window.UI = {
         </table>
       </div>
       ${paginationHtml}
+      </div>
     `;
   },
 

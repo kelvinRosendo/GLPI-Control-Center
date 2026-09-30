@@ -64,6 +64,7 @@ final class RoomTicketWorkStore
             'solution' => $solution === null ? '' : (string) ($solution['text'] ?? ''),
             'solutionAt' => $solution === null ? '' : (string) ($solution['at'] ?? ''),
             'solutionBy' => $solution === null ? '' : (string) ($solution['recordedBy'] ?? ''),
+            'solutionInGlpi' => $solution === null ? false : (bool) ($solution['glpi'] ?? false),
             'lastMoveAt' => $moves === [] ? '' : (string) (end($moves)['at'] ?? ''),
             'moveCount' => count($moves),
         ];
@@ -128,10 +129,10 @@ final class RoomTicketWorkStore
         });
     }
 
-    public static function recordSolution(int $ticketId, array $solution, array $actor): array
+    public static function recordSolution(int $ticketId, array $solution, array $actor, string $requestId = ''): array
     {
         if ($ticketId <= 0) throw new InvalidArgumentException('Chamado inválido.');
-        return self::withLockedOutcome(true, static function (array $document) use ($ticketId, $solution, $actor): array {
+        return self::withLockedOutcome(true, static function (array $document) use ($ticketId, $solution, $actor, $requestId): array {
             $now = date(DATE_ATOM);
             $entry = self::entryFor($document, $ticketId, is_array($solution['ticket'] ?? null) ? $solution['ticket'] : []);
             if (is_array($entry['solution'] ?? null)) {
@@ -140,6 +141,9 @@ final class RoomTicketWorkStore
             $entry['solution'] = [
                 'text' => self::clean($solution['text'] ?? '', 4000),
                 'recordedBy' => self::clean($actor['name'] ?? '', 160),
+                // Reflete ESPECIFICAMENTE o passo da solução no GLPI. Um "true"
+                // aqui nunca pode vir do sucesso de outra etapa.
+                'glpi' => (bool) ($solution['glpi'] ?? false),
                 'glpiFollowup' => (bool) ($solution['glpiFollowup'] ?? false),
                 'at' => $now,
             ];
@@ -193,16 +197,22 @@ final class RoomTicketWorkStore
     }
 
     /**
-     * Idempotency of a submission: a repeated requestId returns the first
-     * outcome instead of repeating GLPI writes.
+     * Idempotência de uma submissão: a repetição do MESMO requestId devolve o
+     * primeiro desfecho em vez de repetir escritas no GLPI. O registro é
+     * gravado também em falhas parciais — é justamente o caso em que repetir a
+     * escrita pode duplicar uma solução ou um acompanhamento.
+     *
+     * A chave fica vinculada a autor, chamado, ação e impressão do conteúdo.
      */
-    public static function rememberRequest(string $requestId, int $ticketId, string $action, array $result): void
+    public static function rememberRequest(string $requestId, int $ticketId, string $action,
+        string $fingerprint, array $actor, array $outcome): void
     {
         if ($requestId === '' || $ticketId <= 0) return;
-        self::withLockedFile(true, static function (array $document) use ($requestId, $ticketId, $action, $result): array {
+        self::withLockedFile(true, static function (array $document) use ($requestId, $ticketId, $action, $fingerprint, $actor, $outcome): array {
             $document['requests'][$requestId] = [
-                'ticketId' => $ticketId, 'action' => $action,
-                'result' => $result, 'at' => date(DATE_ATOM),
+                'ticketId' => $ticketId, 'action' => $action, 'fingerprint' => $fingerprint,
+                'actor' => (string) ($actor['email'] ?? $actor['name'] ?? ''),
+                'outcome' => $outcome, 'at' => date(DATE_ATOM),
             ];
             $document['updatedAt'] = date(DATE_ATOM);
             return ['document' => $document, 'result' => null];
@@ -236,6 +246,38 @@ final class RoomTicketWorkStore
     {
         $override = trim((string) getenv('GCC_ROOM_TICKET_WORK_FILE'));
         return $override !== '' ? $override : dirname(__DIR__, 2) . '/data/room-ticket-work.json';
+    }
+
+    /**
+     * Lock por chamado, em arquivo próprio, com `flock` exclusivo.
+     *
+     * Serializa a sequência verificar → gravar entre requisições do GCC, de
+     * modo que dois técnicos não possam ler o mesmo estado vazio e gravar por
+     * cima um do outro. A API do GLPI não oferece transação, então esta
+     * proteção vale apenas para requisições originadas no GCC: uma alteração
+     * feita direto no GLPI durante a operação continua sendo uma condição de
+     * corrida, tratada pela releitura (que nunca aceita um estado não
+     * confirmado) e nunca por sobrescrita silenciosa.
+     */
+    public static function withTicketLock(int $ticketId, callable $operation): mixed
+    {
+        if ($ticketId < 1) throw new InvalidArgumentException('Chamado inválido.');
+        $path = self::path() . '.lock-' . $ticketId;
+        $directory = dirname($path);
+        if (!is_dir($directory) && !@mkdir($directory, 0750, true) && !is_dir($directory)) {
+            throw new RuntimeException('Diretório de dados indisponível.');
+        }
+        $handle = @fopen($path, 'c');
+        if ($handle === false) throw new RuntimeException('Não foi possível abrir a trava do chamado.');
+        try {
+            if (!flock($handle, LOCK_EX)) {
+                throw new RuntimeException('Não foi possível travar o chamado para o atendimento.');
+            }
+            return $operation();
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
+        }
     }
 
     private static function emptyDocument(): array

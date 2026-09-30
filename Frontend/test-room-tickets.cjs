@@ -32,13 +32,48 @@ function isoNow(secondsAgo = 0) {
   return new Date(Date.now() - secondsAgo * 1000).toISOString();
 }
 
+/**
+ * Ações por status, exatamente como o backend as calcula
+ * (RoomTicketsService::availableActions). O fixture usa a MESMA tabela do
+ * servidor: se as regras de transição mudarem, o teste quebra junto em vez de
+ * continuar garantindo um contrato que não existe mais.
+ */
+const CARD_ACTIONS = {
+  1: [['assumir', 'Assumir chamado', 'responsavel'], ['concluir', 'Concluir', 'solucao']],
+  2: [['concluir', 'Concluir', 'solucao'], ['pendente', 'Marcar aguardando', 'status']],
+  3: [['assumir', 'Assumir chamado', 'responsavel'], ['concluir', 'Concluir', 'solucao'], ['pendente', 'Marcar aguardando', 'status']],
+  4: [['assumir', 'Assumir chamado', 'responsavel'], ['concluir', 'Concluir', 'solucao'], ['retomar', 'Retomar', 'status']],
+  5: [['reabrir', 'Reabrir chamado', 'status']],
+  6: [['reabrir', 'Reabrir chamado', 'status']],
+};
+const TARGET_STATUS = { assumir: 2, pendente: 4, retomar: 2, concluir: 5, reabrir: 1 };
+
+function cardActions(statusId) {
+  return (CARD_ACTIONS[statusId] || []).map(([action, label, kind]) => ({ action, label, kind, target: TARGET_STATUS[action] }));
+}
+
 function ticket(id, secondsAgo, extra = {}) {
+  const statusId = extra.statusId ?? 1;
   return {
     id, room: 'Sala 10', types: ['projector'], openedAt: spNow(secondsAgo), eligible: true,
     title: 'Projetor sem imagem', description: 'Imagem não aparece.', status: 'aberto',
+    statusId, statusLabel: { 1: 'Novo', 2: 'Em atendimento', 3: 'Planejado', 4: 'Pendente', 5: 'Resolvido', 6: 'Fechado' }[statusId],
+    column: { 1: 'abertos', 2: 'andamento', 3: 'andamento', 4: 'andamento', 5: 'concluidos', 6: 'concluidos' }[statusId],
+    actions: cardActions(statusId),
     reference: 'L-' + String(id).padStart(4, '0'), roomSource: 'local_glpi', typeSource: 'categoria_glpi',
     assets: [], ...extra,
   };
+}
+
+/** Coluna do Kanban com cartões, no formato devolvido pelo backend. */
+function kanbanColumn(key, label, count, shown, statusId, startId = 1) {
+  const items = [];
+  for (let i = 0; i < shown; i += 1) {
+    const card = ticket(startId + i, 600, { statusId });
+    card.column = key;
+    items.push(card);
+  }
+  return { key, label, statuses: [], count, shown, hasMore: count > shown, items };
 }
 
 function payload(url, override = {}) {
@@ -75,6 +110,7 @@ function fixture(options = {}) {
   const docListeners = new Map();
   const storage = new Map();
   const nodes = new Map();
+  let created = 0;
   const detailBody = { innerHTML: '' };
   const dialog = {
     open: false,
@@ -87,10 +123,23 @@ function fixture(options = {}) {
   function makeNode(key) {
     const node = {
       key, textContent: '', value: '', disabled: false, required: false, checked: true,
-      listeners: {},
+      isConnected: true, children: [], listeners: {},
+      classList: { values: new Set(), add(v) { this.values.add(v); }, remove(v) { this.values.delete(v); },
+        toggle(v, on) { if (on) this.values.add(v); else this.values.delete(v); },
+        contains(v) { return this.values.has(v); } },
+      appendChild(child) { this.children.push(child); child.isConnected = true; child.parentElement = this; return child; },
+      remove() { this.isConnected = false; },
+      setAttribute(name, value) { this[name] = value; },
+      getAttribute(name) { return this[name] ?? null; },
+      contains() { return false; },
+      showModal() { this.open = true; },
       addEventListener(name, fn) { this.listeners[name] = fn; },
       removeEventListener(name) { delete this.listeners[name]; },
-      querySelector(sel) { return nodeFor(key + ' ' + sel); },
+      querySelector(sel) {
+        // O corpo do diálogo de detalhes é o mesmo objeto que o teste inspeciona.
+        if (sel === '.rt-detail-body' && String(this.innerHTML || '').includes('rt-detail-body')) return detailBody;
+        return nodeFor(key + ' ' + sel);
+      },
       closest() { return null; },
     };
     if (key === '#rt-filters') {
@@ -118,11 +167,19 @@ function fixture(options = {}) {
     removeEventListener() {},
   };
 
+  const byId = new Map();
+  const body = { appendChild(child) { child.isConnected = true; if (child.id) byId.set(child.id, child); return child; }, children: [] };
   const documentMock = {
     hidden: false,
+    body,
+    createElement() { return makeNode('created-' + (created += 1)); },
     getElementById(id) {
+      // Elementos criados pelo código (o diálogo de detalhes) têm precedência:
+      // é assim que o teste enxerga o mesmo diálogo que a tela usa.
+      if (byId.has(id)) return byId.get(id);
       if (id === 'main-content') return root;
       if (id === 'rt-detail') return dialog;
+      if (id === 'rt-filters') return root.querySelector('#rt-filters');
       return null;
     },
     querySelector(sel) { return sel === '.rt-toolbar-status' ? statusLabel : null; },
@@ -186,9 +243,19 @@ function fixture(options = {}) {
     }
   }
 
+  // BroadcastChannel entre "abas": permite exercitar o caminho real de
+  // sincronização entre telas, inclusive a idade do cache recebido.
+  const channelInstances = [];
+  class FakeBroadcastChannel {
+    constructor(name) { this.name = name; this.onmessage = null; this.sent = []; channelInstances.push(this); }
+    postMessage(message) { this.sent.push(message); }
+    deliver(message) { if (typeof this.onmessage === 'function') this.onmessage({ data: message }); }
+  }
+
   const globals = {
     window, document: documentMock, console,
     URL, URLSearchParams, CustomEvent: FakeCustomEvent,
+    BroadcastChannel: FakeBroadcastChannel,
     FormData: class {
       constructor(form) { this.form = form; }
       get(key) { return this.form.elements?.[key]?.value; }
@@ -222,6 +289,8 @@ function fixture(options = {}) {
 
   return {
     window, root, dialog, detailBody, statusLabel, calls, timers, timeouts, events,
+    // O diálogo de detalhes é criado pelo código; o teste enxerga o mesmo nó.
+    detailNode: () => byId.get('rt-detail') || dialog,
     pending: () => calls.filter(call => !call.settled),
     async settle(match, value) { const call = take(match); call.resolve(value); await flush(); },
     async fail(match, error) { const call = take(match); call.reject(error); await flush(); },
@@ -232,6 +301,13 @@ function fixture(options = {}) {
     change(sel, checked) { root.querySelector(sel).listeners.change({ target: { checked } }); },
     submit() { root.querySelector('#rt-filters').listeners.submit({ preventDefault() {} }); },
     listCalls: () => calls.filter(call => call.url.includes('/api/tickets/salas?')),
+    // Entrega uma mensagem como se viesse de outra aba do mesmo navegador.
+    fromOtherTab(message) {
+      const target = channelInstances[0];
+      assert.ok(target, 'o monitor abriu um canal entre abas');
+      target.deliver({ ...message, tab: 'outra-aba' });
+    },
+    channels: channelInstances,
   };
 }
 
@@ -253,8 +329,8 @@ test('relatório carrega pelo monitor, escapa conteúdo e abre detalhes', async 
   assert.match(f.root.innerHTML, /&lt;img/);
   assert.doesNotMatch(f.root.innerHTML, /<img src=x/);
   f.click({ rtTicket: '9' });
-  assert.equal(f.dialog.open, true);
-  assert.match(f.detailBody.innerHTML, /&lt;script&gt;/);
+  assert.equal(f.detailNode().open, true);
+  assert.match(f.detailNode().querySelector('.rt-detail-body').innerHTML, /&lt;script&gt;/);
   assert.match(f.detailBody.innerHTML, /https:\/\/glpi.example.test\/front\/ticket.form.php\?id=9/);
 });
 
@@ -441,6 +517,89 @@ test('preferências de monitoramento e som ficam no armazenamento', async () => 
   monitor.setSoundEnabled(true);
   assert.equal(monitor.isSoundEnabled(), true);
   assert.equal(f.window.localStorage.getItem('gcc-room-tickets-sound'), '1');
+});
+
+// ── ciclo único de consulta e idade real do cache entre abas ────────────────
+
+test('o timer do relatório não varre o GLPI: só o ciclo do monitor consulta', async () => {
+  const f = fixture();
+  f.window.RoomTickets.mount();
+  await flush();
+  await f.settle('/api/tickets/salas?', payload('/api/tickets/salas?period=30d&page=1'));
+  const readsAfterLoad = f.listCalls().length;
+  assert.equal(readsAfterLoad, 1, 'a carga inicial consulta uma vez');
+
+  // Dispara o timer de 60 s do relatório. Ele só repinta o carimbo de horário:
+  // se consultasse o GLPI, teríamos DUAS varreduras por minuto.
+  // Parar o monitor deixa na mesa apenas o timer do relatório, então qualquer
+  // leitura disparada aqui poderia vir só dele.
+  f.window.RoomTicketsMonitor.stop();
+  const reportTimers = Array.from(f.timers).filter(t => t.kind === 'interval' && t.ms === 60000);
+  assert.equal(reportTimers.length, 1, 'sobra exatamente o timer do relatório');
+  for (const timer of reportTimers) timer.fn();
+  await flush();
+  assert.equal(f.listCalls().length, readsAfterLoad,
+    'o timer do relatório não gera leitura nova do GLPI');
+  assert.ok(f.pending().every(call => !call.url.includes('/api/tickets/salas?')),
+    'nenhuma requisição de lista pendente sobrou');
+
+  // E o monitor continua sendo quem busca: o ciclo dele sim consulta.
+  f.window.RoomTicketsMonitor.start();
+  await flush();
+  assert.ok(f.listCalls().length > readsAfterLoad,
+    'o ciclo do monitor é o que consulta o GLPI');
+});
+
+test('cache recebido de outra aba não conta como leitura nova', async () => {
+  const f = fixture();
+  const monitor = f.window.RoomTicketsMonitor;
+  f.window.RoomTickets.mount();
+  await flush();
+  const first = payload('/api/tickets/salas?period=30d&page=1');
+  first.data.meta.collectedAt = new Date(Date.now() - 90 * 1000).toISOString();
+  await f.settle('/api/tickets/salas?', first);
+  const reads = f.listCalls().length;
+
+  // Outra aba consultou o GLPI e mandou o resultado. O dado tem 90 s.
+  const shared = payload('/api/tickets/salas?period=30d&page=1');
+  shared.data.meta.collectedAt = new Date(Date.now() - 90 * 1000).toISOString();
+  f.fromOtherTab({ type: 'payload', q: 'period=30d&page=1', data: shared.data });
+  await flush();
+
+  assert.equal(monitor.getData(), shared.data, 'o dado da outra aba é adotado');
+  // A idade tem de vir do servidor. Se viesse da hora de chegada, este cache
+  // pareceria fresco e adiaria a leitura real por um ciclo inteiro.
+  assert.ok(Date.now() - monitor.snapshot().lastSuccessAt >= 80 * 1000,
+    'a última consulta bem-sucedida tem a idade do dado, não a da recepção');
+
+  // Pedir leitura com tolerância de 51 s tem de ignorar esse cache velho.
+  const pending = monitor.refresh({ q: 'period=30d&page=1', reason: 'tick', maxAge: 51000 });
+  await flush();
+  const requery = f.pending().filter(call => call.url.includes('/api/tickets/salas?'));
+  assert.equal(requery.length, 1, 'um cache de 90 s não evita a consulta ao GLPI');
+  const fresh = payload('/api/tickets/salas?period=30d&page=1');
+  await f.settle('/api/tickets/salas?', fresh);
+  const result = await pending;
+  assert.equal(result.ok, true);
+  assert.equal(f.listCalls().length, reads + 1, 'exatamente uma leitura nova');
+  assert.ok(Date.now() - monitor.snapshot().lastSuccessAt < 5000,
+    'agora a última consulta é a real, freshly');
+});
+
+test('o relatório se redesenha sozinho quando chega leitura nova do monitor', async () => {
+  const f = fixture();
+  f.window.RoomTickets.mount();
+  await flush();
+  await f.settle('/api/tickets/salas?', payload('/api/tickets/salas?period=30d&page=1'));
+  assert.match(f.root.innerHTML, /26/);
+
+  const second = payload('/api/tickets/salas?period=30d&page=1');
+  second.data.items = [ticket(9, 60000, { title: 'Chamado novo do outro PC' })];
+  f.fromOtherTab({ type: 'payload', q: 'period=30d&page=1', data: second.data });
+  await flush();
+
+  assert.match(f.root.innerHTML, /Chamado novo do outro PC/,
+    'a tela acompanha o monitor sem depender do timer do relatório');
 });
 
 // ── conversão de horário: openedAt é horário de parede de America/Sao_Paulo ─
@@ -648,22 +807,26 @@ test('Kanban mostra as três colunas com as contagens do conjunto consultado', a
     limit: 25, total: 3, unmapped: 0,
     columns: {
       abertos: { key: 'abertos', label: 'Abertos', statuses: [1], count: 12, shown: 2, hasMore: true, items: [
-        { id: 21, room: 'Sala 10', title: 'Projetor sem imagem', types: ['projector'], openedAt: '2026-09-28 10:00:00',
-          status: 'aberto', statusId: 1, column: 'abertos', waiting: false, reference: 'L-0021', assignee: { userId: 0, name: '' },
-          work: { handlerName: '', handlerSource: '', glpiUserId: 0 } },
-        { id: 22, room: 'Sala 12', title: 'Sem internet', types: ['pc'], openedAt: '2026-09-28 09:00:00',
-          status: 'aberto', statusId: 1, column: 'abertos', waiting: false, reference: '', assignee: { userId: 0, name: '' }, work: null },
-      ] },
-      andamento: { key: 'andamento', label: 'Em andamento', statuses: [2, 3, 4], count: 5, shown: 1, hasMore: true, items: [
-        { id: 23, room: 'Sala 16', title: 'Projetor queimado', types: ['projector'], openedAt: '2026-09-28 08:00:00',
-          status: 'pendente', statusId: 4, column: 'andamento', waiting: true, reference: 'L-0023',
-          assignee: { userId: 42, name: 'Ana Ribeiro' }, work: { handlerName: 'Ana Ribeiro', handlerSource: 'glpi_user', glpiUserId: 42 } },
-      ] },
-      concluidos: { key: 'concluidos', label: 'Concluídos', statuses: [5, 6], count: 2, shown: 1, hasMore: false, items: [
-        { id: 24, room: 'Sala 20', title: 'Mouse trocado', types: ['mouse'], openedAt: '2026-09-27 08:00:00',
-          status: 'resolvido', statusId: 5, column: 'concluidos', waiting: false, reference: '', assignee: { userId: 0, name: '' },
-          work: { solution: 'Troca do mouse', handlerName: 'Bia', handlerSource: 'informado' } },
-      ] },
+          { id: 21, room: 'Sala 10', title: 'Projetor sem imagem', types: ['projector'], openedAt: '2026-09-28 10:00:00',
+            status: 'aberto', statusId: 1, column: 'abertos', waiting: false, reference: 'L-0021', assignee: { userId: 0, name: '' },
+            actions: cardActions(1),
+            work: { handlerName: '', handlerSource: '', glpiUserId: 0 } },
+          { id: 22, room: 'Sala 12', title: 'Sem internet', types: ['pc'], openedAt: '2026-09-28 09:00:00',
+            status: 'aberto', statusId: 1, column: 'abertos', waiting: false, reference: '', assignee: { userId: 0, name: '' },
+            actions: cardActions(1), work: null },
+        ] },
+        andamento: { key: 'andamento', label: 'Em andamento', statuses: [2, 3, 4], count: 5, shown: 1, hasMore: true, items: [
+          { id: 23, room: 'Sala 16', title: 'Projetor queimado', types: ['projector'], openedAt: '2026-09-28 08:00:00',
+            status: 'pendente', statusId: 4, column: 'andamento', waiting: true, reference: 'L-0023',
+            actions: cardActions(4),
+            assignee: { userId: 42, name: 'Ana Ribeiro' }, work: { handlerName: 'Ana Ribeiro', handlerSource: 'glpi_user', glpiUserId: 42 } },
+        ] },
+        concluidos: { key: 'concluidos', label: 'Concluídos', statuses: [5, 6], count: 2, shown: 1, hasMore: false, items: [
+          { id: 24, room: 'Sala 20', title: 'Mouse trocado', types: ['mouse'], openedAt: '2026-09-27 08:00:00',
+            status: 'resolvido', statusId: 5, column: 'concluidos', waiting: false, reference: '', assignee: { userId: 0, name: '' },
+            actions: cardActions(5),
+            work: { solution: 'Troca do mouse', handlerName: 'Bia', handlerSource: 'informado' } },
+        ] },
     },
   };
   await f.settle('/api/tickets/salas?', data);
@@ -712,16 +875,28 @@ test('ampliar a coluna pede mais cartões e mantém os filtros', async () => {
 });
 
 test('última atualização usa o horário de Brasília e distingue cache de consulta', async () => {
-  const f = fixture();
+  // Relógio fixo: a asserção não pode depender do dia em que o teste roda.
+  // A data só aparece quando difere de hoje, então o instantâneo precisa ser
+  // o MESMO dia da coleta — com o horário de Brasília esperado.
+  const fixedNow = Date.parse('2026-09-28T12:04:05-03:00');
+  const f = fixture({ now: fixedNow });
   f.window.RoomTickets.mount();
   await flush();
   const data = payload('/api/tickets/salas?period=30d&page=1');
-  // CollectedAt é a consulta ao GLPI, com horário de Brasília explícito.
+  // CollectedAt é a consulta ao GLPI, em UTC, com o horário de Brasília explícito.
   data.data.meta.collectedAt = '2026-09-28T15:04:05+00:00';
   await f.settle('/api/tickets/salas?', data);
-  assert.match(f.root.innerHTML, /Última atualização: 12:04:05/, 'mostra a hora de Brasília da consulta');
+  assert.match(f.root.innerHTML, /Última atualização: 12:04:05/,
+    'mostra a hora de Brasília da consulta, sem a data quando é o mesmo dia');
   assert.match(f.root.innerHTML, /Brasília/);
   assert.doesNotMatch(f.root.innerHTML, /Exibindo dados em cache/);
+  // A data aparece quando a coleta é de outro dia.
+  data.data.meta.collectedAt = '2026-09-27T15:04:05+00:00';
+  f.click({ rtAction: 'refresh' });
+  await flush();
+  await f.settle('/api/tickets/salas?', data);
+  assert.match(f.root.innerHTML, /Última atualização: 27\/09\/2026 12:04:05/,
+    'a data entra quando a coleta é de outro dia');
   // Falha de consulta com dados em tela: avisa que está exibindo cache.
   f.click({ rtAction: 'refresh' });
   await flush();

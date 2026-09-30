@@ -16,8 +16,12 @@ on:
       - 'Frontend/javascript/asset_classifier.js'
       - 'Frontend/javascript/glpi.client.js'
       - 'Frontend/test-inventory-sync.cjs'
+      - 'Frontend/test-inventory-search-browser.cjs'
+      - 'Frontend/javascript/ui_render.js'
+      - 'Frontend/javascript/state.js'
       - 'Backend/api/room_tickets.php'
       - 'Backend/api/services/RoomTickets*.php'
+      - 'Backend/api/services/RoomTicketWorkStore.php'
       - 'Backend/api/client.php'
       - 'Backend/api/endpoints.php'
       - 'Backend/tests/test_room_tickets.php'
@@ -29,6 +33,7 @@ on:
       - 'Frontend/javascript/room-tickets-monitor.js'
       - 'Frontend/javascript/room-tickets-kanban.js'
       - 'Frontend/javascript/room-tickets-tv.js'
+      - 'Frontend/javascript/api-client.js'
       - 'Frontend/javascript/dashboard.js'
       - 'Frontend/javascript/app.js'
       - 'Frontend/javascript/sidebar.js'
@@ -37,9 +42,13 @@ on:
       - 'Frontend/css/room-tickets-tv.css'
       - 'Frontend/index.html'
       - 'Frontend/test-room-tickets.cjs'
+      - 'Frontend/test-api-client-errors.cjs'
+      - 'Frontend/test-glpi-empty-collections.cjs'
       - 'Frontend/test-room-tickets-browser.cjs'
       - 'Frontend/test-room-tickets-kanban-browser.cjs'
       - 'Frontend/test-room-tickets-tv-browser.cjs'
+      - 'Frontend/test-room-tickets-blackbox.cjs'
+      - 'Frontend/test-room-tickets-blackbox-boot.js'
       - '.github/workflows/room-tickets.yml'
 permissions:
   contents: read
@@ -69,6 +78,7 @@ jobs:
           php -l Backend/api/services/RoomTicketsReader.php
           php -l Backend/api/services/RoomTicketAcknowledgementStore.php
           php -l Backend/api/services/RoomTicketWorkStore.php
+          php -l Backend/api/services/RoomTicketsGlpi.php
           php -l Backend/api/client.php
           php -l Backend/api/endpoints.php
           php -l Backend/scripts/sync-cron.php
@@ -88,8 +98,11 @@ jobs:
           node --check Frontend/javascript/room-tickets-monitor.js
           node --check Frontend/javascript/room-tickets-kanban.js
           node --check Frontend/javascript/room-tickets-tv.js
+          node --check Frontend/javascript/api-client.js
+          node --check Frontend/test-room-tickets-blackbox-boot.js
           node --check Frontend/javascript/dashboard.js
           node --check Frontend/javascript/app.js
+          node --check Frontend/javascript/ui_render.js
           node --check Frontend/javascript/asset_details_ui.js
           node --check Frontend/javascript/admin_sync.js
           node --check Frontend/javascript/asset_classifier.js
@@ -97,9 +110,19 @@ jobs:
           node --check Frontend/javascript/sidebar.js
           node --check Frontend/javascript/permissions.js
       - name: UI behavior with simulated DOM and API
-        run: node --test Frontend/test-room-tickets.cjs
+        run: |
+          node --test Frontend/test-room-tickets.cjs
+          node --test Frontend/test-api-client-errors.cjs
+          node Frontend/test-glpi-empty-collections.cjs
       - name: Browser smoke test (isolated data, desktop and narrow screen)
         run: |
           node Frontend/test-room-tickets-browser.cjs
           node Frontend/test-room-tickets-kanban-browser.cjs
           node Frontend/test-room-tickets-tv-browser.cjs
+          node Frontend/test-inventory-search-browser.cjs
+      # Caixa preta: módulos REAIS, TODOS os CSS do index.html na ordem de
+      # produção e respostas HTTP controladas (409 e 502 reais). A primeira
+      # rodada da revisão independente não reproduzia o defeito de
+      # centralização justamente porque carregava só o CSS do módulo.
+      - name: Black box with real modules, full CSS and controlled HTTP
+        run: node Frontend/test-room-tickets-blackbox.cjs

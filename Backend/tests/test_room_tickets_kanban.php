@@ -7,6 +7,7 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/../api/services/RoomTicketsService.php';
+require_once __DIR__ . '/../api/services/RoomTicketsGlpi.php';
 require_once __DIR__ . '/../api/services/RoomTicketAcknowledgementStore.php';
 require_once __DIR__ . '/../api/services/RoomTicketWorkStore.php';
 
@@ -39,9 +40,9 @@ function kanbanRow(int $id, int $status, array $extra = []): array
 }
 
 /** Normaliza e agrega como o endpoint faz, com janela de tempo fixa. */
-function aggregateRows(array $rows, array $query = []): array
+function aggregateRows(array $rows, array $query = [], array $actorIndex = []): array
 {
-    $normalized = RoomTicketsService::normalize($rows, [], [], [], []);
+    $normalized = RoomTicketsService::normalize($rows, [], [], [], [], $actorIndex);
     $now = new DateTimeImmutable('2026-09-24 14:00:00', new DateTimeZone('America/Sao_Paulo'));
     $filters = RoomTicketsService::filters($query, $now);
     return RoomTicketsService::aggregate($normalized['items'], $filters);
@@ -121,9 +122,11 @@ try {
     checkKanban($ordered === $sorted, 'cartões ordenados do mais antigo para o mais recente');
 
     // ── 4. Cartão traz número, sala, resumo, equipamento, status e responsável
+    $actorIndex = [300 => ['userId' => 42, 'name' => 'Kelvin Souza', 'source' => 'glpi_actors', 'ambiguous' => false]];
     $full = aggregateRows([kanbanRow(300, 2, [
-        'users_id_recipient' => 42, 'users_id_recipient_name' => 'Kelvin Souza',
-    ])], ['kanban_limit' => '5']);
+        // users_id_recipient é o AUTOR do chamado no GLPI 10 e NÃO pode virar responsável.
+        'users_id_recipient' => 'Maria Autora',
+    ])], ['kanban_limit' => '5'], $actorIndex);
     $fullCard = $full['kanban']['columns']['andamento']['items'][0];
     checkKanban($fullCard['id'] === 300, 'cartão traz o número do chamado');
     checkKanban($fullCard['room'] === 'Sala 10', 'cartão traz a sala');
@@ -131,8 +134,25 @@ try {
     checkKanban($fullCard['types'] === ['projector'], 'cartão traz o equipamento');
     checkKanban($fullCard['openedAt'] !== '', 'cartão traz a abertura');
     checkKanban($fullCard['status'] === 'em_andamento' && $fullCard['statusId'] === 2, 'cartão traz o status');
-    checkKanban($fullCard['assignee'] === ['userId' => 42, 'name' => 'Kelvin Souza'],
-        'cartão traz o responsável atribuído no GLPI');
+    checkKanban($fullCard['assignee'] === $actorIndex[300],
+        'cartão traz o responsável lido dos ATORES do GLPI');
+    checkKanban($fullCard['assignee']['name'] !== 'Maria Autora',
+        'users_id_recipient (autor do chamado) nunca vira responsável');
+    checkKanban(count($fullCard['actions']) > 0, 'cartão traz as ações válidas para o status atual');
+    checkKanban(!in_array('reabrir', array_column($fullCard['actions'], 'action'), true),
+        'em atendimento não oferece reabrir');
+    checkKanban(!in_array('assumir', array_column($fullCard['actions'], 'action'), true),
+        'em atendimento não oferece assumir de novo');
+    $pendingActions = array_column(RoomTicketsService::kanbanCard([
+        'id' => 9, 'statusId' => 4, 'status' => 'pendente', 'openedAt' => '2026-09-10 10:00:00',
+    ])['actions'], 'action');
+    checkKanban($pendingActions === ['assumir', 'concluir', 'retomar'],
+        'pendente oferece retomar e não oferece marcar aguardando de novo');
+    $newActions = array_column(RoomTicketsService::kanbanCard([
+        'id' => 10, 'statusId' => 1, 'status' => 'aberto', 'openedAt' => '2026-09-10 10:00:00',
+    ])['actions'], 'action');
+    checkKanban($newActions === ['assumir', 'concluir'],
+        'novo oferece assumir e concluir, e nada de reabrir/retomar/aguardando');
 
     // ── 5. Transições aceitas a partir do status atual ─────────────────────
     checkKanban(RoomTicketsService::transition('assumir', 1) === 2, 'assumir novo → em andamento');
@@ -155,23 +175,53 @@ try {
     // Concluir é Resolvido: nunca fechamento definitivo.
     checkKanban(RoomTicketsService::transition('concluir', 2) === 5, 'concluir não fecha o chamado');
 
-    // ── 6. Leitura do responsável: campo por versão do GLPI ────────────────
-    checkKanban(RoomTicketsService::assignee(['users_id_recipient' => 7, 'users_id_recipient_name' => 'Ana'])
-        === ['userId' => 7, 'name' => 'Ana'], 'GLPI 10: users_id_recipient');
-    checkKanban(RoomTicketsService::assignee(['users_id_assign' => 8, 'users_id_assign_name' => 'Bia'])
-        === ['userId' => 8, 'name' => 'Bia'], 'versão antiga: users_id_assign');
-    checkKanban(RoomTicketsService::assignee(['users_id_recipient' => 0]) === ['userId' => 0, 'name' => ''],
-        'sem responsável não há nome inventado');
-    checkKanban(RoomTicketsService::assignee([]) === ['userId' => 0, 'name' => ''], 'chamado sem campos de responsável');
-    checkKanban(RoomTicketsService::assigneeField(['users_id_recipient' => 0]) === 'users_id_recipient',
-        'campo detectado pela leitura do próprio chamado');
-    checkKanban(RoomTicketsService::assigneeField(['users_id_assign' => 0]) === 'users_id_assign',
-        'campo legado detectado');
-    checkKanban(RoomTicketsService::assigneeField([]) === 'users_id_recipient', 'padrão GLPI 10 quando o campo não vem');
-    putenv('GCC_ROOM_TICKET_ASSIGN_FIELD=users_id_assign');
-    checkKanban(RoomTicketsService::assigneeField(['users_id_recipient' => 1]) === 'users_id_assign',
-        'sobrescrita por GCC_ROOM_TICKET_ASSIGN_FIELD');
-    putenv('GCC_ROOM_TICKET_ASSIGN_FIELD');
+    // ── 6. Leitura do responsável: mecanismo de ATORES do GLPI 10 ───────────
+    // Contrato verificado em 10.0.19: users_id_recipient é o Writer (autor) e a
+    // atribuição é um ator CommonITILActor com type = ASSIGN (2).
+    $names = [42 => 'Ana Ribeiro', 7 => 'Bia Alves'];
+    $single = RoomTicketsGlpi::assignee([['type' => 2, 'users_id' => 42]], $names);
+    checkKanban($single['userId'] === 42 && $single['name'] === 'Ana Ribeiro', 'ator ASSIGN vira responsável');
+    checkKanban($single['ambiguous'] === false, 'um único técnico não é ambíguo');
+    $request = RoomTicketsGlpi::assignee([['type' => 1, 'users_id' => 42]], $names);
+    checkKanban($request['userId'] === 0 && $request['name'] === '', 'ator REQUESTER não é responsável');
+    $observer = RoomTicketsGlpi::assignee([['type' => 3, 'users_id' => 7]], $names);
+    checkKanban($observer['userId'] === 0, 'ator OBSERVER não é responsável');
+    $two = RoomTicketsGlpi::assignee([['type' => 2, 'users_id' => 42], ['type' => 2, 'users_id' => 7]], $names);
+    checkKanban($two['userId'] === 0 && $two['ambiguous'] === true, 'dois técnicos atribuídos são ambíguos');
+    checkKanban(str_contains($two['name'], 'Ana Ribeiro') && str_contains($two['name'], 'Bia Alves'),
+        'ambiguidade informa os nomes em vez de escolher um');
+    checkKanban(RoomTicketsGlpi::assignee([], $names)['userId'] === 0, 'sem ator ASSIGN não há responsável');
+    checkKanban(RoomTicketsGlpi::assignee([['type' => 2, 'users_id' => 0]], $names)['userId'] === 0,
+        'ator sem usuário não inventa responsável');
+
+    // A escrita de ator NÃO toca users_id_recipient (autor) nem em outros atores.
+    $assignInput = RoomTicketsGlpi::assignInput([['type' => 2, 'users_id' => 7], ['type' => 1, 'users_id' => 9]], 42);
+    checkKanban(!isset($assignInput['users_id_recipient']), 'atribuição não escreve users_id_recipient');
+    checkKanban(!isset($assignInput['_actors']['requester']), 'atribuição não mexe no solicitante');
+    checkKanban(!isset($assignInput['_actors']['observer']), 'atribuição não mexe no observador');
+    checkKanban($assignInput === ['_actors' => ['assign' => [
+        ['itemtype' => 'User', 'items_id' => 42, 'use_notification' => 1]]]],
+        'assumir substitui o conjunto de técnicos pelo novo responsável');
+
+    // status textual é erro explícito, nunca 0 silencioso.
+    checkKanban(RoomTicketsService::statusId(['status' => 5]) === 5, 'status inteiro é lido');
+    checkKanban(RoomTicketsService::statusId(['status' => '5']) === 5, 'status numérico em string é lido');
+    $thrown = false;
+    try { RoomTicketsService::statusId(['status' => 'Resolvido']); } catch (RuntimeException $error) { $thrown = true; }
+    checkKanban($thrown, 'status em texto é recusado explicitamente');
+    $thrown = false;
+    try { RoomTicketsGlpi::assertScalarContract(['status' => 'Novo', 'urgency' => 'Média']); }
+    catch (RuntimeException $error) { $thrown = true; }
+    checkKanban($thrown, 'contrato inesperado do GLPI é recusado explicitamente');
+    checkKanban(RoomTicketsGlpi::assertScalarContract(['status' => 1, 'urgency' => 3]) === null,
+        'contrato normal é aceito');
+
+    // Input de solução: ITILSolution do GLPI 10, sem `resolution` nem `type_followup`.
+    $solutionInput = RoomTicketsGlpi::solutionInput(78, '<p>Texto</p>', 3);
+    checkKanban($solutionInput === ['itemtype' => 'Ticket', 'items_id' => 78, 'content' => '<p>Texto</p>', 'solutiontypes_id' => 3],
+        'solução registrada como ITILSolution');
+    $noType = RoomTicketsGlpi::solutionInput(78, '<p>Texto</p>', 0);
+    checkKanban(!isset($noType['solutiontypes_id']), 'tipo de solução é opcional quando não configurado');
 
     // ── 7. Registro de atendimento: responsável, autor e histórico ──────────
     $actor = ['name' => 'Coordenação', 'email' => 'coord@colegiosatelite.com.br'];
@@ -227,12 +277,52 @@ try {
     checkKanban(is_array($history['acknowledgement']), 'o aceite continua visível no histórico');
     checkKanban(RoomTicketWorkStore::attachList(['linha']) === ['linha'], 'linhas inválidas são preservadas');
 
-    // ── 9. Idempotência de submissão ───────────────────────────────────────
-    RoomTicketWorkStore::rememberRequest('req-abc-123', 78, 'assumir', ['ticketId' => 78, 'handlerName' => 'Kelvin Souza']);
+    // ── 9. Idempotência de submissão vinculada a autor e conteúdo ──────────
+    $outcomeOk = ['ok' => true, 'data' => ['ticketId' => 78, 'handlerName' => 'Kelvin Souza']];
+    $fingerprint = hash('sha256', 'assumir-78-kelvin');
+    RoomTicketWorkStore::rememberRequest('req-abc-123', 78, 'assumir', $fingerprint, $actor, $outcomeOk);
     $replay = RoomTicketWorkStore::findRequest('req-abc-123');
     checkKanban($replay !== null && $replay['ticketId'] === 78, 'requestId recupera o resultado anterior');
+    checkKanban(($replay['outcome']['ok'] ?? false) === true, 'o desfecho é replayado, não só o identificador');
+    checkKanban(($replay['fingerprint'] ?? '') === $fingerprint, 'requestId fica vinculado ao conteúdo da operação');
+    checkKanban(($replay['actor'] ?? '') !== '', 'requestId fica vinculado ao autor');
     checkKanban(RoomTicketWorkStore::findRequest('req-inexistente') === null, 'requestId desconhecido não inventa resultado');
     checkKanban(RoomTicketWorkStore::findRequest('') === null, 'requestId vazio é ignorado');
+    // Falha parcial também fica registrada: repetir não pode duplicar efeito.
+    RoomTicketWorkStore::rememberRequest('req-parcial', 79, 'concluir', 'fp-2', $actor,
+        ['ok' => false, 'status' => 502, 'error' => 'parcial', 'data' => ['partial' => true]]);
+    checkKanban((RoomTicketWorkStore::findRequest('req-parcial')['outcome']['status'] ?? 0) === 502,
+        'falha parcial é lembrada para não repetir a escrita');
+    // Solução: o campo reflete o passo da solução, não "algum passo deu certo".
+    $partial = RoomTicketWorkStore::recordSolution(81, ['text' => 'Sem confirmação no GLPI.',
+        'glpi' => false, 'ticket' => ['reference' => 'L-0081']], $actor);
+    checkKanban($partial['result']['solution']['glpi'] === false,
+        'solução sem confirmação no GLPI não é marcada como registrada');
+    checkKanban(RoomTicketWorkStore::summary($partial['result'])['solutionInGlpi'] === false,
+        'o resumo expõe se a solução entrou no GLPI');
+    // Movimento com requestId não duplica histórico em reenvio.
+    $first = RoomTicketWorkStore::recordMove(82, ['action' => 'pendente', 'from' => 2, 'to' => 4,
+        'confirmed' => true], $actor, 'req-move-82');
+    $again = RoomTicketWorkStore::recordMove(82, ['action' => 'pendente', 'from' => 2, 'to' => 4,
+        'confirmed' => true], $actor, 'req-move-82');
+    checkKanban($again['created'] === false, 'reenvio com o mesmo requestId não duplica o movimento');
+    checkKanban(count(RoomTicketWorkStore::forTicket(82)['moves']) === 1, 'histórico tem um único movimento');
+
+    // ── 10. Lock por chamado serializa requisições do GCC ──────────────────
+    $order = [];
+    RoomTicketWorkStore::withTicketLock(90, static function () use (&$order): string {
+        $order[] = 'entrou';
+        return 'primeiro';
+    });
+    RoomTicketWorkStore::withTicketLock(90, static function () use (&$order): string {
+        $order[] = 'entrou';
+        return 'segundo';
+    });
+    checkKanban($order === ['entrou', 'entrou'] && count($order) === 2, 'lock por chamado libera em ordem');
+    $thrown = false;
+    try { RoomTicketWorkStore::withTicketLock(0, static fn() => null); }
+    catch (InvalidArgumentException $error) { $thrown = true; }
+    checkKanban($thrown, 'lock de chamado inválido é recusado');
 } catch (RuntimeException $error) {
     echo 'FALHA: ' . $error->getMessage() . "\n";
     exit(1);

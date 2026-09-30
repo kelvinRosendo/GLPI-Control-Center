@@ -22,10 +22,26 @@ window.failWrites = false;
 window.UserContext = { getUserName: () => 'Kelvin Souza', getUserEmail: () => 'kelvin@escola', isAuthenticated: () => true };
 const spNow = secondsAgo => new Date(Date.now() - secondsAgo * 1000 - 3 * 3600 * 1000).toISOString().slice(0,19).replace('T',' ');
 const isoNow = () => new Date().toISOString();
+// Ações por status, exatamente como o backend as calcula
+// (RoomTicketsService::availableActions). Sem o campo actions, o cartão não
+// tem botão nenhum: é assim que a interface ficou após a correção.
+const CARD_ACTIONS = {
+  1: [['assumir', 'Assumir chamado', 'responsavel'], ['concluir', 'Concluir', 'solucao']],
+  2: [['concluir', 'Concluir', 'solucao'], ['pendente', 'Marcar aguardando', 'status']],
+  3: [['assumir', 'Assumir chamado', 'responsavel'], ['concluir', 'Concluir', 'solucao'], ['pendente', 'Marcar aguardando', 'status']],
+  4: [['assumir', 'Assumir chamado', 'responsavel'], ['concluir', 'Concluir', 'solucao'], ['retomar', 'Retomar', 'status']],
+  5: [['reabrir', 'Reabrir chamado', 'status']],
+  6: [['reabrir', 'Reabrir chamado', 'status']],
+};
+const TARGET_STATUS = { assumir: 2, pendente: 4, retomar: 2, concluir: 5, reabrir: 1 };
+const cardActions = statusId => (CARD_ACTIONS[statusId] || [])
+  .map(([action, label, kind]) => ({ action, label, kind, target: TARGET_STATUS[action] }));
 const card = (id, statusId, extra) => Object.assign({
   id, reference: 'L-00' + id, room: 'Sala ' + (10 + id), title: 'Projetor sem imagem #' + id,
   types: ['projector'], openedAt: spNow(1200), status: 'aberto', statusId, column: 'abertos',
+  statusLabel: { 1: 'Novo', 2: 'Em atendimento', 4: 'Pendente', 5: 'Resolvido' }[statusId] || 'Novo',
   waiting: statusId === 4, eligible: true, assignee: { userId: 0, name: '' }, work: null,
+  actions: cardActions(statusId),
 }, extra || {});
 window.__state = { tickets: [
   card(31, 1), card(32, 1), card(33, 2), card(34, 4), card(35, 5),
@@ -77,6 +93,7 @@ window.ApiClient = {
       const match = window.__state.tickets.find(t => t.id === id);
       if (match) {
         match.statusId = 2; match.status = 'em_andamento';
+        match.column = 'andamento'; match.actions = cardActions(2);
         match.work = { handlerName: body.handler, handlerSource: 'glpi_user', glpiUserId: 42, solution: '' };
         match.assignee = { userId: 42, name: body.handler };
       }
@@ -85,8 +102,8 @@ window.ApiClient = {
     }
     if (url.includes('/mover')) {
       const match = window.__state.tickets.find(t => t.id === id);
-      if (body.action === 'concluir') { if (match) { match.statusId = 5; match.status = 'resolvido'; } }
-      if (body.action === 'reabrir') { if (match) { match.statusId = 1; match.status = 'aberto'; } }
+      if (body.action === 'concluir') { if (match) { match.statusId = 5; match.status = 'resolvido'; match.column = 'concluidos'; match.actions = cardActions(5); } }
+      if (body.action === 'reabrir') { if (match) { match.statusId = 1; match.status = 'aberto'; match.column = 'abertos'; match.actions = cardActions(1); } }
       return { data: { ticketId: id, action: body.action, toStatus: match ? match.statusId : 0,
         confirmed: true, partial: false, work: match ? match.work : null } };
     }

@@ -39,22 +39,35 @@ check(document.querySelector('.rt-tv'),'opens overlay');check(document.body.clas
 check(document.querySelector('.rt-tv-alert'),'shows unacknowledged alert');
 check(document.querySelector('.rt-tv-alert').textContent.includes('#79'),'alert shows the oldest waiting ticket');
 check(document.querySelector('.rt-tv-connection-state'),'connection state shown');
-check(document.body.textContent.includes('Responsável não definido'),'responsible is explicit when nobody owns the ticket');
-check(!!document.querySelector('[data-tv-action="assume"]'),'assume action available in TV mode');
-window.__assumeRequested = null;
-document.addEventListener('roomtickets:assume-request', event => { window.__assumeRequested = event.detail.ticket.id; });
-document.querySelector('[data-tv-action="assume"][data-ticket-id="79"]').click(); await pause();
-check(window.__assumeRequested === 79,'assume request carries the ticket from the TV alert');
-check(document.body.textContent.includes('558'),'shows live asset total');
-check(document.body.textContent.includes('Status da infraestrutura'),'infrastructure status panel');
-document.querySelector('[data-tv-panel="calls"]').click();check(document.body.textContent.includes('Sala 16'),'renders latest room');
-check(document.querySelector('.rt-tv-queue-card'),'two waiting alerts render the queue');
-document.querySelector('[data-tv-action="accept"][data-ticket-id="78"]').click();await pause();
-check(posts.length===1 && posts[0].includes('/aceite'),'posts shared acknowledgement');
-check(document.body.textContent.includes('Alerta aceito'),'updates accepted state');
-check(!document.querySelector('.rt-tv-queue-card'),'queue shrinks after acceptance');
-check(document.querySelector('.rt-tv-connection-state.is-ok'),'healthy connection after load');
-check(document.documentElement.scrollWidth<=innerWidth+1,'no horizontal overflow');
+  check(document.body.textContent.includes('Responsável não definido'),'responsible is explicit when nobody owns the ticket');
+  // Modo TV é informativo: nenhuma ação de atendimento existe aqui.
+  check(!document.querySelector('[data-tv-action="assume"]'),'TV has no assume action');
+  check(!document.querySelector('[data-tv-action="accept"]'),'TV has no accept action');
+  // O escopo é a sobreposição da TV: o banner global do monitor continua com o
+  // botão de assumir, porque ele existe para a tela operacional do PC.
+  const tvText = document.querySelector('.rt-tv').textContent;
+  check(!tvText.includes('Assumir chamado'),'TV shows no attendance call to action');
+  check(!tvText.includes('Aceitar alerta'),'TV shows no acceptance call to action');
+  check(typeof RoomTicketsTV.accept==='undefined','TV exposes no acceptance handler');
+  window.__assumeRequested = null;
+  document.addEventListener('roomtickets:assume-request', event => { window.__assumeRequested = event.detail.ticket.id; });
+  for (const button of document.querySelectorAll('.rt-tv button')) button.click();
+  await pause();
+  check(window.__assumeRequested === null,'clicking every TV control never opens the operational form');
+  check(!document.getElementById('rt-action-form'),'no operational form is created by the TV');
+  check(!!document.querySelector('[data-tv-action="sound"]'),'TV keeps the sound control');
+  check(!!document.querySelector('[data-tv-action="fullscreen"]'),'TV keeps the fullscreen control');
+  check(!!document.querySelector('[data-tv-action="close"]'),'TV keeps the exit control');
+  check(document.body.textContent.includes('558'),'shows live asset total');
+  check(document.body.textContent.includes('Status da infraestrutura'),'infrastructure status panel');
+  document.querySelector('[data-tv-panel="calls"]').click();check(document.body.textContent.includes('Sala 16'),'renders latest room');
+  check(document.querySelector('.rt-tv-queue-card'),'two waiting alerts render the queue');
+  // O painel mostra o status real do chamado, e "lido" não vira "em atendimento".
+  check(document.body.textContent.includes('Novo'),'TV shows the real ticket status');
+  check(!tvText.includes('Alerta aceito'),'TV never presents an accepted alert as an ongoing ticket');
+  check(posts.length===0,'TV never writes to the backend');
+  check(document.querySelector('.rt-tv-connection-state.is-ok'),'healthy connection after load');
+  check(document.documentElement.scrollWidth<=innerWidth+1,'no horizontal overflow');
 RoomTicketsTV.close();check(!document.querySelector('.rt-tv'),'closes overlay');
 check(document.querySelector('.rt-monitor-widget'),'monitor keeps running after TV closes');
 document.body.dataset.result='passed';document.body.dataset.checks=String(checks);document.body.dataset.viewport=String(innerWidth);

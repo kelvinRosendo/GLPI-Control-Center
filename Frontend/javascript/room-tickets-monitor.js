@@ -84,9 +84,7 @@ window.RoomTicketsMonitor = (() => {
   let banner = null;
   let bannerHost = null;
   let bannerObserver = null;
-  const requestIds = {};
-  const pendingWrites = {};
-  let lastChange = 'init';
+  const pendingWrites = {};  let lastChange = 'init';
   const TAB_ID = Math.random().toString(36).slice(2, 10);
 
   // ── utilidades ───────────────────────────────────────────────────────────
@@ -401,30 +399,29 @@ window.RoomTicketsMonitor = (() => {
 
   // ── escrita no GLPI: assumir, mover e concluir ───────────────────────────
 
-  /** Identificador único por submissão: evita gravações repetidas. */
-  function requestId(scope) {
-    if (requestIds[scope]) return requestIds[scope];
-    const parts = String(scope).split(':').filter(Boolean);
-    requestIds[scope] = 'rt-' + parts.join('-') + '-' + Date.now().toString(36)
-      + Math.random().toString(36).slice(2, 8);
-    return requestIds[scope];
-  }
-
   /**
    * Envia uma movimentação e só confirma depois da resposta do servidor.
-   * Em caso de falha, o estado anterior permanece e o erro é devolvido.
-   * Uma submissão repetida enquanto a anterior está em voo não vira outra
-   * requisição: reaproveita a mesma promessa e o mesmo requestId.
+   *
+   * O `requestId` pertence à INTENÇÃO do usuário: a interface cria um por
+   * abertura de formulário e mantém o mesmo quando o técnico reenvia a MESMA
+   * operação depois de uma falha. Uma intenção nova (abrir o formulário de
+   * novo) sempre recebe identificador novo, então "concluir, reabrir e
+   * concluir de novo" são três operações diferentes — e não é possível reusar
+   * o identificador de outro usuário, porque ele morre no logout.
+   *
+   * Uma submissão repetida enquanto a anterior está em voo reaproveita a
+   * mesma promessa em vez de abrir outra requisição.
    */
   function writeTicket(id, action, payload, scope) {
     const ticketId = Number(id);
     if (!ticketId) return Promise.reject(new Error('Chamado inválido.'));
     const key = scope || action + ':' + ticketId;
     if (pendingWrites[key]) return pendingWrites[key];
+    const requestId = String(payload?.requestId || '').trim() || makeRequestId(key);
     const promise = (async () => {
       const response = await window.ApiClient.post(
         WRITE_SEGMENT + encodeURIComponent(ticketId) + '/' + action,
-        { ...payload, requestId: requestId(key) },
+        { ...payload, requestId },
         { cache: false, retries: 0, timeout: 30000 }
       );
       const data = response?.data;
@@ -438,6 +435,7 @@ window.RoomTicketsMonitor = (() => {
         work: data.work || null,
         // Falha parcial é real e precisa aparecer na interface.
         partial: Boolean(data.partial),
+        applied: data.applied || null,
         message: data.partial ? 'Movimentação parcial: revise o histórico do chamado.' : '',
       });
       return data;
@@ -448,12 +446,22 @@ window.RoomTicketsMonitor = (() => {
     return promise;
   }
 
-  function assume(ticket, handlerName) {
-    return writeTicket(ticket?.id, 'assumir', { handler: String(handlerName || '').trim() }, 'assumir:' + Number(ticket?.id));
+  /** Identificador de uma intenção, único dentro da sessão do usuário. */
+  function makeRequestId(scope) {
+    const parts = String(scope || 'op').split(':').filter(Boolean);
+    return 'rt-' + parts.join('-') + '-' + Date.now().toString(36)
+      + Math.random().toString(36).slice(2, 8);
   }
 
-  function move(ticket, action, solution) {
-    return writeTicket(ticket?.id, 'mover', { action, solution: String(solution || '') }, 'mover:' + action + ':' + Number(ticket?.id));
+  function assume(ticket, handlerName, requestId) {
+    return writeTicket(ticket?.id, 'assumir',
+      { handler: String(handlerName || '').trim(), requestId }, 'assumir:' + Number(ticket?.id));
+  }
+
+  function move(ticket, action, solution, requestId) {
+    return writeTicket(ticket?.id, 'mover',
+      { action, solution: String(solution || ''), requestId },
+      'mover:' + action + ':' + Number(ticket?.id));
   }
 
   async function history(ticketId) {
@@ -549,12 +557,18 @@ window.RoomTicketsMonitor = (() => {
   function onChannelMessage(message) {
     if (!message || message.tab === TAB_ID) return;
     if (message.type === 'payload' && message.q && message.data) {
-      payloads.set(String(message.q), message.data);
-      stamps.set(String(message.q), Date.now());
+      // Um cache vindo de outra aba NÃO é uma consulta nova. A idade do cache
+      // é a idade do dado (meta.collectedAt do servidor), nunca Date.now():
+      // marcar com a hora de chegada faria um dado velho passar por fresco e
+      // adiar a próxima leitura real em até um ciclo inteiro.
+      const key = String(message.q);
+      const collectedAt = Date.parse(String(message.data?.meta?.collectedAt || ''));
+      payloads.set(key, message.data);
+      stamps.set(key, Number.isFinite(collectedAt) ? collectedAt : 0);
       lastData = message.data;
-      lastSuccessAt = Date.now();
+      lastSuccessAt = Number.isFinite(collectedAt) ? collectedAt : 0;
       fetchFailed = false;
-      for (const [key, entry] of collectAcks(message.data)) if (!acks.has(key)) acks.set(key, entry);
+      for (const [key2, entry] of collectAcks(message.data)) if (!acks.has(key2)) acks.set(key2, entry);
       evaluateAlerts(message.data);
       emit('data');
       return;
@@ -581,8 +595,10 @@ window.RoomTicketsMonitor = (() => {
 
   function start() {
     init();
-    expired = false;
-    if (running) { if (monitorEnabled) { tickList(); } return; }
+    // `expired` NÃO é limpo aqui: uma sessão expirada só volta com
+    // `user:restored`. Sem isso, um redesenho da tela apagaria o estado de
+    // sessão expirada e a tela voltaria a consultar o GLPI a cada montagem.
+    if (running) return;
     running = true;
     if (!monitorEnabled) { emit('status'); return; }
     startPolling();
@@ -600,11 +616,34 @@ window.RoomTicketsMonitor = (() => {
     tickList();
   }
 
+  /**
+   * Um único ciclo de consulta por navegador. O relatório registra a consulta
+   * da visão ativa; o ciclo de 60 s consulta o que está em tela mais a fila de
+   * alertas, evitando duas varreduras completas do GLPI por minuto.
+   */
+  let activeQuery = '';
+
+  /**
+   * Registra a consulta da visão ativa. Não dispara uma busca: o relatório já
+   * busca quando precisa, e o ciclo de 60 s passa a usar esta consulta. Assim
+   * existe UMA varredura do GLPI por minuto, e não duas.
+   */
+  function setActiveQuery(query) {
+    activeQuery = String(query || '');
+  }
+
   function tickList() {
     if (!running || !monitorEnabled || expired) return;
     if (typeof document !== 'undefined' && document.hidden) return;
     if (!acquireLock(LOCK_LIST, LIST_LOCK_MS, LIST_LOCK_FORCE_MS)) return;
-    refresh({ q: DEFAULT_QUERY, reason: 'tick', maxAge: TICK_MAX_AGE_MS });
+    const seen = new Set();
+    for (const query of [activeQuery, DEFAULT_QUERY]) {
+      const value = String(query || '').trim();
+      if (!value || seen.has(value)) continue;
+      seen.add(value);
+      // maxAge garante que duas consultas quase simultâneas viram uma só.
+      refresh({ q: value, reason: 'tick', maxAge: TICK_MAX_AGE_MS });
+    }
   }
 
   function stopPolling() {
@@ -635,6 +674,7 @@ window.RoomTicketsMonitor = (() => {
     fetchFailed = false;
     lastErrorStatus = 0;
     errorMessage = '';
+    activeQuery = '';
   }
 
   function reset() {
@@ -979,6 +1019,7 @@ window.RoomTicketsMonitor = (() => {
     history,
     technicians,
     invalidate,
+    setActiveQuery,
     removeOverlays,
     dismissBanner: () => { banner?.remove(); banner = null; bannerHost = null; renderBanner(); },
     syncUi: () => emit('alert'),

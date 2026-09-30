@@ -433,18 +433,24 @@ window.App = {
     const invClear = document.getElementById('inventory-search-clear');
 
     if (invSearch) {
-      invSearch.addEventListener('input', () => {
+      const updateSearch = () => {
         window.State.setSearch(invSearch.value);
         window.State.setInventoryPage(1);
-        this._renderContent();
+        this._renderInventoryResults();
+      };
+      invSearch.addEventListener('input', event => {
+        if (!event.isComposing) updateSearch();
       });
+      invSearch.addEventListener('compositionend', updateSearch);
     }
 
     if (invClear) {
       invClear.addEventListener('click', () => {
         window.State.setSearch('');
         window.State.setInventoryPage(1);
-        this._renderContent();
+        invSearch.value = '';
+        this._renderInventoryResults();
+        invSearch.focus();
       });
     }
 
@@ -479,6 +485,30 @@ window.App = {
       });
     }
 
+    this._bindInventoryResultEvents();
+
+    // Clear filters button
+    const clearFiltersBtn = document.getElementById('clear-inventory-filters');
+    if (clearFiltersBtn) {
+      clearFiltersBtn.addEventListener('click', () => {
+        window.State.resetFilters();
+        this._renderContent();
+      });
+    }
+  },
+
+  _renderInventoryResults() {
+    const results = document.getElementById('inventory-results');
+    if (!results) return;
+    const template = document.createElement('template');
+    template.innerHTML = window.UI.renderInventoryTable();
+    results.innerHTML = template.content.querySelector('#inventory-results').innerHTML;
+    document.getElementById('inventory-search-clear').hidden = !window.STATE.search;
+    this._bindInventoryResultEvents();
+    this._bindComputerCardEvents();
+  },
+
+  _bindInventoryResultEvents() {
     // Inventory pagination
     document.querySelectorAll('.btn-page[data-page]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -495,14 +525,6 @@ window.App = {
       });
     });
 
-    // Clear filters button
-    const clearFiltersBtn = document.getElementById('clear-inventory-filters');
-    if (clearFiltersBtn) {
-      clearFiltersBtn.addEventListener('click', () => {
-        window.State.resetFilters();
-        this._renderContent();
-      });
-    }
   },
 
   _bindComputerCardEvents() {

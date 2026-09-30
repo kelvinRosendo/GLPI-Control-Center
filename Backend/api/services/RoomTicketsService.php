@@ -27,13 +27,34 @@ final class RoomTicketsService
         'concluidos' => ['label' => 'Concluídos', 'statuses' => [5, 6]],
     ];
 
-    /** Movimentacoes aceitas pelo GCC, a partir do status atual do GLPI. */
+    /**
+     * Movimentacoes aceitas pelo GCC, a partir do status atual do GLPI.
+     * `kind` diz à interface o que o formulário precisa pedir: nome do
+     * responsável, texto da solução ou apenas confirmação.
+     * Esta é a ÚNICA tabela de transições: botões, arraste e backend leem
+     * daqui, então a interface nunca oferece uma ação que o servidor recusa.
+     */
+    public const ACTIONS = [
+        'assumir' => ['from' => [1, 3, 4], 'to' => 2, 'label' => 'Assumir chamado', 'kind' => 'responsavel'],
+        'pendente' => ['from' => [2, 3], 'to' => 4, 'label' => 'Marcar aguardando', 'kind' => 'status'],
+        'retomar' => ['from' => [4], 'to' => 2, 'label' => 'Retomar', 'kind' => 'status'],
+        'concluir' => ['from' => [1, 2, 3, 4], 'to' => 5, 'label' => 'Concluir', 'kind' => 'solucao'],
+        'reabrir' => ['from' => [5, 6], 'to' => 1, 'label' => 'Reabrir chamado', 'kind' => 'status'],
+    ];
+
+    /** @deprecated Use self::ACTIONS; mantido apenas como espelho legível. */
     public const TRANSITIONS = [
         'assumir' => ['from' => [1, 3, 4], 'to' => 2],
         'pendente' => ['from' => [2, 3], 'to' => 4],
         'retomar' => ['from' => [4], 'to' => 2],
         'concluir' => ['from' => [1, 2, 3, 4], 'to' => 5],
         'reabrir' => ['from' => [5, 6], 'to' => 1],
+    ];
+
+    /** Rótulos usados nas mensagens de conflito e no histórico. */
+    public const ACTION_LABELS = [
+        'assumir' => 'assumir', 'pendente' => 'marcar como aguardando',
+        'retomar' => 'retomar', 'concluir' => 'concluir', 'reabrir' => 'reabrir',
     ];
 
     public const DEFAULT_KANBAN_LIMIT = 25;
@@ -177,7 +198,6 @@ final class RoomTicketsService
         $normalized = self::normalize([$row], [], [], [], []);
         return $normalized['items'][0] ?? null;
     }
-
     /** Alertable statuses: alerts follow the queue, never the GLPI lifecycle writes. */
     public static function isAlertEligible(array $ticket): bool
     {
@@ -185,34 +205,35 @@ final class RoomTicketsService
     }
 
     /**
-     * Tecnico atribuido no GLPI. O nome do campo difere entre versoes
-     * (`users_id_recipient` no GLPI 10, `users_id_assign` em versoes antigas):
-     * a leitura aceita ambos e nunca deduz o responsavel por semelhanca de nome.
+     * Ações realmente disponíveis para um status atual, na ordem em que a
+     * interface deve apresentá-las. Derivada de ACTIONS: arrastar, botões e
+     * backend usam exatamente a mesma lista.
      */
-    public static function assignee(array $ticket): array
+    public static function availableActions(int $statusId): array
     {
-        foreach (['users_id_recipient', 'users_id_assign'] as $field) {
-            if (!array_key_exists($field, $ticket)) continue;
-            $userId = is_numeric($ticket[$field]) ? (int) $ticket[$field] : 0;
-            $name = self::text($ticket[$field . '_name'] ?? '');
-            if ($userId > 0 || $name !== '') return ['userId' => $userId, 'name' => $name];
+        $order = ['assumir', 'concluir', 'pendente', 'retomar', 'reabrir'];
+        $out = [];
+        foreach ($order as $action) {
+            $rule = self::ACTIONS[$action];
+            if (in_array($statusId, $rule['from'], true)) {
+                $out[] = ['action' => $action, 'label' => $rule['label'],
+                    'kind' => $rule['kind'], 'target' => $rule['to']];
+            }
         }
-        return ['userId' => 0, 'name' => ''];
+        return $out;
     }
 
     /**
-     * Campo usado para atribuir o tecnico. Descoberto no proprio registro lido
-     * do GLPI, com sobrescrita por GCC_ROOM_TICKET_ASSIGN_FIELD para
-     * instalacoes que usem outro nome de campo.
+     * Status lido do GLPI. Nunca converte silenciosamente um valor que não
+     * reconheça: um status indecifrável precisa aparecer como erro, não como 0.
      */
-    public static function assigneeField(array $row): string
+    public static function statusId(array $ticket): int
     {
-        $override = trim((string) getenv('GCC_ROOM_TICKET_ASSIGN_FIELD'));
-        if ($override !== '' && preg_match('/^[a-z_]{3,40}$/', $override) === 1) return $override;
-        foreach (['users_id_recipient', 'users_id_assign'] as $field) {
-            if (array_key_exists($field, $row)) return $field;
-        }
-        return 'users_id_recipient';
+        $raw = $ticket['status'] ?? null;
+        if (is_int($raw)) return $raw;
+        if (is_string($raw) && ctype_digit($raw)) return (int) $raw;
+        if (is_float($raw) && (float) (int) $raw === $raw) return (int) $raw;
+        throw new ContractException('O GLPI devolveu o status do chamado em um formato desconhecido.');
     }
 
     public static function kanbanColumn(int $statusId): ?string
@@ -231,7 +252,7 @@ final class RoomTicketsService
         return (int) $rule['to'];
     }
 
-    /** Cartao compacto do Kanban: numero, sala, resumo, equipamento, abertura, status e responsavel. */
+    /** Cartao compacto do Kanban: numero, sala, resumo, equipamento, abertura, status, responsavel. */
     public static function kanbanCard(array $ticket): array
     {
         $statusId = (int) ($ticket['statusId'] ?? 0);
@@ -245,12 +266,22 @@ final class RoomTicketsService
             'openedAt' => (string) ($ticket['openedAt'] ?? ''),
             'status' => (string) ($ticket['status'] ?? ''),
             'statusId' => $statusId,
+            'statusLabel' => self::statusLabel($statusId),
             'column' => self::kanbanColumn($statusId),
             'waiting' => $statusId === 4,
             'urgency' => (int) ($ticket['urgency'] ?? 0),
             'assignee' => is_array($ticket['assignee'] ?? null) ? $ticket['assignee'] : ['userId' => 0, 'name' => ''],
             'review' => (bool) ($ticket['review'] ?? false),
+            // Ações permitidas para ESTE status, vindas da tabela única.
+            'actions' => self::availableActions($statusId),
         ];
+    }
+
+    public static function statusLabel(int $statusId): string
+    {
+        $labels = [1 => 'Novo', 2 => 'Em atendimento', 3 => 'Planejado',
+            4 => 'Pendente', 5 => 'Resolvido', 6 => 'Fechado'];
+        return $labels[$statusId] ?? 'em status desconhecido';
     }
 
     /**
@@ -334,7 +365,7 @@ final class RoomTicketsService
     }
 
     public static function normalize(array $tickets, array $locations, array $categories,
-        array $links, array $assets): array
+        array $links, array $assets, array $actorIndex = []): array
     {
         $loc = $cat = $assetIndex = $byTicket = [];
         foreach ($locations as $row) $loc[(int) ($row['id'] ?? 0)] = self::text($row['completename'] ?? $row['name'] ?? '');
@@ -371,6 +402,9 @@ final class RoomTicketsService
             $entity = (int) ($ticket['entities_id'] ?? 0);
             $roomKey = $room !== null ? $entity . ':' . self::key($room) : 'unknown';
             $category = $cat[(int) ($ticket['itilcategories_id'] ?? 0)] ?? self::text($ticket['_category_name'] ?? '');
+            $statusRaw = $ticket['status'] ?? null;
+            $statusId = (is_int($statusRaw) || (is_string($statusRaw) && ctype_digit($statusRaw)))
+                ? (int) $statusRaw : 0;
             $ticketAssets = [];
             $types = [];
             foreach ($byTicket[$id] ?? [] as $key => $link) {
@@ -413,9 +447,13 @@ final class RoomTicketsService
             if (!$types) $types = [$category !== '' ? 'other' : 'unknown'];
             $items[$id] = [
                 'id' => $id, 'title' => $title, 'description' => $description,
-                'openedAt' => $dateString, 'status' => self::STATUSES[(int) ($ticket['status'] ?? 0)] ?? 'desconhecido',
-                'statusId' => (int) ($ticket['status'] ?? 0), 'urgency' => (int) ($ticket['urgency'] ?? 0), 'category' => $category,
-                'assignee' => self::assignee($ticket),
+                'openedAt' => $dateString, 'status' => self::STATUSES[$statusId] ?? 'desconhecido',
+                'statusId' => $statusId, 'urgency' => (int) ($ticket['urgency'] ?? 0), 'category' => $category,
+                // Técnico responsável vem do índice de ATORES do GLPI, nunca de
+                // `users_id_recipient` (que é o autor do chamado).
+                'assignee' => is_array($actorIndex[$id] ?? null) ? $actorIndex[$id]
+                    : ['userId' => 0, 'name' => '', 'source' => '', 'ambiguous' => false],
+                'assigneeKnown' => isset($actorIndex[$id]),
                 'roomKey' => $roomKey, 'room' => $room ?? 'Sala não identificada',
                 'roomSource' => $roomSource, 'types' => array_values(array_unique($types)),
                 'typeSource' => $typeSource, 'assets' => $ticketAssets,

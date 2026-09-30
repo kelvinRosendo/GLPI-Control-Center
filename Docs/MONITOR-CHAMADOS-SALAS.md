@@ -1,6 +1,7 @@
 # Monitor de chamados das salas — comportamento e operação
 
-Data: 28/09/2026
+Data: 28/09/2026 (revisão de 29/09/2026: ver
+`Docs/CORRECOES-CHAMADOS-SALAS-2026-09-29.md`)
 Branch: codex/dashboard-chamados-salas
 Escopo: implementação do painel de chamados + modo TV com alertas em qualquer tela,
 aceite compartilhado entre dispositivos, encerramento limpo de sessão, refresh real
@@ -119,7 +120,15 @@ chamado é persistido no navegador — só duas preferências booleanas
 - `forceRefresh` e o relógio automático usam o mesmo caminho; `Dashboard.reset`
   (logout) invalida gerações e para o relógio.
 
-## 8. Testes (executados nesta etapa)
+## 8. Testes (executados na etapa de 28/09/2026 — superada)
+
+> Resultados atuais em `Docs/CORRECOES-CHAMADOS-SALAS-2026-09-29.md`, seção 8.
+>
+> Além disso, em 29/09/2026: o Modo TV passou a ser **somente leitura** (não
+> assume, não aceita, não move), o ciclo de consulta deixou de duplicar a
+> varredura do GLPI por minuto, e a sincronização entre computadores diferentes
+> continua limitada ao ciclo de 60 s — o `BroadcastChannel` só alcança abas do
+> mesmo navegador.
 
 | Suíte | Comando | Resultado |
 | --- | --- | --- |

@@ -107,6 +107,55 @@ final class GlpiClient
     return ['items' => $items, 'total' => $total];
   }
 
+  /**
+   * Strict collection read that also returns the real total, so callers can
+   * fail closed instead of silently truncating. Used for sub-item collections
+   * (actors, solutions) where the `Content-Range` header is the only source
+   * of the total size.
+   */
+  public function getCollection(string $path, string $sessionToken, array $params = [], int $size = 100): array
+  {
+    // O `range` do chamador tem precedência: sem isso, a paginação
+    // sobrescreveria o intervalo e releria sempre a primeira página.
+    $batch = $this->getWithParamsRaw($path, $sessionToken, array_merge([
+      'sort' => 'id', 'order' => 'ASC',
+    ], $params, [
+      'range' => array_key_exists('range', $params) ? $params['range'] : '0-' . max(0, $size - 1),
+    ]));
+    $code = $batch['_http_code'] ?? 0;
+    if (!in_array($code, [200, 206], true) || isset($batch['_error'])) {
+      throw new RuntimeException('Não foi possível consultar a coleção do GLPI.', $code === 403 ? 403 : 502);
+    }
+    $items = $batch['items'] ?? null;
+    if (!is_array($items) || $items !== array_values($items)) {
+      throw new RuntimeException('Coleção do GLPI em formato inesperado.', 502);
+    }
+    $total = isset($batch['_content_range']) ? self::parseContentRangeTotal($batch['_content_range']) : null;
+    // GLPI returns HTTP 200 + [] without Content-Range for empty sub-items.
+    // Only the initial, empty, successful page establishes an empty collection.
+    $range = (string) ($params['range'] ?? '0-' . max(0, $size - 1));
+    if ($total === null && !isset($batch['_content_range']) && $code === 200
+        && $items === [] && str_starts_with($range, '0-')
+        && preg_match('#^/Ticket/[1-9][0-9]*/(?:Ticket_User|ITILSolution)$#', $path) === 1) {
+      $total = 0;
+    }
+    if ($total === null && $code === 200 && is_array($items)
+        && preg_match('#^/Ticket/[1-9][0-9]*/(?:Ticket_User|ITILSolution)$#', $path) === 1) {
+      // GLPI 10 may return a complete subcollection without Content-Range.
+      // These endpoints are bounded to one ticket, so the payload itself is
+      // the authoritative total.
+      $total = count($items);
+    }
+    if ($total === null) throw new RuntimeException('GLPI não informou o total da coleção.', 502);
+    foreach ($items as $item) {
+      if (!is_array($item) || !isset($item['id']) || !is_numeric($item['id'])) {
+        throw new RuntimeException('Registro do GLPI inválido.', 502);
+      }
+    }
+    if (count($items) > $total) throw new RuntimeException('Total inconsistente na coleção do GLPI.', 502);
+    return ['items' => $items, 'total' => $total];
+  }
+
   public function post(string $path, string $sessionToken, array $payload): array
   {
     return $this->requestWithJsonBody('POST', $path, $sessionToken, $payload);

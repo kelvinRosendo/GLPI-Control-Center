@@ -1,0 +1,92 @@
+[
+  {
+    "id": "dashboard",
+    "label": "Dashboard",
+    "group": "Principal",
+    "file": "svg/dashboard.svg"
+  },
+  {
+    "id": "inventario",
+    "label": "Inventário",
+    "group": "Operação",
+    "file": "svg/inventario.svg"
+  },
+  {
+    "id": "chamados",
+    "label": "Chamados",
+    "group": "Operação",
+    "file": "svg/chamados.svg"
+  },
+  {
+    "id": "chamados-salas",
+    "label": "Chamados das salas",
+    "group": "Operação",
+    "file": "svg/chamados-salas.svg"
+  },
+  {
+    "id": "projetores",
+    "label": "Projetores",
+    "group": "Operação",
+    "file": "svg/projetores.svg"
+  },
+  {
+    "id": "assistencias",
+    "label": "Assistências",
+    "group": "Operação",
+    "file": "svg/assistencias.svg"
+  },
+  {
+    "id": "alunos",
+    "label": "Alunos",
+    "group": "Gestão",
+    "file": "svg/alunos.svg"
+  },
+  {
+    "id": "carrinhos",
+    "label": "Carrinhos",
+    "group": "Gestão",
+    "file": "svg/carrinhos.svg"
+  },
+  {
+    "id": "salas-turmas",
+    "label": "Salas/Turmas",
+    "group": "Gestão",
+    "file": "svg/salas-turmas.svg"
+  },
+  {
+    "id": "exibicao",
+    "label": "Exibição",
+    "group": "Gestão",
+    "file": "svg/exibicao.svg"
+  },
+  {
+    "id": "impressoras",
+    "label": "Impressoras",
+    "group": "Gestão",
+    "file": "svg/impressoras.svg"
+  },
+  {
+    "id": "inventario-geral",
+    "label": "Inventário Geral",
+    "group": "Gestão",
+    "file": "svg/inventario-geral.svg"
+  },
+  {
+    "id": "relatorios",
+    "label": "Relatórios",
+    "group": "Gestão",
+    "file": "svg/relatorios.svg"
+  },
+  {
+    "id": "auditoria",
+    "label": "Auditoria",
+    "group": "Gestão",
+    "file": "svg/auditoria.svg"
+  },
+  {
+    "id": "sincronizacao-glpi",
+    "label": "Sincronização GLPI",
+    "group": "Administração",
+    "file": "svg/sincronizacao-glpi.svg"
+  }
+]

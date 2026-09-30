@@ -43,3 +43,5 @@ temp/
 /Backend/data/inventario_*.json
 /Backend/data/room-ticket-acknowledgements.json
 /Backend/data/room-ticket-work.json
+# Travas por chamado, criadas em tempo de execução durante o atendimento
+/Backend/data/room-ticket-work.json.lock-*

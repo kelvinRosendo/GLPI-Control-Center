@@ -152,9 +152,31 @@
 .rt-status--done { color: var(--color-green, #1dd6a1); background: rgba(29,214,161,.14); }
 .rt-status--unknown { color: var(--color-text-secondary, #9299b8); background: rgba(146,153,184,.14); }
 
-/* ── Formulário de atendimento e conclusão (fora da área redesenhada) ───── */
-dialog.rt-action-form { background: var(--color-bg-secondary, #171c2b); color: inherit; border: 1px solid var(--color-border, #454d61); border-radius: 14px; width: min(520px, 92vw); padding: 22px; }
+/* ── Formulário de atendimento e conclusão (fora da área redesenhada) ─────
+   Os estilos globais do GCC (styles.css e design-system.css) zeram a margem de
+   TODOS os elementos, e o `dialog` nativo depende de `margin: auto` para se
+   centralizar. Por isso a centralização é explícita aqui, e não herdada.
+   O formulário também precisa sobreviver a um alerta novo sem ser empurrado
+   para fora da tela: altura máxima com rolagem interna. */
+dialog.rt-action-form {
+  background: var(--color-bg-secondary, #171c2b); color: inherit;
+  border: 1px solid var(--color-border, #454d61); border-radius: 14px;
+  margin: auto; inset: 0; position: fixed; display: none;
+  width: min(520px, 92vw); max-width: min(520px, 92vw);
+  max-height: min(88vh, 88dvh); overflow: auto; overscroll-behavior: contain;
+  padding: 22px;
+}
+dialog.rt-action-form[open] { display: block; }
+dialog.rt-action-form .rt-form { min-height: 0; }
 dialog.rt-action-form::backdrop { background: rgba(0,0,0,.66); }
+@media (max-width: 640px) {
+  dialog.rt-action-form { width: calc(100vw - 24px); max-width: none; padding: 18px; max-height: 92dvh; }
+}
+.rt-form-detail { display: block; margin-top: 4px; color: var(--color-text-secondary, #9299b8); }
+.rt-field input:focus-visible, .rt-field select:focus-visible, .rt-field textarea:focus-visible,
+.rt-form-actions button:focus-visible, .rt-form-close:focus-visible {
+  outline: 2px solid var(--color-accent, #315ed0); outline-offset: 2px;
+}
 .rt-form { display: grid; gap: 14px; }
 .rt-form-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .rt-form-head h2 { margin: 0; font-size: 17px; }

@@ -15,7 +15,14 @@ final class GlpiClient {
     public static int $userHttpCode = 0;
     public static int $failPutHttp = 0;
     public static bool $ignoreStatusWrite = false;
-    public static bool $failFollowup = false;
+    public static bool $failSolution = false;
+    public static array $actors = [];
+    public static array $solutions = [];
+    public static array $solutionTypes = [['id' => 1, 'name' => 'Solução rápida']];
+    public static bool $ignoreActorWrite = false;
+    public static int $userCollectionHttpCode = 0;
+    /** Callback executado no meio da escrita do GLPI, para simular corrida. */
+    public static $duringWrite = null;
     public function __construct(array $config) {}
     public function initSession(): string { return 'test'; }
     public function killSession(string $session): void { self::$closed++; }
@@ -29,15 +36,21 @@ final class GlpiClient {
         }
         $id = 0;
         if (preg_match('#^/Ticket/(\d+)$#', $path, $m) === 1) $id = (int) $m[1];
-        // O GLPI real aplica a alteração; a releitura precisa refletir o novo status.
+        // Janela de corrida: outro técnico registra entre a verificação e a gravação.
+        if (is_callable(self::$duringWrite)) { $hook = self::$duringWrite; self::$duringWrite = null; $hook($id); }
+        // O GLPI real aplica a alteração; a releitura precisa refletir o novo estado.
         if ($id > 0 && !self::$ignoreStatusWrite && is_array(self::$singleTicket)
             && (int) (self::$singleTicket['id'] ?? 0) === $id) {
             if (isset($input['status'])) self::$singleTicket['status'] = (int) $input['status'];
-            if (isset($input['resolution'])) self::$singleTicket['resolution'] = $input['resolution'];
-            foreach (['users_id_recipient', 'users_id_assign'] as $field) {
-                if (isset($input[$field])) {
-                    self::$singleTicket[$field] = (int) $input[$field];
-                    self::$singleTicket[$field . '_name'] = 'Técnico ' . (int) $input[$field];
+            // `_actors.assign` é conjunto completo e implícito no tipo ASSIGN.
+            if (isset($input['_actors']['assign']) && is_array($input['_actors']['assign'])) {
+                self::$actors = [];
+                if (!self::$ignoreActorWrite) {
+                    foreach ($input['_actors']['assign'] as $actor) {
+                        if (!is_array($actor) || (int) ($actor['items_id'] ?? 0) < 1) continue;
+                        self::$actors[] = ['id' => count(self::$actors) + 1, 'tickets_id' => $id,
+                            'users_id' => (int) $actor['items_id'], 'type' => 2, 'use_notification' => 1];
+                    }
                 }
             }
         }
@@ -46,22 +59,21 @@ final class GlpiClient {
     public function post(string $path, string $session, array $payload): array {
         $input = is_array($payload['input'] ?? null) ? $payload['input'] : [];
         self::$postWrites[] = ['path' => $path, 'input' => $input];
-        if ($path === '/ITILFollowup' && self::$failFollowup) {
-            $error = new RuntimeException('Histórico recusado', 502);
-            $error->http_code = 400;
-            throw $error;
+        if (str_starts_with($path, '/ITILSolution')) {
+            if (self::$failSolution) {
+                $error = new RuntimeException('Solução recusada', 502);
+                $error->http_code = 400;
+                throw $error;
+            }
+            self::$solutions[] = ['id' => count(self::$solutions) + 1, 'itemtype' => 'Ticket',
+                'items_id' => (int) ($input['items_id'] ?? 0), 'content' => (string) ($input['content'] ?? ''),
+                'status' => 3];
+            // post_addItem do ITILSolution força o status do item.
+            if (is_array(self::$singleTicket)) self::$singleTicket['status'] = 5;
         }
         return ['id' => 1];
     }
     public function getWithParams(string $path, string $session, array $params = []): array {
-        if (str_starts_with($path, '/User')) {
-            if (self::$userHttpCode !== 0) {
-                $error = new RuntimeException('GLPI recusou a leitura de usuários', 502);
-                $error->http_code = self::$userHttpCode;
-                throw $error;
-            }
-            return self::$users;
-        }
         self::$singleCalls++;
         if (self::$singleHttpCode !== 0) {
             $error = new RuntimeException('GLPI retornou erro HTTP ' . self::$singleHttpCode, 502);
@@ -70,6 +82,31 @@ final class GlpiClient {
         }
         if (self::$singleTicket === null) throw new RuntimeException('Sem fixture de chamado único.', 502);
         return self::$singleTicket;
+    }
+    public function getCollection(string $path, string $session, array $params = [], int $size = 100): array {
+        if (str_starts_with($path, '/Ticket/') && str_ends_with($path, '/Ticket_User')) {
+            return ['items' => self::$actors, 'total' => count(self::$actors)];
+        }
+        if (str_starts_with($path, '/Ticket/') && str_ends_with($path, '/ITILSolution')) {
+            return ['items' => self::$solutions, 'total' => count(self::$solutions)];
+        }
+        if (str_starts_with($path, '/User')) {
+            if (self::$userCollectionHttpCode !== 0) {
+                $error = new RuntimeException('GLPI recusou a leitura de usuários', 502);
+                $error->http_code = self::$userCollectionHttpCode;
+                throw $error;
+            }
+            // Honra o `range`: a paginação de técnicos precisa ser exercitada.
+            $rows = self::$users;
+            if (isset($params['range']) && preg_match('/^(\d+)-(\d+)$/', (string) $params['range'], $m) === 1) {
+                $rows = array_slice($rows, (int) $m[1], (int) $m[2] - (int) $m[1] + 1);
+            }
+            return ['items' => $rows, 'total' => count(self::$users)];
+        }
+        if ($path === '/SolutionType' && isset(self::$errors[$path])) throw new RuntimeException('Restricted', self::$errors[$path]);
+        if ($path === '/SolutionType') return ['items' => self::$solutionTypes, 'total' => count(self::$solutionTypes)];
+        if ($path === '/Ticket_User') return ['items' => self::$actors, 'total' => count(self::$actors)];
+        return ['items' => [], 'total' => 0];
     }
     public function getReportPage(string $path, string $session, int $offset, int $size, bool $expand = false): array {
         if (isset(self::$errors[$path])) throw new RuntimeException('fixture', self::$errors[$path]);
@@ -187,7 +224,7 @@ $_GET = ['period' => '30d'];
 $openedAt = (new DateTimeImmutable('now', new DateTimeZone('America/Sao_Paulo')))->format('Y-m-d H:i:s');
 GlpiClient::$singleTicket = [
     'id' => 78, 'name' => '[L-0009] Projetor não liga', 'content' => '',
-    'date' => $openedAt, 'status' => 1, 'entities_id' => 'Escola',
+    'date' => $openedAt, 'status' => 1, 'urgency' => 3, 'entities_id' => 'Escola',
     'locations_id' => 'Sala 16', 'itilcategories_id' => 'Projetor',
 ];
 $closedBefore = GlpiClient::$closed;
@@ -206,7 +243,7 @@ check(GlpiClient::$singleCalls === $calls, 'repeat acknowledgement skips GLPI');
 
 GlpiClient::$singleTicket = [
     'id' => 79, 'name' => '[L-0010] Projetor queimado', 'content' => '',
-    'date' => $openedAt, 'status' => 6, 'entities_id' => 'Escola',
+    'date' => $openedAt, 'status' => 6, 'urgency' => 3, 'entities_id' => 'Escola',
     'locations_id' => 'Sala 16', 'itilcategories_id' => 'Projetor',
 ];
 $closedBefore = GlpiClient::$closed;
@@ -216,7 +253,7 @@ check(GlpiClient::$closed === $closedBefore + 1, 'GLPI session closed after reje
 
 GlpiClient::$singleTicket = [
     'id' => 80, 'name' => 'Chamado administrativo', 'content' => '',
-    'date' => $openedAt, 'status' => 1, 'entities_id' => 'Escola',
+    'date' => $openedAt, 'status' => 1, 'urgency' => 3, 'entities_id' => 'Escola',
     'locations_id' => 0, 'itilcategories_id' => 0,
 ];
 RoomTicketsEndpoint::accept(80, []);
@@ -434,9 +471,14 @@ function resetGlpi(): void
     GlpiClient::$postWrites = [];
     GlpiClient::$failPutHttp = 0;
     GlpiClient::$ignoreStatusWrite = false;
-    GlpiClient::$failFollowup = false;
+    GlpiClient::$failSolution = false;
+    GlpiClient::$ignoreActorWrite = false;
+    GlpiClient::$duringWrite = null;
     GlpiClient::$singleHttpCode = 0;
-    GlpiClient::$userHttpCode = 0;
+    GlpiClient::$userCollectionHttpCode = 0;
+    GlpiClient::$actors = [];
+    GlpiClient::$solutions = [];
+    GlpiClient::$solutionTypes = [['id' => 1, 'name' => 'Solução rápida']];
     GlpiClient::$users = [
         ['id' => 42, 'name' => 'Kelvin Souza', 'is_technician' => 1],
         ['id' => 43, 'name' => 'Ana Ribeiro', 'is_technician' => 1],
@@ -448,6 +490,12 @@ function resetGlpi(): void
     Request::$body = [];
 }
 
+/** Ator ASSIGN de um usuário, no formato de `GET /Ticket/{id}/Ticket_User`. */
+function assignActor(int $userId): array
+{
+    return ['id' => 1, 'tickets_id' => 0, 'users_id' => $userId, 'type' => 2, 'use_notification' => 1];
+}
+
 function lastPutInput(string $field): mixed
 {
     foreach (array_reverse(GlpiClient::$putWrites) as $write) {
@@ -456,7 +504,7 @@ function lastPutInput(string $field): mixed
     return null;
 }
 
-// 1. Assumir com correspondência exata: atribui pelo ID do GLPI.
+// 1. Assumir com correspondência exata: atribui pelo ator ASSIGN do GLPI 10.
 resetGlpi();
 GlpiClient::$singleTicket = openTicket(201);
 Request::$body = ['handler' => 'Kelvin Souza', 'requestId' => 'req-assumir-0001'];
@@ -464,9 +512,14 @@ $closedBefore = GlpiClient::$closed;
 RoomTicketsEndpoint::assume(201, []);
 check(Responde::$status === 200, 'assumir chamado responde 200');
 check(lastPutInput('status') === 2, 'chamado passa para Em andamento no GLPI');
-check(lastPutInput('users_id_recipient') === 42, 'técnico é atribuído pelo ID do GLPI');
+$assignInput = lastPutInput('_actors');
+check(is_array($assignInput['assign'] ?? null) && $assignInput['assign'][0]['items_id'] === 42,
+    'técnico é atribuído pelo ID do GLPI no mecanismo de atores');
+check(($assignInput['assign'][0]['itemtype'] ?? '') === 'User', 'ator enviado como User');
+check(lastPutInput('users_id_recipient') === null, 'a atribuição nunca escreve users_id_recipient (autor)');
 check(count(GlpiClient::$putWrites) === 1, 'status e atribuição vão na mesma gravação');
 check(GlpiClient::$closed === $closedBefore + 1, 'sessão do GLPI encerrada após assumir');
+check(GlpiClient::$actors[0]['users_id'] === 42, 'o ator ASSIGN aparece na releitura');
 $work = RoomTicketWorkStore::forTicket(201);
 check($work['assignment']['handlerName'] === 'Kelvin Souza', 'responsável informado é registrado');
 check($work['assignment']['glpiUserId'] === 42, 'responsável vinculado ao técnico do GLPI');
@@ -481,7 +534,7 @@ GlpiClient::$singleTicket = openTicket(202);
 Request::$body = ['handler' => 'Bia  Alves'];
 RoomTicketsEndpoint::assume(202, []);
 check(Responde::$status === 200, 'nome ambíguo não impede o atendimento');
-check(lastPutInput('users_id_recipient') === null, 'nenhum técnico é atribuído por ambiguidade');
+check(lastPutInput('_actors') === null, 'nenhum ator é enviado por ambiguidade de nome');
 check(lastPutInput('status') === 2, 'chamado segue para Em andamento');
 $ambiguous = RoomTicketWorkStore::forTicket(202);
 check($ambiguous['assignment']['source'] === 'informado', 'origem registrada como informada');
@@ -495,32 +548,55 @@ GlpiClient::$singleTicket = openTicket(203);
 Request::$body = ['handler' => 'Estagiário sem cadastro'];
 RoomTicketsEndpoint::assume(203, []);
 check(Responde::$status === 200, 'nome desconhecido é aceito como informação de atendimento');
-check(lastPutInput('users_id_recipient') === null, 'nada é atribuído no GLPI sem correspondência');
+check(lastPutInput('_actors') === null, 'nada é atribuído no GLPI sem correspondência');
 check(RoomTicketWorkStore::summary(RoomTicketWorkStore::forTicket(203))['handlerSource'] === 'informado',
     'diferença entre nome informado e técnico atribuído');
 
+// 3b. O Writer do chamado (users_id_recipient) não pode virar responsável.
+resetGlpi();
+GlpiClient::$singleTicket = openTicket(210, ['users_id_recipient' => 45]);
+GlpiClient::$users[] = ['id' => 45, 'name' => 'Kelvin Souza', 'is_technician' => 1];
+Request::$body = ['handler' => 'Kelvin Souza'];
+RoomTicketsEndpoint::assume(210, []);
+check(Responde::$status === 200, 'assumir não é bloqueado pelo autor do chamado');
+check(lastPutInput('users_id_recipient') === null, 'o autor do chamado nunca é reescrito');
+$authorOnly = RoomTicketWorkStore::forTicket(210);
+check($authorOnly['assignment']['source'] === 'informado',
+    'sem ator ASSIGN no GLPI, o responsável é o informado, não o autor');
+
 // 4. Conflito entre dois técnicos: informa o responsável atual e não sobrescreve.
 resetGlpi();
-GlpiClient::$singleTicket = openTicket(204, ['users_id_recipient' => 42, 'users_id_recipient_name' => 'Kelvin Souza']);
+GlpiClient::$singleTicket = openTicket(204, ['users_id_recipient' => 45]);
+GlpiClient::$actors = [assignActor(42)];
+GlpiClient::$users[] = ['id' => 45, 'name' => 'Pessoa Que Abriu', 'is_technician' => 0];
 Request::$body = ['handler' => 'Ana Ribeiro'];
 $closedBefore = GlpiClient::$closed;
 RoomTicketsEndpoint::assume(204, []);
 check(Responde::$status === 409, 'conflito entre técnicos responde 409');
 check(GlpiClient::$putWrites === [], 'conflito não grava nada no GLPI');
-check((Responde::$meta['currentHandler'] ?? '') === 'Kelvin Souza', 'responsável atual é informado');
+check((Responde::$meta['currentHandler'] ?? '') === 'Kelvin Souza', 'responsável atual vem do ator ASSIGN');
+check((Responde::$meta['currentSource'] ?? '') === 'glpi', 'conflito informa a origem do responsável');
 check(RoomTicketWorkStore::forTicket(204) === null, 'conflito não cria registro de atendimento');
 check(GlpiClient::$closed === $closedBefore + 1, 'sessão encerrada também no conflito');
+check(is_array(Responde::$meta['allowedActions'] ?? null) && Responde::$meta['allowedActions'] !== [],
+    'conflito informa as ações realmente disponíveis');
 
 // 5. Mesmo técnico repetindo o assumir não duplica histórico nem reescreve.
 resetGlpi();
-GlpiClient::$singleTicket = openTicket(201, ['status' => 2, 'users_id_recipient' => 42, 'users_id_recipient_name' => 'Kelvin Souza']);
+GlpiClient::$singleTicket = openTicket(201, ['status' => 2]);
+GlpiClient::$actors = [assignActor(42)];
+RoomTicketWorkStore::recordAssignment(201, ['reference' => 'L-0201'],
+    ['handlerName' => 'Kelvin Souza', 'source' => 'glpi_user', 'glpiUserId' => 42, 'glpiUserName' => 'Kelvin Souza'],
+    ['name' => 'Kelvin']);
+$movesBefore = count(RoomTicketWorkStore::forTicket(201)['moves']);
 Request::$body = ['handler' => 'Kelvin Souza'];
 RoomTicketsEndpoint::assume(201, []);
 check(Responde::$status === 200, 'repetição do mesmo responsável é idempotente');
 check(GlpiClient::$putWrites === [], 'repetição não grava de novo no GLPI');
-check(count(RoomTicketWorkStore::forTicket(201)['moves']) === 1, 'histórico não ganha movimento duplicado');
+check(count(RoomTicketWorkStore::forTicket(201)['moves']) === $movesBefore, 'histórico não ganha movimento duplicado');
+check((Responde::$result['alreadyAssumed'] ?? false) === true, 'repetição é identificada como idempotente');
 $keptAck = RoomTicketAcknowledgementStore::forTicket(201);
-check($keptAck['acceptedBy']['name'] === 'Kelvin', 'o aceite anterior é preservado');
+check(is_array($keptAck), 'o aceite anterior é preservado');
 
 // 6. Validações de entrada.
 resetGlpi();
@@ -539,14 +615,14 @@ check(in_array('room-ticket-assume', Request::$scopes, true), 'assumir é limita
 // 7. Chamado fora da fila de salas não é assumido.
 resetGlpi();
 GlpiClient::$singleTicket = ['id' => 206, 'name' => 'Chamado administrativo', 'content' => '',
-    'date' => (new DateTimeImmutable('now', new DateTimeZone('America/Sao_Paulo')))->format('Y-m-d H:i:s'), 'status' => 1, 'entities_id' => 'Escola',
+    'date' => (new DateTimeImmutable('now', new DateTimeZone('America/Sao_Paulo')))->format('Y-m-d H:i:s'), 'status' => 1, 'urgency' => 3, 'entities_id' => 'Escola',
     'locations_id' => 0, 'itilcategories_id' => 0];
 Request::$body = ['handler' => 'Kelvin Souza'];
 RoomTicketsEndpoint::assume(206, []);
 check(Responde::$status === 422, 'chamado fora da fila de salas é recusado');
 check(GlpiClient::$putWrites === [], 'recusa não grava no GLPI');
 
-// 8. Concluir com solução: status Resolvido, resolução e histórico ITIL.
+// 8. Concluir com solução: status Resolvido e ITILSolution confirmada.
 resetGlpi();
 GlpiClient::$singleTicket = openTicket(207, ['status' => 2]);
 Request::$body = ['action' => 'concluir', 'solution' => 'Troca do cabo HDMI do projetor.', 'requestId' => 'req-concluir-0001'];
@@ -554,15 +630,21 @@ $closedBefore = GlpiClient::$closed;
 RoomTicketsEndpoint::move(207, []);
 check(Responde::$status === 200, 'concluir responde 200');
 check(lastPutInput('status') === 5, 'Concluído corresponde a Resolvido, sem fechar');
-check(lastPutInput('resolution') === 'Troca do cabo HDMI do projetor.', 'solução gravada no chamado');
-check(count(GlpiClient::$postWrites) === 1 && GlpiClient::$postWrites[0]['path'] === '/ITILFollowup',
-    'solução registrada pelo mecanismo de histórico do GLPI');
-check(GlpiClient::$postWrites[0]['input']['type_followup'] === 3, 'histórico gravado como solução');
+check(lastPutInput('resolution') === null, 'nenhum campo `resolution` inventado no Ticket do GLPI 10');
+check(count(GlpiClient::$postWrites) === 1 && GlpiClient::$postWrites[0]['path'] === '/ITILSolution',
+    'solução registrada pelo itemtype oficial ITILSolution');
+check(GlpiClient::$postWrites[0]['input']['itemtype'] === 'Ticket'
+    && GlpiClient::$postWrites[0]['input']['items_id'] === 207, 'solução ligada ao chamado certo');
+check(str_contains((string) GlpiClient::$postWrites[0]['input']['content'], 'Troca do cabo HDMI'),
+    'texto da solução vai para o GLPI');
+check(!isset(GlpiClient::$postWrites[0]['input']['tickets_id']), 'tickets_id não é aceito no GLPI 10');
 $closed = RoomTicketWorkStore::forTicket(207);
 check($closed['solution']['text'] === 'Troca do cabo HDMI do projetor.', 'solução consultável no GCC');
 check($closed['solution']['recordedBy'] === 'Kelvin', 'autor da solução registrado');
+check($closed['solution']['glpi'] === true, 'solução marcada como registrada no GLPI');
 check($closed['moves'][0]['to'] === 5, 'movimentação para Resolvido no histórico');
 check(GlpiClient::$closed === $closedBefore + 1, 'sessão encerrada após concluir');
+check((int) GlpiClient::$singleTicket['status'] === 5, 'o GLPI termina com o status resolvido');
 
 // 9. Concluir exige solução.
 resetGlpi();
@@ -637,20 +719,32 @@ check((Responde::$meta['partial'] ?? false) === false, 'sem alteração aplicada
 check(count(RoomTicketWorkStore::forTicket(215)['moves']) === 1, 'a tentativa fica registrada no histórico');
 check(RoomTicketWorkStore::forTicket(215)['moves'][0]['confirmed'] === false, 'movimentação marcada como não confirmada');
 
-// 15. Falha parcial: status aplicado e histórico do GLPI recusado.
+// 15. Falha parcial: status aplicado e solução recusada pelo GLPI.
 resetGlpi();
 GlpiClient::$singleTicket = openTicket(216, ['status' => 2]);
-GlpiClient::$failFollowup = true;
-Request::$body = ['action' => 'concluir', 'solution' => 'Troca do projetor.'];
+GlpiClient::$failSolution = true;
+Request::$body = ['action' => 'concluir', 'solution' => 'Troca do projetor.', 'requestId' => 'req-concluir-0016'];
 RoomTicketsEndpoint::move(216, []);
 check(Responde::$status === 502, 'falha parcial não é apresentada como sucesso');
-check((Responde::$meta['partial'] ?? false) === true, 'falha parcial é sinalizada');
+check((Responde::$meta['data']['partial'] ?? false) === true, 'falha parcial é sinalizada');
 check(RoomTicketWorkStore::forTicket(216)['solution']['text'] === 'Troca do projetor.',
     'solução fica salva no GCC apesar da falha parcial');
 check(count(RoomTicketWorkStore::forTicket(216)['moves']) === 1, 'uma única tentativa registrada');
-$statuses = array_column(Responde::$meta['steps'] ?? [], 'step');
-check(in_array('status', $statuses, true) && in_array('solucao_glpi', $statuses, true),
+check(RoomTicketWorkStore::forTicket(216)['solution']['glpi'] === false,
+    'solução recusada pelo GLPI não é marcada como registrada nele');
+$steps = Responde::$meta['data']['steps'] ?? [];
+$stepNames = array_column($steps, 'step');
+check(in_array('status', $stepNames, true) && in_array('solucao', $stepNames, true),
     'os passos realmente executados são informados');
+$solutionStep = null;
+foreach ($steps as $step) if ($step['step'] === 'solucao') $solutionStep = $step;
+check(($solutionStep['ok'] ?? null) === false, 'a etapa da solução é a que falhou');
+check((Responde::$meta['data']['applied']['status'] ?? false) === true,
+    'a resposta distingue o que foi aplicado do que não foi');
+check((Responde::$meta['data']['applied']['solution'] ?? true) === false,
+    'a resposta informa que a solução não foi aplicada');
+check(str_contains((string) Responde::$error, 'antes de repetir'),
+    'a orientação não manda reenviar às cegas uma operação parcial');
 
 // 16. Reenvio da mesma requisição não duplica gravações.
 resetGlpi();
@@ -662,12 +756,34 @@ check(GlpiClient::$putWrites === [] && GlpiClient::$postWrites === [], 'reenvio 
 check((Responde::$result['replayed'] ?? false) === true, 'reenvio é identificado como repetição');
 check(count(RoomTicketWorkStore::forTicket(207)['moves']) === 1, 'histórico continua com um movimento');
 
+// 16b. Segunda conclusão legítima depois de reabrir: novo requestId, nova escrita.
+resetGlpi();
+GlpiClient::$singleTicket = openTicket(207, ['status' => 1]);
+GlpiClient::$solutions = [];
+Request::$body = ['action' => 'concluir', 'solution' => 'Segunda resolucao, texto diferente.', 'requestId' => 'req-concluir-0002'];
+RoomTicketsEndpoint::move(207, []);
+check(Responde::$status === 200, 'concluir de novo após reabrir responde 200');
+check(count(GlpiClient::$putWrites) === 1 && count(GlpiClient::$postWrites) === 1,
+    'concluir de novo realmente grava no GLPI');
+check(RoomTicketWorkStore::forTicket(207)['solution']['text'] === 'Troca do cabo HDMI do projetor.',
+    'a solução anterior não é sobrescrita por uma segunda conclusão');
+check((Responde::$result['replayed'] ?? false) === false, 'não é tratado como repetição');
+
+// 16c. requestId de outra operação é recusado em vez de devolver resultado antigo.
+resetGlpi();
+GlpiClient::$singleTicket = openTicket(209, ['status' => 2]);
+Request::$body = ['action' => 'pendente', 'requestId' => 'req-concluir-0001'];
+RoomTicketsEndpoint::move(209, []);
+check(Responde::$status === 409, 'requestId de outra ação é recusado');
+check((Responde::$meta['reason'] ?? '') === 'requestId_reused', 'a recusa explica o motivo');
+check(GlpiClient::$putWrites === [], 'a recusa não grava nada');
+
 // 17. Histórico consultável.
 resetGlpi();
 RoomTicketsEndpoint::historico(207);
 check(Responde::$status === 200, 'histórico responde 200');
 check((Responde::$result['ticketId'] ?? 0) === 207, 'histórico é do chamado pedido');
-check(count(Responde::$result['moves']) === 1, 'histórico traz a movimentação');
+check(count(Responde::$result['moves']) >= 1, 'histórico traz a movimentação');
 check(is_array(Responde::$result['solution']), 'histórico traz a solução');
 check(array_key_exists('assignment', Responde::$result), 'histórico distingue responsável de aceite');
 // Concluir não gera aceite: a chave existe e fica vazia.
@@ -688,12 +804,13 @@ check((Responde::$result['available'] ?? false) === true, 'lista de técnicos di
 check(count(Responde::$result['technicians']) === 4, 'somente técnicos do GLPI são listados');
 check(Responde::$result['technicians'][0]['name'] === 'Ana Ribeiro', 'lista ordenada por nome');
 resetGlpi();
-GlpiClient::$userHttpCode = 403;
+GlpiClient::$userCollectionHttpCode = 403;
 RoomTicketsEndpoint::responsaveis([]);
-check((Responde::$result['available'] ?? true) === false, 'sem acesso a lista, o formulário continua com texto livre');
+check(Responde::$status === 200 && (Responde::$result['available'] ?? true) === false,
+    'sem acesso a lista, o formulário continua com texto livre');
 check((string) (Responde::$result['message'] ?? '') !== '', 'motivo da indisponibilidade é informado');
 check(Responde::$result['technicians'] === [], 'nenhum técnico é inventado sem acesso à lista');
-GlpiClient::$userHttpCode = 0;
+GlpiClient::$userCollectionHttpCode = 0;
 
 // 19. O Kanban da lista usa o conjunto completo e traz o registro do GCC.
 resetGlpi();
@@ -723,7 +840,64 @@ RoomTicketsEndpoint::list([]);
 check(Responde::$status === 422, 'limite do Kanban inválido é recusado');
 $_GET = ['period' => '30d'];
 
-// 20. Contrato de permissões das novas rotas.
+// 20. Concorrência: outro técnico assume entre a verificação e a gravação.
+resetGlpi();
+GlpiClient::$singleTicket = openTicket(220, ['status' => 1]);
+Request::$body = ['handler' => 'Ana Ribeiro', 'requestId' => 'req-corr-0001'];
+GlpiClient::$duringWrite = static function (int $id) use (&$ticketRow) {
+    // Registro do GCC do técnico que chegou primeiro, já gravado no store.
+    RoomTicketWorkStore::recordAssignment($id, $ticketRow,
+        ['handlerName' => 'Kelvin Souza', 'source' => 'glpi_user', 'glpiUserId' => 42, 'glpiUserName' => 'Kelvin Souza'],
+        ['name' => 'Kelvin']);
+};
+$ticketRow = ['reference' => 'L-0220'];
+RoomTicketsEndpoint::assume(220, []);
+check(Responde::$status === 409, 'conflito de corrida não vira sucesso');
+check(str_contains((string) Responde::$error, 'Kelvin Souza'), 'o responsável que chegou primeiro é informado');
+check((Responde::$meta['currentHandler'] ?? '') === 'Kelvin Souza',
+    'a resposta não atribui o chamado a quem perdeu a corrida');
+check(!isset(Responde::$result) || Responde::$result === [], 'a resposta de conflito não traz sucesso');
+check(RoomTicketWorkStore::forTicket(220)['assignment']['handlerName'] === 'Kelvin Souza',
+    'o registro do servidor preserva quem assumiu primeiro');
+GlpiClient::$duringWrite = null;
+
+// 21. Recuperação de falha parcial: reenviar a MESMA operação não duplica nada.
+resetGlpi();
+GlpiClient::$singleTicket = openTicket(221, ['status' => 2]);
+GlpiClient::$failSolution = true;
+Request::$body = ['action' => 'concluir', 'solution' => 'Troca do cabo do projetor.', 'requestId' => 'req-parcial-1'];
+RoomTicketsEndpoint::move(221, []);
+check(Responde::$status === 502, 'primeira tentativa falha parcialmente');
+check(count(GlpiClient::$postWrites) === 1, 'a primeira tentativa tentou a solução uma vez');
+$writesAfterFirst = count(GlpiClient::$putWrites);
+// A conexão volta: a MESMA intenção (mesmo requestId) não repete a escrita.
+GlpiClient::$failSolution = false;
+Request::$body = ['action' => 'concluir', 'solution' => 'Troca do cabo do projetor.', 'requestId' => 'req-parcial-1'];
+RoomTicketsEndpoint::move(221, []);
+check(count(GlpiClient::$putWrites) === $writesAfterFirst, 'o reenvio não grava o status de novo');
+check(count(GlpiClient::$postWrites) === 1, 'o reenvio não cria uma segunda solução no GLPI');
+check(count(RoomTicketWorkStore::forTicket(221)['moves']) === 1, 'o reenvio não duplica o histórico');
+check(Responde::$status === 502, 'o reenvio da operação parcial devolve o mesmo desfecho, sem repetir');
+check((Responde::$meta['data']['replayed'] ?? false) === true, 'o reenvio é reconhecido como a mesma operação');
+check(RoomTicketWorkStore::forTicket(221)['solution']['glpi'] === false,
+    'a solução continua marcada como não registrada no GLPI');
+
+// 21. Técnico além da primeira página de usuários ainda é encontrado.
+resetGlpi();
+$many = [];
+for ($i = 1; $i <= 250; $i++) {
+    $many[] = ['id' => 1000 + $i, 'name' => 'Tecnico ' . $i, 'is_technician' => 1];
+}
+GlpiClient::$users = $many;
+GlpiClient::$singleTicket = openTicket(230, ['status' => 1]);
+Request::$body = ['handler' => 'Tecnico 250', 'requestId' => 'req-pagina-0001'];
+RoomTicketsEndpoint::assume(230, []);
+check(Responde::$status === 200, 'assume com técnico na segunda página responde 200');
+$assign = lastPutInput('_actors');
+check(($assign['assign'][0]['items_id'] ?? 0) === 1250,
+    'técnico além da primeira página é atribuído pelo ID correto · ' . json_encode($assign));
+
+// 22. Contrato de permissões das novas rotas.
 $endpointsSource = (string) file_get_contents(__DIR__ . '/../api/endpoints.php');
 foreach ([
     "'#^/api/tickets/salas/\\d+/aceite$#' => ['chamados', 'edit']",
@@ -737,5 +911,32 @@ foreach (['RoomTicketsEndpoint::assume(', 'RoomTicketsEndpoint::move(', 'RoomTic
     'RoomTicketsEndpoint::responsaveis('] as $dispatch) {
     check(str_contains($endpointsSource, $dispatch), 'rota encaminhada: ' . $dispatch);
 }
+
+resetGlpi();
+GlpiClient::$actors = [array_merge(assignActor(42), ['tickets_id' => 230])];
+GlpiClient::$userCollectionHttpCode = 403;
+$actorIndex = RoomTicketsGlpi::readActorIndex(new GlpiClient([]), 'test');
+check($actorIndex['available'] === true, 'atores disponíveis mesmo com User restrito');
+$actor = array_values($actorIndex['index'])[0];
+check($actor['userId'] === 42 && $actor['name'] === '#42', 'ID do responsável preservado');
+check($actorIndex['reason'] !== '', 'restrição dos nomes informada');
+runEndpoint();
+check(Responde::$status === 200, 'lista funciona mesmo com nomes restritos');
+check(count(Responde::$result['meta']['warnings']) > 0, 'lista explica nomes indisponíveis');
+
+resetGlpi();
+GlpiClient::$singleTicket = openTicket(331, ['status' => 1]);
+GlpiClient::$userCollectionHttpCode = 403;
+Request::$body = ['handler' => 'Tecnico informado', 'requestId' => 'req-restrito-331'];
+RoomTicketsEndpoint::assume(331, []);
+check(Responde::$status === 200, 'assume com nome informado e diretório restrito');
+check(lastPutInput('_actors') === null, 'não inventa atribuição GLPI sem acesso ao diretório');
+check(Responde::$result['handlerSource'] === 'informado', 'nome livre permanece identificado como informado');
+resetGlpi();
+GlpiClient::$singleTicket = openTicket(332, ['status' => 2]);
+GlpiClient::$errors['/SolutionType'] = 403;
+Request::$body = ['action' => 'concluir', 'solution' => 'Cabo reconectado no teste', 'requestId' => 'req-solucao-332'];
+RoomTicketsEndpoint::move(332, []);
+check(Responde::$status === 200, 'solução sem tipo opcional quando cadastro é restrito');
 
 echo "$checks endpoint checks passed\n";

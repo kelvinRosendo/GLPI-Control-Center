@@ -98,6 +98,68 @@ window.RoomTickets = (() => {
       : '<p class="rt-muted">Nenhum registro identificado neste recorte.</p>') + '</section>';
   }
 
+  // ── estado da interface que NÃO pode se perder no redesenho ─────────────
+
+  /**
+   * O redesenho da área de resultados é inevitável, mas ele não pode apagar o
+   * que a pessoa está fazendo: o texto digitado e ainda não aplicado na busca,
+   * o foco e a posição do cursor. O diálogo de detalhes vive fora dessa área,
+   * em um elemento persistente, e por isso sobrevive a toda atualização.
+   */
+  let detailDialog = null;
+
+  function captureInteraction() {
+    if (typeof document === 'undefined') return null;
+    const form = document.getElementById('rt-filters');
+    const search = form?.querySelector('input[name="q"]');
+    const active = document.activeElement;
+    const snapshot = {};
+    // Texto digitado mas ainda não aplicado: some da tela, não do formulário.
+    if (search && search.value !== '' && search.value !== filters.q) snapshot.search = search.value;
+    if (active && active.getAttribute && active.getAttribute('name') && form?.contains(active)) {
+      snapshot.focusName = active.getAttribute('name');
+      if (typeof active.selectionStart === 'number') {
+        snapshot.selectionStart = active.selectionStart;
+        snapshot.selectionEnd = active.selectionEnd;
+      }
+    }
+    return Object.keys(snapshot).length ? snapshot : null;
+  }
+
+  function restoreInteraction(snapshot) {
+    if (!snapshot || typeof document === 'undefined') return;
+    const form = document.getElementById('rt-filters');
+    if (!form) return;
+    if (snapshot.search !== undefined) {
+      const search = form.querySelector('input[name="q"]');
+      if (search) search.value = snapshot.search;
+    }
+    if (snapshot.focusName) {
+      const field = form.querySelector('[name="' + snapshot.focusName + '"]');
+      if (field && typeof field.focus === 'function') {
+        field.focus();
+        if (typeof field.setSelectionRange === 'function' && typeof snapshot.selectionStart === 'number') {
+          try { field.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd); } catch { /* não selecionável */ }
+        }
+      }
+    }
+  }
+
+  /** Diálogo de detalhes: criado uma vez e nunca recriado pelo redesenho. */
+  function ensureDetailDialog() {
+    if (detailDialog && detailDialog.isConnected) return detailDialog;
+    if (typeof document === 'undefined') return null;
+    detailDialog = document.createElement('dialog');
+    detailDialog.id = 'rt-detail';
+    detailDialog.setAttribute('aria-labelledby', 'rt-detail-title');
+    detailDialog.innerHTML = '<div class="rt-detail-body"></div>';
+    // Vive fora de .rt-dashboard, então precisa do próprio listener: sem isso
+    // os botões de "Assumir", "Aceitar" e "Ver histórico" parariam de funcionar.
+    detailDialog.addEventListener('click', onClick);
+    document.body.appendChild(detailDialog);
+    return detailDialog;
+  }
+
   function latestTicket() {
     if (data?.latest) return data.latest;
     return [...(data?.items || [])].sort((a, b) => String(b.openedAt).localeCompare(String(a.openedAt)) || b.id - a.id)[0] || null;
@@ -264,6 +326,9 @@ window.RoomTickets = (() => {
     monitor()?.start?.();
     const root = document.getElementById('main-content');
     if (!root) return;
+    // Diálogo de detalhes é persistente: não é redesenhado junto com a área.
+    ensureDetailDialog();
+    const interaction = captureInteraction();
     const rooms = Object.fromEntries((data?.options?.rooms || []).map(r => [r.key, r.label]));
     if (filters.room && !rooms[filters.room]) rooms[filters.room] = filters.room === 'unknown' ? 'Sala não identificada' : filters.room;
     root.innerHTML = '<div class="rt-dashboard"><header class="rt-header"><div><p class="rt-eyebrow">OPERAÇÃO · CHAMADOS</p>' +
@@ -276,7 +341,7 @@ window.RoomTickets = (() => {
       '<button type="button" data-rt-view="kanban"' + (view === 'kanban' ? ' class="is-active" aria-pressed="true"' : ' aria-pressed="false"') + '>Kanban</button>' +
       '</div>' +
       (view === 'kanban' ? '' : '<div class="rt-analysis-head"><p class="rt-eyebrow">ANÁLISE DETALHADA</p><h2>Histórico e recorrências</h2><p class="rt-muted">Use os filtros para investigar períodos, salas e equipamentos.</p></div>') +
-      '<form id="rt-filters" class="rt-panel"><fieldset' + (loading ? ' disabled' : '') + '><legend>Filtrar chamados</legend><div class="rt-filters">' +
+      '<form id="rt-filters" class="rt-panel"><fieldset' + ((loading && !data) ? ' disabled' : '') + '><legend>Filtrar chamados</legend><div class="rt-filters">' +
       '<label>Período<select name="period"><option value="30d"' + (filters.period === '30d' ? ' selected' : '') + '>Últimos 30 dias</option>' +
       '<option value="previous_month"' + (filters.period === 'previous_month' ? ' selected' : '') + '>Mês anterior completo</option>' +
       '<option value="custom"' + (filters.period === 'custom' ? ' selected' : '') + '>Personalizado</option></select></label>' +
@@ -291,7 +356,7 @@ window.RoomTickets = (() => {
       renderToolbar() +
       (notice ? '<p class="rt-message rt-ok" role="status" data-rt-notice>' + esc(notice) + '</p>' : '') +
       '<div id="rt-results" aria-busy="' + loading + '"' + (view === 'kanban' ? ' data-rt-view="kanban"' : '') + '>' + renderResults() + '</div>' +
-      '<dialog id="rt-detail" aria-labelledby="rt-detail-title"><div class="rt-detail-body"></div></dialog></div>';
+      '</div>';
     const dashboard = root.querySelector('.rt-dashboard');
     dashboard.addEventListener('click', onClick);
     // Kanban: um único listener delegado; o módulo do quadro cuida dos seus botões.
@@ -321,6 +386,9 @@ window.RoomTickets = (() => {
       monitor()?.setMonitorEnabled?.(event.target.checked);
       mount();
     });
+    // O monitor passa a ser dono do ciclo: nenhuma segunda varredura do GLPI.
+    monitor()?.setActiveQuery?.(buildQuery().toString());
+    restoreInteraction(interaction);
     startTimer();
     if (!data && !loading && !error) load('initial');
   }
@@ -441,7 +509,7 @@ window.RoomTickets = (() => {
 
   function detail(id) {
     const ticket = findTicket(id);
-    const dialog = document.getElementById('rt-detail');
+    const dialog = ensureDetailDialog();
     if (!ticket || !dialog) return;
     let link = '';
     try {
@@ -456,18 +524,21 @@ window.RoomTickets = (() => {
     const work = ticket.work || null;
     const handler = work?.handlerName
       ? esc(work.handlerName) + (work.handlerSource === 'glpi_user'
-        ? ' <small>atribuído no GLPI' + (work.glpiUserId ? ' · ID ' + esc(String(work.glpiUserId)) : '') + '</small>'
+        ? ' <small>técnico do GLPI' + (work.glpiUserId ? ' · ID ' + esc(String(work.glpiUserId)) : '') + '</small>'
         : ' <small>informado, sem correspondência exata no GLPI</small>')
-      : (ticket.assignee?.name ? esc(ticket.assignee.name) + ' <small>atribuído no GLPI</small>' : 'Não definido');
+      : (ticket.assignee?.name ? esc(ticket.assignee.name) + ' <small>técnico do GLPI</small>' : 'Não definido');
+    const solutionHtml = work?.solution
+      ? '<dt>Solução</dt><dd>' + esc(work.solution)
+        + (work.solutionInGlpi ? '' : ' <small>(não confirmada no GLPI)</small>') + '</dd>' : '';
     dialog.querySelector('.rt-detail-body').innerHTML = '<header class="rt-header"><h2 id="rt-detail-title">Chamado #' +
       ticket.id + '</h2><button type="button" data-rt-action="close-detail" autofocus>Fechar</button></header>' +
       '<h3>' + esc(ticket.title) + '</h3><dl><dt>Sala</dt><dd>' + esc(ticket.room) + '</dd><dt>Origem da sala</dt><dd>' +
       esc(SOURCES[ticket.roomSource] || 'Não identificado') + '</dd><dt>Origem do tipo</dt><dd>' + esc(SOURCES[ticket.typeSource] || 'Não identificado') +
       '</dd><dt>Ativos vinculados</dt><dd>' + esc((ticket.assets || []).map(a => a.name + (a.tag ? ' · Patrimônio ' + a.tag : '') + ' (' + a.key + ')').join('; ') || 'Ativo não identificado') +
-      '</dd><dt>Status</dt><dd>' + esc(STATUS[ticket.status] || ticket.status) +
+      '</dd><dt>Status</dt><dd>' + esc(ticket.statusLabel || STATUS[ticket.status] || ticket.status) +
       '</dd><dt>Responsável</dt><dd>' + handler + '</dd>' +
       (work?.assignedBy ? '<dt>Registrado por</dt><dd>' + esc(work.assignedBy) + ' em ' + esc(formatDate(work.assignedAt)) + '</dd>' : '') +
-      (work?.solution ? '<dt>Solução</dt><dd>' + esc(work.solution) + '</dd>' : '') +
+      solutionHtml +
       '<dt>Referência</dt><dd>' + esc(ticket.reference || 'Não informada') + '</dd></dl>' +
       '<div class="rt-detail-actions"><button type="button" class="rt-primary" data-rt-action="assume" data-ticket-id="' +
       esc(ticket.id) + '">Assumir chamado</button>' +
@@ -476,7 +547,7 @@ window.RoomTickets = (() => {
       '<button type="button" data-rt-action="history" data-ticket-id="' + esc(ticket.id) + '">Ver histórico</button></div>' +
       '<div class="rt-detail-history" data-rt-history hidden></div>' +
       '<p class="rt-description">' + esc(ticket.description || 'Sem descrição.') + '</p>' + link;
-    dialog.showModal();
+    if (!dialog.open) dialog.showModal();
   }
 
   /** Histórico do chamado, consultado no servidor (fonte oficial). */
@@ -500,7 +571,9 @@ window.RoomTickets = (() => {
           ' — registrado por ' + esc(result.assignment.recordedBy) + ' em ' + esc(formatDate(result.assignment.at)) + '</p>'
         : '<p><b>Quem vai atender:</b> ainda não definido. Um aceite anterior apenas confirma leitura.</p>';
       const solution = result.solution
-        ? '<p><b>Solução:</b> ' + esc(result.solution.text) + ' — por ' + esc(result.solution.recordedBy) +
+        ? '<p><b>Solução:</b> ' + esc(result.solution.text)
+          + (result.solution.glpi ? ' <small>(registrada no GLPI)</small>' : ' <small>(não registrada no GLPI)</small>')
+          + ' — por ' + esc(result.solution.recordedBy) +
           ' em ' + esc(formatDate(result.solution.at)) + '</p>'
         : '';
       const acknowledgement = result.acknowledgement
@@ -514,9 +587,23 @@ window.RoomTickets = (() => {
     }
   }
 
+  /**
+   * Só o intervalo de RELÓGIO da tela fica aqui. A consulta ao GLPI é do
+   * monitor, que já consulta a cada 60 s a visão ativa e a fila de alertas.
+   *
+   * Este timer NÃO consulta o GLPI: o relatório já está inscrito no monitor
+   * (`bindMonitor`) e se redesenha sozinho quando chega leitura nova. Manter
+   * `load('tick')` aqui fazia DUAS varreduras completas do GLPI por minuto,
+   * defasadas entre si.
+   */
   function startTimer() {
     if (timer !== null) clearInterval(timer);
-    timer = auto && active() ? setInterval(() => { if (!document.hidden && !loading) load('tick'); }, 60000) : null;
+    timer = auto && active() ? setInterval(() => {
+      if (document.hidden) return;
+      // Só repinta o carimbo de horário e o estado; nenhuma consulta nova.
+      if (loading || monitorBound) return;
+      mount();
+    }, 60000) : null;
   }
   function unmount() {
     if (timer !== null) clearInterval(timer);
