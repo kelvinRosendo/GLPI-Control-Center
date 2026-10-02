@@ -656,7 +656,9 @@
 }
 
 /* ── Responsivo ─────────────────────────────────────────────────────── */
-@media (max-width: 768px) {
+/* A pesquisa global do topo não cabe junto com a gaveta lateral: some a partir
+   do mesmo limite de 900 px usado pela navegação recolhível. */
+@media (max-width: 900px) {
   .topbar-search {
     display: none;
   }

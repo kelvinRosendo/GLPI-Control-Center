@@ -10,6 +10,11 @@
 .rt-panel, .rt-card { background: var(--color-bg-secondary, var(--bg2, #171c2b)); border: 1px solid var(--color-border, #343c50); border-radius: 14px; padding: 20px; }
 .rt-panel h2, .rt-card h2 { font-size: 15px; margin: 0 0 16px; }
 .rt-dashboard fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+/* No desktop os dois wrappers abaixo são transparentes (`display: contents`),
+   então a grade de filtros continua exatamente a mesma de sempre. No celular
+   viram blocos de verdade, e o de busca fica sempre visível. */
+.rt-filter-more, .rt-filter-buttons { display: contents; }
+.rt-filters-toggle { display: none; }
 .rt-dashboard legend { font-weight: 600; margin-bottom: 14px; }
 .rt-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: end; }
 .rt-filters label { display: flex; flex-direction: column; gap: 7px; font-size: 13px; }
@@ -83,8 +88,17 @@
 .rt-pagination { margin-top: 16px; font-size: 13px; }
 .rt-message { padding: 20px; border: 1px solid var(--color-border, #454d61); border-radius: 10px; margin: 16px 0; line-height: 1.6; }
 .rt-error { border-color: #e87d7d; }
-.rt-dashboard dialog { background: var(--color-bg-secondary, #171c2b); color: inherit; border: 1px solid var(--color-border, #454d61); border-radius: 16px; width: min(760px, 90vw); max-height: 85vh; margin: auto; padding: 24px; overflow-y: auto; }
-.rt-dashboard dialog::backdrop { background: rgba(0,0,0,.65); }
+/* O diálogo de detalhes e o de atendimento são criados no <body>, fora de
+   `.rt-dashboard`, por isso precisam de regras próprias: os estilos globais do
+   GCC zeram a margem de todos os elementos e o `dialog` nativo depende de
+   `margin: auto` para se centralizar. */
+#rt-detail { background: var(--color-bg-secondary, #171c2b); color: inherit; border: 1px solid var(--color-border, #454d61); border-radius: 14px; width: min(760px, 92vw); max-width: min(760px, 92vw); max-height: min(88vh, 88dvh); overflow-y: auto; overscroll-behavior: contain; margin: auto; padding: 22px; }
+#rt-detail::backdrop { background: rgba(0,0,0,.65); }
+#rt-detail .rt-header { margin-bottom: 12px; }
+#rt-detail .rt-header h2 { margin: 0; font-size: 18px; }
+#rt-detail .rt-header button { font: inherit; min-height: 40px; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--color-border, #454d61); background: var(--color-bg-primary, #111827); color: inherit; cursor: pointer; }
+#rt-detail :focus-visible { outline: 3px solid var(--color-accent, #6e9aff); outline-offset: 2px; }
+#rt-detail h3 { margin: 0 0 12px; font-size: 16px; line-height: 1.35; overflow-wrap: anywhere; }
 .rt-dashboard dl { display: grid; grid-template-columns: 150px minmax(0,1fr); gap: 10px; font-size: 14px; }
 .rt-dashboard dd { margin: 0; overflow-wrap: anywhere; }
 .rt-description { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
@@ -200,3 +214,203 @@ dialog.rt-action-form::backdrop { background: rgba(0,0,0,.66); }
 .rt-monitor-alert-owner { font-size: 12px; color: var(--color-text-secondary, #9299b8); }
 @media (max-width: 900px) { .rt-kanban { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .rt-kanban-column { padding: 12px; } .rt-kanban-actions button { flex: 1; } }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EXPERIÊNCIA MOBILE DOS CHAMADOS
+   ---------------------------------------------------------------------------
+   Larguras de referência: 360, 390, 430 e 768 px, além do desktop.
+
+   O limite de 860 px é o MESMO que o JavaScript usa para escolher a lista
+   vertical compacta (`RoomTickets.COMPACT_QUERY`). A decisão vem da largura do
+   layout: nunca de user-agent, então um celular em paisagem e uma janela de
+   desktop reduzida se comportam igual. Abaixo de 860 px valem também as
+   regras de área segura e de altura dinâmica da tela.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Faixa de estado: carregando, atualizado, cache, erro e sessão expirada ── */
+.rt-state { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0 0; padding: 10px 12px; border: 1px solid var(--color-border, #343c50); border-left-width: 3px; border-radius: 8px; background: var(--color-bg-secondary, #171c2b); font-size: 13px; line-height: 1.45; }
+.rt-state-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; background: #8b93a7; }
+.rt-state-when { margin-left: auto; color: var(--color-text-secondary, #9299b8); font-size: 12px; }
+/* Uma só versão da frase por layout: a longa no desktop, a curta no celular. */
+.rt-state-short { display: none; }
+.rt-state--loading, .rt-state--updating { border-left-color: var(--color-accent, #4f7ef7); }
+.rt-state--loading .rt-state-dot, .rt-state--updating .rt-state-dot { background: var(--color-accent, #4f7ef7); animation: rt-pulse 1s ease-in-out infinite; }
+.rt-state--ok { border-left-color: var(--color-green, #1dd6a1); }
+.rt-state--ok .rt-state-dot { background: var(--color-green, #1dd6a1); }
+.rt-state--stale { border-left-color: var(--color-yellow, #f2c522); }
+.rt-state--stale .rt-state-dot { background: var(--color-yellow, #f2c522); }
+.rt-state--error { border-left-color: #e87d7d; }
+.rt-state--error .rt-state-dot { background: #e87d7d; }
+.rt-state--expired { border-left-color: #e87d7d; border-style: solid; background: rgba(232,125,125,.08); }
+.rt-state--expired .rt-state-dot { background: #e87d7d; }
+.rt-state--empty { border-left-color: var(--color-text-secondary, #9299b8); }
+
+/* ── Seções recolhíveis (histórico, recorrências, resumo) ─────────────────── */
+.rt-dashboard .rt-disclosure-toggle { display: inline-flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; margin: 0 0 10px; padding: 10px 14px; text-align: left; font: inherit; font-size: 14px; font-weight: 600; color: var(--color-text-primary, #e5e7eb); background: var(--color-bg-secondary, #171c2b); border: 1px solid var(--color-border, #343c50); border-radius: 10px; cursor: pointer; }
+.rt-dashboard .rt-disclosure-toggle:hover { border-color: var(--color-accent, #4f7ef7); }
+.rt-disclosure-caret { width: 0; height: 0; flex: none; border-left: 7px solid currentColor; border-top: 5px solid transparent; border-bottom: 5px solid transparent; transition: transform .15s ease; }
+.rt-dashboard .rt-disclosure-toggle[aria-expanded="true"] .rt-disclosure-caret { transform: rotate(90deg); }
+.rt-disclosure-body { min-width: 0; }
+
+/* No desktop o toggle não existe e nada fica escondido: o histórico é o
+   próprio conteúdo da tela, como sempre foi. */
+@media (min-width: 861px) {
+  .rt-disclosure-toggle { display: none; }
+  .rt-disclosure-body[hidden] { display: block; }
+  .rt-filter-more[hidden], .rt-filter-buttons[hidden] { display: contents; }
+}
+/* `display: contents` mantém a grade de filtros do desktop exatamente igual:
+   os sete campos e os dois botões continuam sendo células da mesma grade. */
+.rt-search-row, .rt-filter-actions { display: contents; }
+.rt-refresh-label-short { display: none; }
+
+/* ── Filtros rápidos de status ────────────────────────────────────────────── */
+.rt-chips { display: flex; gap: 8px; overflow-x: auto; margin: 0 0 12px; padding: 2px 2px 6px; scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
+.rt-dashboard .rt-chip { display: inline-flex; align-items: center; gap: 7px; flex: none; min-height: 44px; padding: 8px 11px; font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; color: var(--color-text-secondary, #9299b8); background: var(--color-bg-secondary, #171c2b); border: 1px solid var(--color-border, #343c50); border-radius: 999px; cursor: pointer; }
+.rt-dashboard .rt-chip[aria-pressed="true"] { color: #fff; background: var(--color-accent, #315ed0); border-color: transparent; }
+.rt-chip-count { min-width: 22px; padding: 1px 7px; border-radius: 999px; font-size: 12px; font-weight: 700; text-align: center; color: var(--color-text-primary, #e5e7eb); background: rgba(255,255,255,.08); }
+.rt-chip[aria-pressed="true"] .rt-chip-count { color: #101521; background: rgba(255,255,255,.82); }
+.rt-chip--open .rt-chip-count { color: #8ab1ff; }
+.rt-chip--progress .rt-chip-count { color: var(--color-yellow, #f2c522); }
+.rt-chip--done .rt-chip-count { color: var(--color-green, #1dd6a1); }
+.rt-chip[aria-pressed="true"].rt-chip--open .rt-chip-count,
+.rt-chip[aria-pressed="true"].rt-chip--progress .rt-chip-count,
+.rt-chip[aria-pressed="true"].rt-chip--done .rt-chip-count { color: #101521; }
+.rt-list-scope, .rt-list-note { margin: 0 0 10px; font-size: 12px; line-height: 1.5; color: var(--color-text-secondary, #9299b8); }
+.rt-list-empty { margin: 0; padding: 22px 14px; text-align: center; font-size: 13px; line-height: 1.6; color: var(--color-text-secondary, #9299b8); border: 1px dashed var(--color-border, #343c50); border-radius: 10px; }
+.rt-dashboard .rt-list-more { width: 100%; min-height: 44px; margin-top: 12px; }
+
+/* ── Lista vertical compacta ─────────────────────────────────────────────── */
+.rt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.rt-item { display: grid; gap: 6px; min-width: 0; padding: 12px 13px; background: var(--color-bg-secondary, #171c2b); border: 1px solid var(--color-border, #343c50); border-left: 3px solid var(--color-border, #343c50); border-radius: 10px; }
+.rt-item[data-rt-item] { scroll-margin-top: 72px; }
+.rt-item-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.rt-item-room { margin: 0; font-size: 13px; font-weight: 700; color: var(--color-text-primary, #e5e7eb); overflow-wrap: anywhere; }
+.rt-item-room small { display: inline; font-size: 11px; color: var(--color-yellow, #f2c522); }
+.rt-item-title { margin: 0; font-size: 14px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.rt-item-ident { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; font-size: 12px; color: var(--color-text-secondary, #9299b8); }
+.rt-item-ref { font-family: var(--font-mono, ui-monospace, monospace); }
+.rt-item-equip.is-empty { font-style: italic; }
+.rt-item-owner { margin: 0; font-size: 12px; line-height: 1.45; padding: 5px 8px; border-radius: 7px; background: rgba(79,126,247,.12); overflow-wrap: anywhere; }
+.rt-item-owner.is-empty { background: transparent; font-style: italic; }
+.rt-item-owner-label, .rt-item-open-label { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--color-text-secondary, #9299b8); }
+.rt-item-owner small { display: inline; font-size: 11px; color: var(--color-text-secondary, #9299b8); }
+.rt-item-open { margin: 0; font-size: 12px; color: var(--color-text-secondary, #9299b8); }
+.rt-item-solution { margin: 0; padding-top: 6px; font-size: 12px; line-height: 1.45; color: var(--color-text-secondary, #9299b8); border-top: 1px dashed var(--color-border, #343c50); overflow-wrap: anywhere; }
+.rt-item-solution span { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; }
+.rt-item-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.rt-dashboard .rt-item-actions button { flex: 1 1 132px; min-height: 44px; padding: 8px 12px; font: inherit; font-size: 13px; border-radius: 8px; border: 1px solid var(--color-border, #454d61); background: var(--color-bg-primary, #111827); color: inherit; cursor: pointer; }
+.rt-dashboard .rt-item-actions button.is-primary { background: var(--color-accent, #315ed0); border-color: transparent; color: #fff; font-weight: 600; }
+.rt-dashboard .rt-item-actions button:disabled { opacity: .5; cursor: default; }
+.rt-dashboard .rt-item-detail { color: var(--color-accent, #84aaff) !important; }
+
+/* ═══ Layout estreito: lista, filtros, formulários e alertas ═══════════════ */
+@media (max-width: 860px) {
+  .rt-dashboard { max-width: 100%; padding: 8px 8px calc(78px + env(safe-area-inset-bottom)); padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
+  .rt-header { margin-bottom: 10px; gap: 8px; flex-wrap: nowrap; align-items: center; }
+  .rt-header h1 { font-size: 19px; margin: 2px 0 0; }
+  .rt-eyebrow { font-size: 10px; }
+  /* No celular o modo TV não faz sentido: ele é para a parede, não para a mão.
+     A opção continua disponível no desktop. */
+  .rt-header-subtitle, .rt-dashboard .rt-tv-button { display: none; }
+  .rt-header-actions { width: auto; flex: none; }
+  .rt-dashboard .rt-header-actions > button { min-height: 44px; padding: 8px 12px; font-size: 13px; white-space: nowrap; }
+  .rt-refresh-label-full { display: none; }
+  .rt-refresh-label-short { display: inline; }
+  .rt-panel, .rt-card { padding: 14px; border-radius: 12px; }
+
+  /* Faixa de estado em uma linha só: não empurra a lista para fora da dobra. */
+  .rt-state { padding: 8px 10px; font-size: 12px; gap: 8px; flex-wrap: nowrap; align-items: center; }
+  .rt-state-long { display: none; }
+  .rt-state-short { display: inline; font-weight: 600; }
+  .rt-state-when { margin-left: auto; flex: none; font-size: 11px; }
+
+  /* Filtros: busca e botão na mesma linha, o resto recolhido. Fonte de 16 px
+     para o celular não aumentar o zoom ao focar um campo. */
+  .rt-filters { display: flex; flex-direction: column; align-items: stretch; gap: 10px; }
+  .rt-filter-more, .rt-filter-buttons { display: grid; gap: 10px; grid-template-columns: 1fr; }
+  .rt-filter-more[hidden] { display: none; }
+  .rt-search-row { display: flex; gap: 8px; align-items: flex-end; }
+  .rt-filters .rt-search { flex: 1 1 0; min-width: 0; }
+  .rt-dashboard .rt-filter-submit { flex: none; min-height: 46px; padding: 8px 12px; white-space: nowrap; font-size: 13px; }
+  .rt-dashboard .rt-filter-actions { display: flex; gap: 8px; }
+  .rt-dashboard .rt-filter-actions button { flex: 0 1 auto; min-height: 44px; }
+  .rt-filters label { font-size: 13px; }
+  .rt-dashboard input:not([type=checkbox]), .rt-dashboard select { min-height: 46px; font-size: 16px; }
+  .rt-dashboard .rt-filters-toggle { display: inline-flex; align-items: center; justify-content: center; flex: 1 1 auto; min-height: 44px; }
+  .rt-dashboard .rt-filters-toggle[aria-expanded="true"] { border-color: var(--color-accent, #4f7ef7); color: var(--color-accent, #84aaff); }
+  .rt-list-scope, .rt-list-note { overflow-wrap: anywhere; }
+
+  .rt-toolbar { margin: 12px 0; }
+  .rt-chips { padding: 2px 2px 6px; }
+  .rt-dashboard .rt-chip { font-size: 12px; padding: 8px 10px; }
+  .rt-toolbar-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rt-toolbar-controls label { min-height: 44px; }
+  .rt-toolbar-controls button { min-height: 44px; }
+  .rt-sound-state { grid-column: 1 / -1; }
+  .rt-view-switch { display: flex; width: 100%; margin-bottom: 10px; }
+  .rt-dashboard .rt-view-switch button { flex: 1; min-height: 44px; }
+
+  /* A tabela larga não cabe no celular: a lista compacta é a apresentação. */
+  .rt-dashboard .rt-table-wrap { display: none; }
+  .rt-dashboard .rt-pagination { display: flex; flex-wrap: wrap; gap: 8px; }
+  .rt-dashboard .rt-pagination button { flex: 1 1 40%; min-height: 44px; }
+  .rt-pagination-info { flex: 1 1 100%; order: 3; text-align: center; font-size: 12px; color: var(--color-text-secondary, #9299b8); }
+
+  .rt-kanban-actions button, .rt-kanban-more { min-height: 44px; }
+  .rt-kanban-actions button { flex: 1 1 44%; }
+
+  /* Alerta: cabe na largura do celular, é compacto e tem rolagem própria. Ele
+     é temporário (15 s) e dispensável, então nunca vira uma camada permanente
+     sobre a lista. Dentro de um diálogo continua no fluxo ( sticky ), sem
+     cobrir campos e botões. */
+  .rt-monitor-alert { top: calc(6px + env(safe-area-inset-top)); left: max(6px, env(safe-area-inset-left)); right: max(6px, env(safe-area-inset-right)); width: auto; max-width: none; max-height: 34dvh; overflow-y: auto; overscroll-behavior: contain; gap: 3px; padding: 10px 12px; border-radius: 10px; }
+  .rt-monitor-alert-label { font-size: 10px; }
+  .rt-monitor-alert strong { font-size: 18px; }
+  .rt-monitor-alert small { font-size: 12px; }
+  /* O tipo e o responsável do alerta abrem no detalhe; no celular o banner
+     prioriza sala, número e as ações, para ficar baixo. O estado do áudio
+     continua visível na barra de status e no monitor do rodapé. */
+  .rt-monitor-alert-types, .rt-monitor-alert-owner, .rt-monitor-alert-sound { display: none; }
+  .rt-monitor-alert-count { font-size: 11px; }
+  .rt-monitor-alert-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 4px; }
+  .rt-monitor-alert-actions button { min-height: 38px; padding: 6px 4px; font-size: 12px; }
+  .rt-monitor-alert.is-in-dialog { position: sticky; top: 0; max-height: 34dvh; }
+
+  /* Monitor flutuante: compacto e sem cobrir o fim da lista — o padding
+     inferior do painel reserva o espaço. */
+  .rt-monitor-widget { left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom)); flex-wrap: wrap; justify-content: space-between; border-radius: 12px; }
+  .rt-monitor-widget button { min-height: 34px; }
+}
+
+@media (max-width: 400px) {
+  .rt-dashboard { padding-left: max(6px, env(safe-area-inset-left)); padding-right: max(6px, env(safe-area-inset-right)); }
+  .rt-item { padding: 11px 10px; }
+  .rt-item-actions button { flex: 1 1 100%; }
+  .rt-chip { padding: 8px 9px; font-size: 12px; }
+  .rt-chip-count { min-width: 20px; padding: 1px 6px; }
+}
+
+/* Formulário de atendimento: fonte de 16 px (o celular não aumenta o zoom ao
+   focar um campo), alvos de 48 px e ações fixas no pé do diálogo, para que
+   Confirmar e Cancelar continuem ao alcance com o teclado virtual aberto. */
+@media (max-width: 860px) {
+  .rt-form { gap: 12px; }
+  .rt-field { font-size: 14px; }
+  .rt-field input, .rt-field select, .rt-field textarea { min-height: 48px; font-size: 16px; padding: 12px; }
+  .rt-field textarea { min-height: 120px; }
+  .rt-form-actions { position: sticky; bottom: 0; gap: 10px; margin-top: 4px; padding: 10px 0 2px; background: var(--color-bg-secondary, #171c2b); }
+  .rt-form-actions button { flex: 1 1 44%; min-height: 48px; }
+  .rt-detail-actions button { flex: 1 1 44%; min-height: 44px; }
+  #rt-detail dl { grid-template-columns: 1fr; gap: 2px; }
+  #rt-detail dt { font-weight: 600; color: var(--color-text-secondary, #9299b8); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  #rt-detail dd { margin: 0 0 10px; font-size: 14px; }
+}
+
+/* Em telas realmente estreitas os diálogos ocupam a área útil inteira, com
+   `100dvh` acompanhando a altura dinâmica quando o teclado virtual sobe. */
+@media (max-width: 640px) {
+  dialog.rt-action-form { width: auto; max-width: none; inset: 8px; max-height: none; height: calc(100dvh - 16px); border-radius: 14px; padding: 16px; }
+  #rt-detail { width: auto; max-width: none; inset: 8px; max-height: none; height: calc(100dvh - 16px); padding: 16px; }
+}
+

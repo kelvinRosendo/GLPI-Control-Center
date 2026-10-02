@@ -386,58 +386,75 @@
 
 /* ══════════════════════════════════════════════════════════════════════════════
    RESPONSIVIDADE
+
+   O ponto de virada vem do LAYOUT, não do dispositivo: até 900 px a navegação
+   lateral não cabe ao lado do conteúdo e vira uma gaveta recolhível, aberta
+   pelo botão do topo. Acima de 900 px vale o recolhimento do desktop (260 px
+   expandida, 64 px recolhida) — inclusive em telas de toque.
+
+   A régua de 900 px é a mesma que a experiência mobile de chamados usa para
+   trocar a tabela pela lista vertical compacta.
    ══════════════════════════════════════════════════════════════════════════════ */
 
-@media (max-width: 768px) {
-  .sidebar {
-    width: 64px;
+@media (max-width: 900px) {
+  /* Na gaveta o recolhimento do desktop não faz sentido: o menu já é uma
+     camada sobre o conteúdo, e o botão do topo é quem abre e fecha. */
+  .sidebar-toggle {
+    display: none;
   }
 
-  .sidebar .sidebar-brand {
-    display: none;
+  /* A gaveta tem a largura completa do menu: nomes e ícones sempre visíveis,
+     para que a navegação continue completa no celular. */
+  .sidebar {
+    width: 260px;
+    max-width: 82vw;
+    transform: translateX(-100%);
+    transition: transform var(--transition-normal);
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .sidebar.sidebar--mobile-open {
+    transform: translateX(0);
+  }
+
+  .sidebar .sidebar-brand,
+  .sidebar .sidebar-logo-full,
+  .sidebar .sidebar-item-label,
+  .sidebar .sidebar-group-label {
+    display: revert;
   }
 
   .sidebar .sidebar-logo-full {
-    display: none;
+    display: block;
   }
 
   .sidebar .sidebar-logo-symbol {
-    display: block;
-    height: 28px;
-    width: auto;
-    margin: 0 auto;
+    display: none;
   }
 
   .sidebar .sidebar-header {
-    justify-content: center;
-    padding: 14px 8px;
-    gap: 0;
-  }
-
-  .sidebar .sidebar-group-label {
-    display: none;
+    justify-content: flex-start;
+    padding: 16px 16px;
+    gap: 10px;
   }
 
   .sidebar .sidebar-item {
-    justify-content: center;
-    padding: 8px;
-  }
-
-  .sidebar .sidebar-item-label {
-    display: none;
+    justify-content: flex-start;
+    padding: 10px 12px;
   }
 
   .sidebar .sidebar-item-icon {
-    width: 20px;
-    height: 20px;
+    width: 22px;
+    height: 22px;
+    flex: none;
   }
 
   .app--sidebar-expanded .app-main,
   .app--sidebar-collapsed .app-main {
-    margin-left: 64px;
+    margin-left: 0;
   }
 
-  /* Overlay para mobile */
+  /* Overlay para fechar a gaveta tocando fora dela. */
   .sidebar-overlay {
     display: none;
     position: fixed;
@@ -448,22 +465,6 @@
 
   .sidebar-overlay.active {
     display: block;
-  }
-}
-
-@media (max-width: 480px) {
-  .sidebar {
-    transform: translateX(-100%);
-    transition: transform var(--transition-normal);
-  }
-
-  .sidebar.sidebar--mobile-open {
-    transform: translateX(0);
-  }
-
-  .app--sidebar-expanded .app-main,
-  .app--sidebar-collapsed .app-main {
-    margin-left: 0;
   }
 }
 

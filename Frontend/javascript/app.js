@@ -120,9 +120,57 @@ window.App = {
     this._setGlpiStatus('carregando');
     // Monitoramento de chamados roda em todas as telas, desde o login.
     window.RoomTicketsMonitor?.start();
-    this.go('home');
+    this.go(this._landingTab());
 
     await this._loadInitialData();
+  },
+
+  /**
+   * Tela de entrada depois do login.
+   *
+   * No celular, "Chamados das salas" é a primeira coisa que a pessoa do TI
+   * precisa: assumir, acompanhar e concluir com poucos toques. O desktop
+   * continua abrindo no Dashboard.
+   *
+   * Três condições, todas verificadas antes de trocar a entrada:
+   * 1. a largura do layout é estreita (nunca user-agent);
+   * 2. o perfil tem acesso ao módulo — sem `AuthGuard.checkModule`, que
+   *    mostraria a tela de acesso negado como efeito colateral;
+   * 3. não há uma navegação explícita para outro destino.
+   *
+   * Parâmetros `rt_*` (filtros, visão e filtro rápido de chamados) NÃO
+   * impedem a entrada: eles indicam que a pessoa já estava nesta tela, e por
+   * isso a tela é preservada em vez de descartada.
+   */
+  _landingTab() {
+    // Aba já escolhida na sessão é sempre preservada.
+    const current = window.STATE?.tab && window.STATE.tab !== 'home' ? window.STATE.tab : 'home';
+    try {
+      if (typeof window.matchMedia !== 'function') return current;
+      if (!window.matchMedia('(max-width: 900px)').matches) return current;
+      if (this._hasExplicitNavigation()) return current;
+      const allowed = window.UserContext?.canAccessModule
+        ? window.UserContext.canAccessModule('chamados-salas')
+        : true;
+      return allowed ? 'chamados-salas' : current;
+    } catch {
+      // Qualquer falha aqui vale para o fluxo já conhecido.
+      return current;
+    }
+  },
+
+  /**
+   * Navegação explícita para OUTRO destino, indicada pela URL. O GCC ainda
+   * não roteia por parâmetro de aba, então a entrada automática é suspensa e
+   * a pessoa decide o próximo passo pelo menu.
+   */
+  _hasExplicitNavigation() {
+    try {
+      if (String(window.location.hash || '').replace(/^#/, '')) return true;
+      const params = new URLSearchParams(window.location.search || '');
+      return ['tab', 'gcc_tab', 'view'].some(key => Boolean(params.get(key)));
+    } catch { /* sem URL interpretável: segue para a entrada padrão */ }
+    return false;
   },
 
   async _loadInitialData() {
@@ -373,29 +421,11 @@ window.App = {
   },
 
   _bindSidebarEvents() {
-    // Mobile toggle
-    const mobileToggle = document.getElementById('sidebar-mobile-toggle');
-    const overlay = document.getElementById('sidebar-overlay');
-    
-    if (mobileToggle) {
-      mobileToggle.addEventListener('click', () => {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) {
-          sidebar.classList.toggle('sidebar--mobile-open');
-          overlay?.classList.toggle('active');
-        }
-      });
-    }
-
-    if (overlay) {
-      overlay.addEventListener('click', () => {
-        const sidebar = document.getElementById('sidebar');
-        sidebar?.classList.remove('sidebar--mobile-open');
-        overlay.classList.remove('active');
-      });
-    }
-
-    // Breadcrumb links
+    // O menu recolhível e a sobreposição são de responsabilidade do módulo
+    // Sidebar, que os liga uma única vez. Aqui eles NÃO são religados a cada
+    // render: o botão do topo é um elemento permanente, então um segundo
+    // listener faria o clique alternar duas vezes e a gaveta não abriria.
+    // Breadcrumb links, ao contrário, são redesenhados a cada render.
     document.querySelectorAll('.breadcrumb-link[data-sidebar-tab]').forEach(link => {
       link.addEventListener('click', (e) => {
         e.preventDefault();

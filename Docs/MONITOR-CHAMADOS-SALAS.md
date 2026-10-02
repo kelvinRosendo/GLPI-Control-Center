@@ -13,6 +13,13 @@ de ativos e testes/documentação. Sem merge e sem deploy nesta etapa.
 > o monitor passou a expor `assume/move/history/technicians/invalidate`,
 > `audioStatus()` com estado real, e a hospedar o alerta dentro de diálogos
 > abertos (camada superior).
+>
+> Etapa posterior (interface mobile dos chamados, entrada no celular, lista
+> vertical compacta, filtros rápidos por agrupamento, estados separados e
+> menu recolhível) documentada em `Docs/MOBILE-CHAMADOS-SALAS.md`. O ciclo de
+> consulta, o cache, a fila de alertas, o áudio e as regras de encerramento
+> **não** mudaram: a lista mobile apenas consome `data.kanban.columns` e as
+> mesmas ações do Kanban.
 
 ## 1. Arquitetura
 

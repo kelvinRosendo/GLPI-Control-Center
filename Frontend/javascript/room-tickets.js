@@ -18,6 +18,18 @@ window.RoomTickets = (() => {
   let view = 'lista';
   let kanbanLimit = 25;
   let notice = '';
+  // Filtro rápido da lista compacta. 'todos' é a lista paginada completa; os
+  // demais valores são os AGRUPAMENTOS DE STATUS DO BACKEND (data.kanban),
+  // nunca um mapeamento novo criado aqui.
+  let group = 'todos';
+  // Layout estreito, definido por largura de viewport — nunca por user-agent.
+  const COMPACT_QUERY = '(max-width: 860px)';
+  let compactQuery = null;
+  // Seções recolhíveis e bloco de filtros: abertos por padrão no desktop,
+  // recolhidos no celular. Guardados em módulo para sobreviver ao redesenho.
+  let disclosure = { resumo: true, analise: true };
+  let filtersOpen = false;
+  let lastNarrow = null;
   const monitor = () => window.RoomTicketsMonitor;
   const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const active = () => window.STATE?.tab === 'chamados-salas';
@@ -43,7 +55,42 @@ window.RoomTickets = (() => {
   function usingCache() {
     if (!data) return false;
     const state = monitor()?.getState?.() || '';
-    return state === 'error' || state === 'stale' || state === 'expired';
+    return state === 'error' || state === 'stale';
+  }
+
+  /**
+   * Tela estreita: a lista vertical compacta é a apresentação inicial. A
+   * decisão vem da largura real do layout (`matchMedia`), e não do user-agent:
+   * um celular em paisagem e uma janela de desktop reduzida caem no mesmo
+   * lugar, que é o comportamento desejado.
+   */
+  function compact() {
+    return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      && window.matchMedia(COMPACT_QUERY).matches;
+  }
+
+  /** Redesenha ao cruzar o limite de layout, para a lista acompanhar a janela. */
+  function watchLayout() {
+    if (compactQuery || typeof window.matchMedia !== 'function') return;
+    compactQuery = window.matchMedia(COMPACT_QUERY);
+    const onChange = () => { if (active()) mount(); };
+    if (typeof compactQuery.addEventListener === 'function') compactQuery.addEventListener('change', onChange);
+    else if (typeof compactQuery.addListener === 'function') compactQuery.addListener(onChange);
+  }
+
+  /** Recuperação da rolagem: o redesenho não pode deslocar a página. */
+  function captureScroll() {
+    if (typeof window === 'undefined') return null;
+    return { x: Number(window.scrollX) || 0, y: Number(window.scrollY) || 0 };
+  }
+
+  function restoreScroll(snapshot) {
+    if (!snapshot) return;
+    try {
+      if (Number(window.scrollX) !== snapshot.x || Number(window.scrollY) !== snapshot.y) {
+        window.scrollTo(snapshot.x, snapshot.y);
+      }
+    } catch { /* navegador sem rolagem programável */ }
   }
 
   function readUrl() {
@@ -56,6 +103,8 @@ window.RoomTickets = (() => {
     if (!['30d', 'previous_month', 'custom'].includes(filters.period)) filters.period = '30d';
     filters.page = Math.max(1, Number.parseInt(filters.page, 10) || 1);
     if (query.get('rt_view') === 'kanban') view = 'kanban';
+    const requested = query.get('rt_group');
+    if (requested === 'todos' || window.RoomTicketsList?.GROUPS?.some(meta => meta.key === requested)) group = requested;
     const limit = Number.parseInt(query.get('rt_kanban_limit'), 10);
     if (Number.isFinite(limit) && limit > 0) kanbanLimit = Math.min(100, limit);
   }
@@ -68,6 +117,8 @@ window.RoomTickets = (() => {
     }
     if (view === 'kanban') url.searchParams.set('rt_view', 'kanban');
     else url.searchParams.delete('rt_view');
+    if (group !== 'todos') url.searchParams.set('rt_group', group);
+    else url.searchParams.delete('rt_group');
     if (kanbanLimit !== 25) url.searchParams.set('rt_kanban_limit', String(kanbanLimit));
     else url.searchParams.delete('rt_kanban_limit');
     window.history.replaceState(null, '', url);
@@ -199,19 +250,18 @@ window.RoomTickets = (() => {
       ['Sala com mais chamados', leaders(summary.topRooms), summary.topRooms[0] ? summary.topRooms[0].count + ' chamados' : 'Sem sala identificada'],
       ['Tipo com mais chamados', leaders(summary.topTypes), summary.topTypes[0] ? summary.topTypes[0].count + ' chamados' : 'Sem tipo identificado'],
     ];
-    return banner +
-      '<p class="rt-muted">Período: ' + esc(period) + ' · Horário de Brasília · Contagem pela abertura do chamado.</p>' +
+    const head = '<p class="rt-muted">Período: ' + esc(period) + ' · Horário de Brasília · Contagem pela abertura do chamado.</p>' +
       (data.meta.warnings || []).map(w => '<p class="rt-message" role="status">' + esc(w) + '</p>').join('') +
-      (!data.meta.complete ? '<p class="rt-message rt-error" role="alert">Dados incompletos: os valores abaixo não representam todos os chamados.</p>' : '') +
-      '<div class="rt-cards">' + cards.map(([label, value, note]) =>
-        '<article class="rt-card"><h2>' + esc(label) + '</h2><strong>' + esc(value) + '</strong><p>' + esc(note) + '</p></article>').join('') + '</div>' +
+      (!data.meta.complete ? '<p class="rt-message rt-error" role="alert">Dados incompletos: os valores abaixo não representam todos os chamados.</p>' : '');
+    const analysis = '<div class="rt-cards">' + cards.map(([label, value, note]) =>
+      '<article class="rt-card"><h2>' + esc(label) + '</h2><strong>' + esc(value) + '</strong><p>' + esc(note) + '</p></article>').join('') + '</div>' +
       '<p class="rt-quality">' + summary.withoutRoom + ' sem sala · ' + summary.withoutAsset +
       ' sem ativo vinculado · ' + summary.review + ' para revisar. <button type="button" data-rt-dimension="room" data-rt-key="unknown">Ver sem sala</button></p>' +
       '<div class="rt-charts">' + ranking('Salas com mais chamados', data.rankings.rooms, 'room') +
       ranking('Chamados por tipo de equipamento', data.rankings.types, 'type') +
       ranking('Ativos com mais chamados', data.rankings.assets, 'asset') + '</div>' +
-      '<p class="rt-muted">Um chamado pode envolver vários equipamentos; a soma por tipo ou ativo pode superar o total. Nomes e patrimônios vêm do cache do GCC. Salas vêm do próprio chamado.</p>' +
-      '<section class="rt-panel"><h2>Chamados encontrados <span class="rt-muted">(' + data.pagination.total + ')</span></h2>' +
+      '<p class="rt-muted">Um chamado pode envolver vários equipamentos; a soma por tipo ou ativo pode superar o total. Nomes e patrimônios vêm do cache do GCC. Salas vêm do próprio chamado.</p>';
+    const table = '<section class="rt-panel"><h2>Chamados encontrados <span class="rt-muted">(' + data.pagination.total + ')</span></h2>' +
       (data.items.length ? '<div class="rt-table-wrap" tabindex="0" role="region" aria-label="Tabela de chamados"><table><thead><tr>' +
       '<th scope="col">Chamado</th><th scope="col">Sala</th><th scope="col">Equipamento</th><th scope="col">Abertura</th><th scope="col">Status</th>' +
       '<th scope="col">Responsável</th>' +
@@ -219,10 +269,32 @@ window.RoomTickets = (() => {
       t.id + ' — ' + esc(t.title || 'Sem título') + '</button>' + (t.review ? '<small>Revisar identificação</small>' : '') +
       '</td><td>' + esc(t.room) + '</td><td>' + esc(t.types.map(k => TYPES[k] || k).join(', ')) +
       '</td><td>' + esc(formatDate(t.openedAt)) + '</td><td>' + esc(STATUS[t.status] || t.status) + '</td><td>' + esc(ownerLabel(t)) + '</td></tr>').join('') +
-      '</tbody></table></div>' : '<p class="rt-message">Nenhum chamado encontrado para estes filtros.</p>') +
+      '</tbody></table></div>' : '<p class="rt-message" data-rt-empty="true">Nenhum chamado encontrado para estes filtros. A consulta foi concluída sem erro.</p>') +
       '<div class="rt-pagination"><button type="button" data-rt-action="previous"' + (data.pagination.page <= 1 ? ' disabled' : '') +
       '>Anterior</button><span>Página ' + data.pagination.page + ' de ' + data.pagination.pages + '</span>' +
       '<button type="button" data-rt-action="next"' + (data.pagination.page >= data.pagination.pages ? ' disabled' : '') + '>Próxima</button></div></section>';
+
+    // No celular a lista compacta vem primeiro: é a apresentação inicial da
+    // experiência de atendimento. O histórico e as recorrências continuam
+    // acessíveis, recolhidos em um único botão.
+    if (compact()) {
+      return banner + (window.RoomTicketsList?.render(data, group) || '') +
+        disclosureHtml('analise', 'Histórico, recorrências e lista completa', head + analysis + table);
+    }
+    return banner + head + analysis + table;
+  }
+
+  /**
+   * Seção recolhível controlada pelo módulo, não por `<details>`: assim o
+   * redesenho a cada minuto não devolve a seção ao estado padrão e o teclado
+   * continua enxergando um botão com `aria-expanded` coerente.
+   */
+  function disclosureHtml(name, label, inner) {
+    const open = disclosure[name] !== false;
+    return '<section class="rt-disclosure" data-rt-disclosure="' + esc(name) + '">' +
+      '<button type="button" class="rt-disclosure-toggle" data-rt-action="disclosure" data-rt-disclosure-name="' + esc(name) + '"' +
+      ' aria-expanded="' + (open ? 'true' : 'false') + '"><span class="rt-disclosure-caret" aria-hidden="true"></span>' + esc(label) + '</button>' +
+      '<div class="rt-disclosure-body"' + (open ? '' : ' hidden') + '>' + inner + '</div></section>';
   }
 
   /** Responsável na lista: nome informado no GCC ou técnico do GLPI. */
@@ -236,8 +308,10 @@ window.RoomTickets = (() => {
   function buildQuery() {
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(filters)) if (value !== '') query.set(key, String(value));
-    // O limite por coluna do Kanban é explícito e viaja com a consulta.
-    if (view === 'kanban') query.set('kanban_limit', String(kanbanLimit));
+    // O limite por coluna do Kanban é explícito e viaja com a consulta. A
+    // lista compacta usa as MESMAS colunas do backend, então precisa do mesmo
+    // limite para "Mostrar mais" ter efeito.
+    if (view === 'kanban' || group !== 'todos') query.set('kanban_limit', String(kanbanLimit));
     return query;
   }
 
@@ -268,6 +342,57 @@ window.RoomTickets = (() => {
   function statusText() {
     const status = monitor()?.getStatus?.();
     return lastUpdateLabel() + ' · Brasília' + (status?.label ? ' · ' + status.label : '');
+  }
+
+  /**
+   * Estados mostrados SEPARADAMENTE, como a experiência mobile precisa:
+   * carregando, atualizado, em cache, falha de conexão e sessão expirada.
+   * "Em cache" nunca é confundido com "atualizado", e "sessão expirada" nunca
+   * é apresentado como se fosse apenas uma falha de rede.
+   */
+  const STATE_TEXT = {
+    idle: 'Aguardando a primeira consulta ao GLPI.',
+    loading: 'Carregando chamados do GLPI…',
+    updating: 'Atualizando. Os dados anteriores continuam na tela.',
+    ok: 'Dados atualizados.',
+    stale: 'Dados em cache. A consulta está atrasada e será retomada automaticamente.',
+    error: 'Falha de conexão. Exibindo os últimos dados conhecidos; a reconexão é automática.',
+    expired: 'Sessão expirada. Entre novamente para consultar os chamados.',
+    empty: 'Consulta concluída. Nenhum chamado encontrado para estes filtros.',
+  };
+  // No celular a mesma informação em uma linha: a faixa não pode empurrar a
+  // lista para fora da primeira dobra.
+  const STATE_SHORT = {
+    idle: 'Aguardando consulta.',
+    loading: 'Carregando…',
+    updating: 'Atualizando…',
+    ok: 'Atualizado.',
+    stale: 'Dados em cache.',
+    error: 'Falha de conexão.',
+    expired: 'Sessão expirada.',
+    empty: 'Nenhum chamado encontrado.',
+  };
+
+  /** Estado efetivo da tela, derivado do monitor e dos dados em memória. */
+  function screenState() {
+    const state = monitor()?.getState?.() || 'idle';
+    if (state === 'expired') return 'expired';
+    if (loading && !data) return 'loading';
+    if (!data) return 'idle';
+    if (state === 'error') return 'error';
+    if (state === 'stale') return 'stale';
+    if (loading) return 'updating';
+    if (!data.items?.length && !Object.values(data.kanban?.columns || {}).some(column => column.count)) return 'empty';
+    return 'ok';
+  }
+
+  function renderState() {
+    const state = screenState();
+    return '<p class="rt-state rt-state--' + state + '" data-rt-state="' + state + '" role="status" aria-live="polite">' +
+      '<span class="rt-state-dot" aria-hidden="true"></span>' +
+      '<span class="rt-state-long">' + esc(STATE_TEXT[state] || STATE_TEXT.idle) + '</span>' +
+      '<span class="rt-state-short">' + esc(STATE_SHORT[state] || STATE_SHORT.idle) + '</span>' +
+      '<span class="rt-state-when">' + esc(lastUpdateLabel()) + '</span></p>';
   }
 
   function bindMonitor() {
@@ -323,25 +448,36 @@ window.RoomTickets = (() => {
     if (!active()) return;
     readUrl();
     bindMonitor();
+    watchLayout();
     monitor()?.start?.();
     const root = document.getElementById('main-content');
     if (!root) return;
     // Diálogo de detalhes é persistente: não é redesenhado junto com a área.
     ensureDetailDialog();
     const interaction = captureInteraction();
+    const scroll = captureScroll();
+    const narrow = compact();
+    // Os filtros e as seções secundárias vêm abertos no desktop e recolhidos
+    // no celular. O estado é do módulo, então o redesenho de cada minuto não
+    // volta atrás: só a TROCA de layout redefine o padrão.
+    if (lastNarrow !== narrow) {
+      lastNarrow = narrow;
+      filtersOpen = !narrow;
+      disclosure = { resumo: !narrow, analise: !narrow };
+    }
     const rooms = Object.fromEntries((data?.options?.rooms || []).map(r => [r.key, r.label]));
     if (filters.room && !rooms[filters.room]) rooms[filters.room] = filters.room === 'unknown' ? 'Sala não identificada' : filters.room;
-    root.innerHTML = '<div class="rt-dashboard"><header class="rt-header"><div><p class="rt-eyebrow">OPERAÇÃO · CHAMADOS</p>' +
-      '<h1>Chamados das salas</h1><p class="rt-muted">Identifique onde os problemas se repetem e quais equipamentos precisam de atenção.</p></div>' +
-      '<div class="rt-header-actions"><button type="button" data-rt-action="refresh"' + (loading ? ' disabled' : '') + '>Atualizar agora</button>' +
-      '<button type="button" class="rt-tv-button" data-rt-action="tv">Ativar modo TV</button></div></header>' +
-      renderOperational() +
-      '<div class="rt-view-switch" role="group" aria-label="Visualização dos chamados">' +
+    const operational = renderOperational();
+    const header = '<header class="rt-header"><div><p class="rt-eyebrow">OPERAÇÃO · CHAMADOS</p>' +
+      '<h1>Chamados das salas</h1><p class="rt-muted rt-header-subtitle">Identifique onde os problemas se repetem e quais equipamentos precisam de atenção.</p></div>' +
+      '<div class="rt-header-actions"><button type="button" data-rt-action="refresh"' + (loading ? ' disabled' : '') + '><span class="rt-refresh-label-full">Atualizar agora</span><span class="rt-refresh-label-short">Atualizar</span></button>' +
+      '<button type="button" class="rt-tv-button" data-rt-action="tv">Ativar modo TV</button></div></header>';
+    const viewSwitch = '<div class="rt-view-switch" role="group" aria-label="Visualização dos chamados">' +
       '<button type="button" data-rt-view="lista"' + (view === 'lista' ? ' class="is-active" aria-pressed="true"' : ' aria-pressed="false"') + '>Lista</button>' +
       '<button type="button" data-rt-view="kanban"' + (view === 'kanban' ? ' class="is-active" aria-pressed="true"' : ' aria-pressed="false"') + '>Kanban</button>' +
-      '</div>' +
-      (view === 'kanban' ? '' : '<div class="rt-analysis-head"><p class="rt-eyebrow">ANÁLISE DETALHADA</p><h2>Histórico e recorrências</h2><p class="rt-muted">Use os filtros para investigar períodos, salas e equipamentos.</p></div>') +
-      '<form id="rt-filters" class="rt-panel"><fieldset' + ((loading && !data) ? ' disabled' : '') + '><legend>Filtrar chamados</legend><div class="rt-filters">' +
+      '</div>';
+    const filtersForm = '<form id="rt-filters" class="rt-panel"><fieldset' + ((loading && !data) ? ' disabled' : '') + '><legend>Filtrar chamados</legend><div class="rt-filters">' +
+      '<div class="rt-filter-more" id="rt-filter-more"' + (filtersOpen ? '' : ' hidden') + '>' +
       '<label>Período<select name="period"><option value="30d"' + (filters.period === '30d' ? ' selected' : '') + '>Últimos 30 dias</option>' +
       '<option value="previous_month"' + (filters.period === 'previous_month' ? ' selected' : '') + '>Mês anterior completo</option>' +
       '<option value="custom"' + (filters.period === 'custom' ? ' selected' : '') + '>Personalizado</option></select></label>' +
@@ -350,13 +486,26 @@ window.RoomTickets = (() => {
       '<label>Sala<select name="room">' + options(rooms, filters.room, 'Todas as salas') + '</select></label>' +
       '<label>Equipamento<select name="type">' + options(TYPES, filters.type, 'Todos os tipos') + '</select></label>' +
       '<label>Status<select name="status">' + options(Object.fromEntries(Object.entries(STATUS).filter(([key]) => key !== 'desconhecido')), filters.status, 'Todos os status') + '</select></label>' +
-      '<label class="rt-search">Buscar chamado<input name="q" maxlength="200" placeholder="Número, problema ou referência L-…" value="' + esc(filters.q) + '"></label>' +
-      '<button type="submit">Aplicar filtros</button><button type="button" data-rt-action="clear">Limpar</button></div></fieldset></form>' +
-      (filters.asset ? '<p class="rt-quality">Ativo selecionado: ' + esc(filters.asset) + ' <button type="button" data-rt-action="clear-asset">Remover filtro</button></p>' : '') +
-      renderToolbar() +
-      (notice ? '<p class="rt-message rt-ok" role="status" data-rt-notice>' + esc(notice) + '</p>' : '') +
-      '<div id="rt-results" aria-busy="' + loading + '"' + (view === 'kanban' ? ' data-rt-view="kanban"' : '') + '>' + renderResults() + '</div>' +
-      '</div>';
+      '</div>' +
+      '<div class="rt-search-row"><label class="rt-search">Buscar chamado<input name="q" maxlength="200" placeholder="Número, problema ou referência L-…" value="' + esc(filters.q) + '"></label>' +
+      '<button type="submit" class="rt-filter-submit">Aplicar filtros</button></div>' +
+      '<div class="rt-filter-actions"><button type="button" data-rt-action="clear">Limpar</button>' +
+      '<button type="button" class="rt-filters-toggle" data-rt-action="filters" aria-expanded="' + (filtersOpen ? 'true' : 'false') + '" aria-controls="rt-filter-more">Mais filtros</button></div>' +
+      '</div></fieldset></form>' +
+      (filters.asset ? '<p class="rt-quality">Ativo selecionado: ' + esc(filters.asset) + ' <button type="button" data-rt-action="clear-asset">Remover filtro</button></p>' : '');
+    const noticeHtml = notice ? '<p class="rt-message rt-ok" role="status" data-rt-notice>' + esc(notice) + '</p>' : '';
+    const results = '<div id="rt-results" aria-busy="' + loading + '"' + (view === 'kanban' ? ' data-rt-view="kanban"' : '') + '>' + renderResults() + '</div>';
+
+    // No celular a ordem muda: estado, busca, lista. Quem abre o GCC para
+    // atender precisa chegar aos chamados sem rolar por cartões de resumo.
+    // O desktop mantém exatamente a ordem anterior.
+    const body = narrow
+      ? renderState() + viewSwitch + filtersForm + results + renderToolbar() + noticeHtml
+        + disclosureHtml('resumo', 'Resumo do período', operational)
+      : operational + viewSwitch
+        + (view === 'kanban' ? '' : '<div class="rt-analysis-head"><p class="rt-eyebrow">ANÁLISE DETALHADA</p><h2>Histórico e recorrências</h2><p class="rt-muted">Use os filtros para investigar períodos, salas e equipamentos.</p></div>')
+        + filtersForm + renderState() + renderToolbar() + noticeHtml + results;
+    root.innerHTML = '<div class="rt-dashboard">' + header + body + '</div>';
     const dashboard = root.querySelector('.rt-dashboard');
     dashboard.addEventListener('click', onClick);
     // Kanban: um único listener delegado; o módulo do quadro cuida dos seus botões.
@@ -389,6 +538,7 @@ window.RoomTickets = (() => {
     // O monitor passa a ser dono do ciclo: nenhuma segunda varredura do GLPI.
     monitor()?.setActiveQuery?.(buildQuery().toString());
     restoreInteraction(interaction);
+    restoreScroll(scroll);
     startTimer();
     if (!data && !loading && !error) load('initial');
   }
@@ -433,6 +583,34 @@ window.RoomTickets = (() => {
     const button = event.target.closest('button');
     if (!button) return;
     if (button.dataset.rtAction === 'close-detail') { document.getElementById('rt-detail')?.close(); return; }
+    // Filtro rápido da lista compacta. É uma VISTA sobre o conjunto já
+    // consultado: trocar de grupo não reinicia a página nem some com filtros.
+    if (button.dataset.rtGroup) {
+      if (group === button.dataset.rtGroup) return;
+      group = button.dataset.rtGroup;
+      writeUrl();
+      // Recarrega porque a coluna escolhida pode precisar de mais itens do que
+      // o limite em vigor; a troca do filtro já aparece na hora, com os dados
+      // que já estão em tela.
+      mount();
+      load('group');
+      return;
+    }
+    if (button.dataset.rtAction === 'disclosure') {
+      const name = button.dataset.rtDisclosureName;
+      if (!name) return;
+      disclosure = { ...disclosure, [name]: disclosure[name] === false };
+      mount();
+      return;
+    }
+    if (button.dataset.rtAction === 'filters') {
+      filtersOpen = !filtersOpen;
+      mount();
+      // Abrir o bloco de filtros leva o foco ao primeiro campo, para que o
+      // teclado virtual já encontre o campo certo.
+      if (filtersOpen) document.getElementById('main-content')?.querySelector('#rt-filter-more select')?.focus();
+      return;
+    }
     if (button.dataset.rtView) {
       if (view === button.dataset.rtView) return;
       view = button.dataset.rtView;
@@ -457,6 +635,13 @@ window.RoomTickets = (() => {
       return;
     }
     if (button.dataset.rtAction === 'test-sound') { monitor()?.testSound?.(); mount(); return; }
+    // Consultar detalhes e histórico é LEITURA do que já está em memória: não
+    // muda a consulta nem grava nada, então continua disponível enquanto uma
+    // atualização está em curso. Sem isso, um toque durante a varredura
+    // automática de um minuto seria simplesmente ignorado.
+    if (button.dataset.rtTicket) { detail(Number(button.dataset.rtTicket)); return; }
+    if (button.dataset.rtAction === 'history') { showHistory(Number(button.dataset.ticketId)); return; }
+    // A partir daqui a ação mexe na consulta ou no GLPI: espera a leitura.
     if (loading) return;
     const dimension = button.dataset.rtDimension;
     if (['room', 'type', 'asset'].includes(dimension)) {
@@ -466,8 +651,6 @@ window.RoomTickets = (() => {
       window.RoomTicketsKanban?.openAssume(findTicket(Number(button.dataset.ticketId)));
       return;
     }
-    if (button.dataset.rtAction === 'history') { showHistory(Number(button.dataset.ticketId)); return; }
-    if (button.dataset.rtTicket) { detail(Number(button.dataset.rtTicket)); return; }
     switch (button.dataset.rtAction) {
       case 'refresh': load('manual'); break;
       case 'tv': window.RoomTicketsTV?.open(data); break;
@@ -614,6 +797,10 @@ window.RoomTickets = (() => {
     lastQuery = '';
     view = 'lista';
     kanbanLimit = 25;
+    group = 'todos';
+    filtersOpen = false;
+    disclosure = { resumo: true, analise: true };
+    lastNarrow = null;
     notice = '';
     window.RoomTicketsKanban?.close?.();
     window.RoomTicketsKanban?.setNotice?.(null);
@@ -623,6 +810,7 @@ window.RoomTickets = (() => {
     const url = new URL(window.location.href);
     for (const key of Object.keys(filters)) url.searchParams.delete('rt_' + key);
     url.searchParams.delete('rt_view');
+    url.searchParams.delete('rt_group');
     url.searchParams.delete('rt_kanban_limit');
     window.history.replaceState(null, '', url);
   }
@@ -650,5 +838,5 @@ window.RoomTickets = (() => {
       if (active()) mount();
     });
   }
-  return { mount, reset, unmount, getData: () => data, getView: () => view };
+  return { mount, reset, unmount, getData: () => data, getView: () => view, getGroup: () => group, isCompact: compact };
 })();

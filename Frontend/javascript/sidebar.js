@@ -153,20 +153,19 @@ window.Sidebar = (function () {
 
   // ════════════════════════════════════════════════════════════════════════════
   // EVENTOS
+  //
+  // `render()` roda a cada troca de tela, mas o botão do topo, a sobreposição e
+  // o botão de recolher são elementos PERMANENTES do index.html. Ligar os
+  // ouvintes deles a cada `render()` acumularia cliques: o menu abriria e
+  // fecharia no mesmo toque. Por isso os permanentes são ligados uma única vez
+  // e os recriados a cada render.
   // ════════════════════════════════════════════════════════════════════════════
 
-  function _bindEvents() {
-    const homeLink = document.getElementById('sidebar-home-link');
-    if (homeLink) {
-      const goHome = () => window.App?.go?.('home');
-      homeLink.addEventListener('click', goHome);
-      homeLink.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          goHome();
-        }
-      });
-    }
+  let _shellBound = false;
+
+  function _bindShellEvents() {
+    if (_shellBound) return;
+    _shellBound = true;
 
     // Toggle sidebar (desktop collapse)
     const toggleBtn = document.getElementById('sidebar-toggle');
@@ -174,7 +173,7 @@ window.Sidebar = (function () {
       toggleBtn.addEventListener('click', () => toggle());
     }
 
-    // Mobile hamburger menu
+    // Botão do menu recolhível
     const mobileToggle = document.getElementById('sidebar-mobile-toggle');
     if (mobileToggle) {
       mobileToggle.addEventListener('click', () => _toggleMobile());
@@ -185,16 +184,32 @@ window.Sidebar = (function () {
     if (overlay) {
       overlay.addEventListener('click', () => _closeMobile());
     }
+  }
 
-    // Itens de navegação
+  function _bindEvents() {
+    _bindShellEvents();
+
+    const homeLink = document.getElementById('sidebar-home-link');
+    if (homeLink) {
+      const goHome = () => { window.App?.go?.('home'); if (isGaveta()) _closeMobile(); };
+      homeLink.addEventListener('click', goHome);
+      homeLink.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          goHome();
+        }
+      });
+    }
+
+    // Itens de navegação (re-criados a cada render)
     document.querySelectorAll('.sidebar-item[data-sidebar-tab]').forEach(item => {
       item.addEventListener('click', () => {
         const tabId = item.dataset.sidebarTab;
         if (tabId && window.App?.go) {
           window.App.go(tabId);
         }
-        // Close mobile sidebar after navigation
-        if (window.innerWidth < 480) {
+        // Na gaveta, sair da tela fecha o menu sobre o conteúdo.
+        if (isGaveta()) {
           _closeMobile();
         }
       });
@@ -207,6 +222,15 @@ window.Sidebar = (function () {
         }
       });
     });
+
+    // A tecla Escape fecha a gaveta: o menu recolhível não pode prender ninguém.
+    if (_navUnsubscribe) _navUnsubscribe();
+    _navUnsubscribe = null;
+    if (isGaveta() && typeof document.addEventListener === 'function') {
+      const onKey = (event) => { if (event.key === 'Escape' && _mobileOpen) _closeMobile(); };
+      document.addEventListener('keydown', onKey);
+      _navUnsubscribe = () => document.removeEventListener('keydown', onKey);
+    }
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -244,11 +268,21 @@ window.Sidebar = (function () {
 
   // ════════════════════════════════════════════════════════════════════════════
   // MOBILE TOGGLE
+  //
+  // A gaveta aparece até GAVETA_MAX_WIDTH, o mesmo limite de layout do CSS.
+  // Abaixo dele a navegação completa continua acessível pelo botão do topo.
   // ════════════════════════════════════════════════════════════════════════════
 
+  const GAVETA_MAX_WIDTH = 900;
   let _mobileOpen = false;
+  let _navUnsubscribe = null;
+
+  function isGaveta() {
+    return window.innerWidth <= GAVETA_MAX_WIDTH;
+  }
 
   function _toggleMobile() {
+    if (!isGaveta()) { toggle(); return; }
     _mobileOpen = !_mobileOpen;
     _applyMobileState();
   }
@@ -273,10 +307,22 @@ window.Sidebar = (function () {
     }
     if (btn) {
       btn.setAttribute('aria-label', _mobileOpen ? 'Fechar menu' : 'Abrir menu');
+      btn.setAttribute('aria-expanded', _mobileOpen ? 'true' : 'false');
+      // Ao abrir, o foco entra no primeiro item: quem navega pelo teclado
+      // precisa cair dentro da gaveta, não no botão que a abriu.
+      if (_mobileOpen) {
+        const first = sidebar?.querySelector('.sidebar-item');
+        if (first && typeof first.focus === 'function') first.focus();
+      }
     }
 
     // Prevent body scroll when mobile sidebar is open
     document.body.classList.toggle('modal-open', _mobileOpen);
+  }
+
+  // Ao voltar para a largura do desktop, a gaveta não pode ficar aberta.
+  if (typeof window.addEventListener === 'function') {
+    window.addEventListener('resize', () => { if (!isGaveta()) _closeMobile(); });
   }
 
   // ════════════════════════════════════════════════════════════════════════════

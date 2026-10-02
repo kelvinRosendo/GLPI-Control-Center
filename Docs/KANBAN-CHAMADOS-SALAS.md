@@ -17,6 +17,13 @@ e tema sóbrio. Sem merge e sem deploy nesta etapa.
 > Nenhum chamado real foi alterado: todas as verificações usam simulação de
 > API. A compatibilidade com a instância do GLPI ainda precisa de homologação
 > manual (ver seções 10 e "Pendências" do documento de correções).
+>
+> Etapa posterior: a **experiência mobile** dos mesmos chamados — entrada no
+> celular, lista vertical compacta, filtros rápidos que reutilizam estas
+> mesmas colunas do backend, estados separados de carga/cache/erro/expiração e
+> menu recolhível — está em `Docs/MOBILE-CHAMADOS-SALAS.md`. As ações, as
+> validações, as permissões e os endpoints desta página são reutilizados sem
+> alteração: o contrato de escrita no GLPI **não** mudou.
 
 ## 1. Colunas do Kanban e contagens
 

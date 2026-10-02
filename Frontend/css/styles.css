@@ -291,13 +291,14 @@ textarea,
   z-index: 100;
 }
 
-/* Mobile menu button */
+/* Botão do menu recolhível. Aparece junto com a gaveta lateral (até 900 px),
+   que é o mesmo limite usado pela experiência mobile de chamados. */
 .topbar-menu-btn {
   display: none;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
@@ -311,7 +312,7 @@ textarea,
   color: var(--color-accent);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .topbar-menu-btn {
     display: flex;
   }

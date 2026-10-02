@@ -1,7 +1,7 @@
 name: Room tickets checks
 on:
   push:
-    branches: [codex/dashboard-chamados-salas]
+    branches: [codex/dashboard-chamados-salas, codex/mobile-chamados-salas]
   pull_request:
     branches: [main]
     paths:
@@ -32,6 +32,7 @@ on:
       - 'Frontend/javascript/room-tickets.js'
       - 'Frontend/javascript/room-tickets-monitor.js'
       - 'Frontend/javascript/room-tickets-kanban.js'
+      - 'Frontend/javascript/room-tickets-list.js'
       - 'Frontend/javascript/room-tickets-tv.js'
       - 'Frontend/javascript/api-client.js'
       - 'Frontend/javascript/dashboard.js'
@@ -39,6 +40,9 @@ on:
       - 'Frontend/javascript/sidebar.js'
       - 'Frontend/javascript/permissions.js'
       - 'Frontend/css/room-tickets.css'
+      - 'Frontend/css/sidebar.css'
+      - 'Frontend/css/search.css'
+      - 'Frontend/css/styles.css'
       - 'Frontend/css/room-tickets-tv.css'
       - 'Frontend/index.html'
       - 'Frontend/test-room-tickets.cjs'
@@ -49,6 +53,8 @@ on:
       - 'Frontend/test-room-tickets-tv-browser.cjs'
       - 'Frontend/test-room-tickets-blackbox.cjs'
       - 'Frontend/test-room-tickets-blackbox-boot.js'
+      - 'Frontend/test-room-tickets-mobile.cjs'
+      - 'Frontend/test-room-tickets-mobile-boot.js'
       - '.github/workflows/room-tickets.yml'
 permissions:
   contents: read
@@ -97,9 +103,12 @@ jobs:
           node --check Frontend/javascript/room-tickets.js
           node --check Frontend/javascript/room-tickets-monitor.js
           node --check Frontend/javascript/room-tickets-kanban.js
+          node --check Frontend/javascript/room-tickets-list.js
           node --check Frontend/javascript/room-tickets-tv.js
           node --check Frontend/javascript/api-client.js
           node --check Frontend/test-room-tickets-blackbox-boot.js
+          node --check Frontend/test-room-tickets-mobile-boot.js
+          node --check Frontend/test-room-tickets-mobile.cjs
           node --check Frontend/javascript/dashboard.js
           node --check Frontend/javascript/app.js
           node --check Frontend/javascript/ui_render.js
@@ -126,3 +135,8 @@ jobs:
       # centralização justamente porque carregava só o CSS do módulo.
       - name: Black box with real modules, full CSS and controlled HTTP
         run: node Frontend/test-room-tickets-blackbox.cjs
+      # Mobile: viewport REAL de 360, 390, 430 e 768 px, carregada dentro de um
+      # iframe porque o Chrome do runner recusa janelas com menos de 500 px.
+      # Módulos e CSS de produção; a API responde com status HTTP verdadeiros.
+      - name: Mobile experience at real narrow viewports
+        run: node Frontend/test-room-tickets-mobile.cjs
