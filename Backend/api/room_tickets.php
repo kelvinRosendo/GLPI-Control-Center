@@ -17,6 +17,17 @@ final class RoomTicketsEndpoint
             Responde::erro($error->getMessage(), 422);
             return;
         }
+        $result = self::snapshot($config, $filters);
+        if ($result === null) {
+            Responde::erro('Não foi possível obter o conjunto completo de chamados e vínculos. Verifique o acesso do GCC ao GLPI, o tempo de resposta e o limite de 10 mil registros por coleção.', 502);
+            return;
+        }
+        Responde::ok(['data' => $result]);
+    }
+
+    /** Shared read-only snapshot for HTTP and the background push worker. */
+    public static function snapshot(array $config, array $filters, int $monitorLimit = 30): ?array
+    {
         $client = new GlpiClient($config['glpi'] ?? []);
         $session = null;
         $result = null;
@@ -93,7 +104,7 @@ final class RoomTicketsEndpoint
             // Monitoring slice ignores report filters: one queue for every screen.
             $result['monitor'] = [
                 'recent' => RoomTicketAcknowledgementStore::attachList(
-                    RoomTicketsService::monitorEntries($normalized['items'])
+                    RoomTicketsService::monitorEntries($normalized['items'], $monitorLimit)
                 ),
                 'recentLimit' => 30,
                 'collectedAt' => $result['meta']['collectedAt'],
@@ -106,11 +117,7 @@ final class RoomTicketsEndpoint
                 try { $client->killSession($session); } catch (Throwable $ignored) {}
             }
         }
-        if ($result === null) {
-            Responde::erro('Não foi possível obter o conjunto completo de chamados e vínculos. Verifique o acesso do GCC ao GLPI, o tempo de resposta e o limite de 10 mil registros por coleção.', 502);
-            return;
-        }
-        Responde::ok(['data' => $result]);
+        return $result;
     }
 
     /**

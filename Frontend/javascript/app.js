@@ -212,6 +212,7 @@ window.App = {
   },
 
   showLoginScreen() {
+    window.GccPhone?.reset();
     window.RoomTickets?.reset();
     window.RoomTicketsMonitor?.reset();
     window.RoomTicketsTV?.close();
@@ -227,6 +228,7 @@ window.App = {
   },
 
   logout() {
+    window.GccPhone?.logout();
     window.RoomTickets?.reset();
     window.RoomTicketsMonitor?.reset();
     window.RoomTicketsTV?.close();

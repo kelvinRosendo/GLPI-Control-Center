@@ -1,5 +1,9 @@
 # Interface mobile dos chamados das salas
 
+> Revisão de 02/10/2026: a apresentação e os testes abaixo descrevem a primeira
+> versão mobile. A fila simples e o novo escopo de notificações push estão em
+> [MOBILE-PUSH.md](MOBILE-PUSH.md). Push deixou de ser exclusão de escopo por solicitação do usuário.
+
 Data: 30/09/2026
 Branch: `codex/mobile-chamados-salas`
 Base: `a6bdc73` (main)

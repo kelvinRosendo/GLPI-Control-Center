@@ -5,6 +5,17 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'Backend/composer.*'
+      - 'Backend/api/room_push.php'
+      - 'Backend/api/auth.php'
+      - 'Backend/api/services/RoomPushStore.php'
+      - 'Backend/scripts/push-room-tickets.php'
+      - 'Backend/tests/test_room_push.php'
+      - 'Backend/tests/test_web_push_runtime.php'
+      - 'Frontend/javascript/gcc-phone.js'
+      - 'Frontend/sw.js'
+      - 'Frontend/manifest.webmanifest'
+      - 'Frontend/test-gcc-push.cjs'
       - 'Backend/api/sync*.php'
       - 'Backend/api/services/GlpiCollectionReader.php'
       - 'Backend/api/services/AssetService.php'
@@ -69,6 +80,11 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+      - name: Web Push dependency and encrypted transport (no delivery)
+        run: |
+          composer install --working-dir=Backend --no-dev --prefer-dist --no-interaction
+          composer check-platform-reqs --working-dir=Backend
+          php Backend/tests/test_web_push_runtime.php
       - name: PHP syntax
         run: |
           php -v
@@ -94,6 +110,11 @@ jobs:
           php Backend/tests/test_room_tickets_kanban.php
           php Backend/tests/test_room_tickets_endpoint.php
           php Backend/tests/test_room_ticket_acknowledgements.php
+          php Backend/tests/test_room_push.php
+          php -l Backend/api/room_push.php
+          php -l Backend/scripts/push-room-tickets.php
+          node --test Frontend/test-gcc-push.cjs
+          node --check Frontend/javascript/gcc-phone.js
       - name: Inventory regression tests (isolated data, no network)
         run: |
           php Backend/tests/test_inventory_sync.php

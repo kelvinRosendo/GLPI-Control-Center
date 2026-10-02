@@ -1,0 +1,11 @@
+[Unit]
+Description=Check GCC room tickets every minute
+
+[Timer]
+OnBootSec=30
+OnUnitActiveSec=60
+AccuracySec=1
+Unit=gcc-push.service
+
+[Install]
+WantedBy=timers.target

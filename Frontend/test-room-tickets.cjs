@@ -168,7 +168,7 @@ function fixture(options = {}) {
   };
 
   const byId = new Map();
-  const body = { appendChild(child) { child.isConnected = true; if (child.id) byId.set(child.id, child); return child; }, children: [] };
+  const body = { classList: makeNode('body').classList, appendChild(child) { child.isConnected = true; if (child.id) byId.set(child.id, child); return child; }, children: [] };
   const documentMock = {
     hidden: false,
     body,
@@ -237,11 +237,13 @@ function fixture(options = {}) {
           this.state = 'running';
           return Promise.resolve();
         }
-        createOscillator() { return { frequency: {}, connect() {}, start() {}, stop() {} }; }
-        createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} }; }
+        createOscillator() { const oscillator = { frequency: {}, connect() {}, start() {}, stop() {} }; window.__audioEvents.push(oscillator); return oscillator; }
+        createGain() { return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime(value) { window.__audioGains.push(value); } }, connect() {} }; }
       };
     }
   }
+  window.__audioEvents = [];
+  window.__audioGains = [];
 
   // BroadcastChannel entre "abas": permite exercitar o caminho real de
   // sincronização entre telas, inclusive a idade do cache recebido.
@@ -781,6 +783,9 @@ test('testar som devolve o estado real e não promete o que não pode tocar', as
   monitor.setSoundEnabled(false);
   const result = await monitor.testSound();
   assert.equal(result.state, 'ready', 'o teste de som ativa o contexto a partir do clique');
+  assert.equal(f.window.__audioEvents.length, 3, 'o novo alerta usa três tons');
+  assert.deepEqual(f.window.__audioEvents.map(event => event.frequency.value), [740, 1046, 740], 'sequência de frequências audível');
+  assert.ok(f.window.__audioGains.includes(0.42), 'ganho do alerta foi elevado');
   const blocked = fixture({ audioContext: 'blocked' });
   const blockedResult = await blocked.window.RoomTicketsMonitor.testSound();
   assert.equal(blockedResult.state, 'blocked');

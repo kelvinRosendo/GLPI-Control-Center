@@ -104,6 +104,7 @@ window.RoomTickets = (() => {
     filters.page = Math.max(1, Number.parseInt(filters.page, 10) || 1);
     if (query.get('rt_view') === 'kanban') view = 'kanban';
     const requested = query.get('rt_group');
+    if (compact() && !requested) group = 'abertos';
     if (requested === 'todos' || window.RoomTicketsList?.GROUPS?.some(meta => meta.key === requested)) group = requested;
     const limit = Number.parseInt(query.get('rt_kanban_limit'), 10);
     if (Number.isFinite(limit) && limit > 0) kanbanLimit = Math.min(100, limit);
@@ -278,8 +279,7 @@ window.RoomTickets = (() => {
     // experiência de atendimento. O histórico e as recorrências continuam
     // acessíveis, recolhidos em um único botão.
     if (compact()) {
-      return banner + (window.RoomTicketsList?.render(data, group) || '') +
-        disclosureHtml('analise', 'Histórico, recorrências e lista completa', head + analysis + table);
+      return banner + (window.RoomTicketsList?.renderPhone(data, group) || '');
     }
     return banner + head + analysis + table;
   }
@@ -415,6 +415,7 @@ window.RoomTickets = (() => {
 
   /** Conteúdo da área de resultados conforme a visão escolhida. */
   function renderResults() {
+    if (compact()) return renderData();
     if (view !== 'kanban') return renderData();
     // O aviso de erro e o de cache valem para as duas visões.
     const banner = (error
@@ -457,6 +458,7 @@ window.RoomTickets = (() => {
     const interaction = captureInteraction();
     const scroll = captureScroll();
     const narrow = compact();
+    document.body.classList.toggle('gcc-phone-active', narrow);
     // Os filtros e as seções secundárias vêm abertos no desktop e recolhidos
     // no celular. O estado é do módulo, então o redesenho de cada minuto não
     // volta atrás: só a TROCA de layout redefine o padrão.
@@ -500,12 +502,13 @@ window.RoomTickets = (() => {
     // atender precisa chegar aos chamados sem rolar por cartões de resumo.
     // O desktop mantém exatamente a ordem anterior.
     const body = narrow
-      ? renderState() + viewSwitch + filtersForm + results + renderToolbar() + noticeHtml
-        + disclosureHtml('resumo', 'Resumo do período', operational)
+      ? renderState() + '<div id="gcc-phone-setup"></div>' + noticeHtml + results
+        + disclosureHtml('analise', 'Buscar e configurar', filtersForm + renderToolbar())
       : operational + viewSwitch
         + (view === 'kanban' ? '' : '<div class="rt-analysis-head"><p class="rt-eyebrow">ANÁLISE DETALHADA</p><h2>Histórico e recorrências</h2><p class="rt-muted">Use os filtros para investigar períodos, salas e equipamentos.</p></div>')
         + filtersForm + renderState() + renderToolbar() + noticeHtml + results;
     root.innerHTML = '<div class="rt-dashboard">' + header + body + '</div>';
+    if (narrow) window.GccPhone?.mount?.(root.querySelector('#gcc-phone-setup'));
     const dashboard = root.querySelector('.rt-dashboard');
     dashboard.addEventListener('click', onClick);
     // Kanban: um único listener delegado; o módulo do quadro cuida dos seus botões.
@@ -541,6 +544,17 @@ window.RoomTickets = (() => {
     restoreScroll(scroll);
     startTimer();
     if (!data && !loading && !error) load('initial');
+    const requestedTicket = Number(new URLSearchParams(window.location.search).get('rt_ticket'));
+    if (requestedTicket > 0 && data && !loading) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('rt_ticket');
+      window.history.replaceState(null, '', url);
+      if (findTicket(requestedTicket)) detail(requestedTicket);
+      else {
+        notice = 'Chamado #' + requestedTicket + ' fora desta fila. Use a busca para consultar.';
+        mount();
+      }
+    }
   }
 
   async function load(reason = 'manual') {
@@ -579,7 +593,10 @@ window.RoomTickets = (() => {
 
   function onClick(event) {
     // O quadro Kanban tem os seus próprios botões; ele responde primeiro.
-    if (window.RoomTicketsKanban?.onClick?.(event) === true) return;
+    if (window.RoomTicketsKanban?.onClick?.(event) === true) {
+      if (event.target.closest('[data-rt-move]')) detailDialog?.close();
+      return;
+    }
     const button = event.target.closest('button');
     if (!button) return;
     if (button.dataset.rtAction === 'close-detail') { document.getElementById('rt-detail')?.close(); return; }
@@ -723,10 +740,11 @@ window.RoomTickets = (() => {
       (work?.assignedBy ? '<dt>Registrado por</dt><dd>' + esc(work.assignedBy) + ' em ' + esc(formatDate(work.assignedAt)) + '</dd>' : '') +
       solutionHtml +
       '<dt>Referência</dt><dd>' + esc(ticket.reference || 'Não informada') + '</dd></dl>' +
-      '<div class="rt-detail-actions"><button type="button" class="rt-primary" data-rt-action="assume" data-ticket-id="' +
+      '<div class="rt-detail-actions">' + (compact() ? (ticket.actions || []).map(action =>
+        '<button type="button" data-rt-move="' + esc(action.action) + '" data-rt-ticket="' + esc(ticket.id) + '">' + esc(action.label) + '</button>').join('') : '<button type="button" class="rt-primary" data-rt-action="assume" data-ticket-id="' +
       esc(ticket.id) + '">Assumir chamado</button>' +
       '<button type="button" data-rt-action="accept" data-ticket-id="' + esc(ticket.id) + '"' +
-      (ticket.acknowledgement ? ' disabled' : '') + '>' + (ticket.acknowledgement ? 'Alerta aceito' : 'Aceitar alerta') + '</button>' +
+      (ticket.acknowledgement ? ' disabled' : '') + '>' + (ticket.acknowledgement ? 'Alerta aceito' : 'Aceitar alerta') + '</button>') +
       '<button type="button" data-rt-action="history" data-ticket-id="' + esc(ticket.id) + '">Ver histórico</button></div>' +
       '<div class="rt-detail-history" data-rt-history hidden></div>' +
       '<p class="rt-description">' + esc(ticket.description || 'Sem descrição.') + '</p>' + link;
@@ -789,6 +807,7 @@ window.RoomTickets = (() => {
     }, 60000) : null;
   }
   function unmount() {
+    document.body.classList.remove('gcc-phone-active');
     if (timer !== null) clearInterval(timer);
     timer = null;
   }

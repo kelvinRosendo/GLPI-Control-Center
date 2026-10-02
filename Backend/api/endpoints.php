@@ -44,6 +44,7 @@ require_once __DIR__ . '/sync.php';
 require_once __DIR__ . '/sync_status.php';
 require_once __DIR__ . '/tickets.php';
 require_once __DIR__ . '/room_tickets.php';
+require_once __DIR__ . '/room_push.php';
 require_once __DIR__ . '/workflow.php';
 require_once __DIR__ . '/assistance_action.php';
 require_once __DIR__ . '/integration_audit.php';
@@ -381,6 +382,10 @@ function authorizeRequest(string $path, string $method, array $config): void
   AuthService::requireAuthenticated($config, in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true));
 
   if ($path === '/api/auth/logout') return;
+  if ($path === '/api/notifications/push') {
+    PermissionMiddleware::requireAction('chamados', 'edit');
+    return;
+  }
 
   // Agent routes: explicit, não caem no fallback ADMIN
   if (str_starts_with($path, '/api/agent/')) {
@@ -457,6 +462,7 @@ try {
   }
 
   match ($path) {
+    '/api/notifications/push' => RoomPushEndpoint::handle($method, $config),
     '/api/health' => Endpoints::health(),
     '/api/auth/google' => $method === 'POST' ? AuthService::login($config) : Responde::erro('Método não permitido.', 405),
     '/api/auth/demo' => $method === 'POST' ? AuthService::demoLogin($config) : Responde::erro('Método não permitido.', 405),

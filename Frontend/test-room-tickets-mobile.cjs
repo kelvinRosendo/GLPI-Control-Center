@@ -50,7 +50,7 @@ const CSS_ORDER = [
 const JS_ORDER = [
   'icons.js', 'state.js', 'sidebar.js', 'api-client.js',
   'room-tickets-monitor.js', 'room-tickets-kanban.js', 'room-tickets-list.js',
-  'room-tickets-tv.js', 'room-tickets.js', 'app.js',
+  'room-tickets-tv.js', 'room-tickets.js', 'gcc-phone.js', 'app.js',
 ];
 
 // Estrutura do app igual à do index.html, para que sidebar, topbar e conteúdo
@@ -160,6 +160,18 @@ function startServer() {
         res.end(boot);
         return;
       }
+      if (pathname === '/sw.js') {
+        res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
+        res.end(fs.readFileSync(path.join(ROOT, 'sw.js')));
+        return;
+      }
+      if (pathname.startsWith('/assets/') && !pathname.includes('..')) {
+        const file = path.join(ROOT, pathname);
+        if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+          res.writeHead(200, { 'Content-Type': pathname.endsWith('.svg') ? 'image/svg+xml' : 'image/png' });
+          res.end(fs.readFileSync(file)); return;
+        }
+      }
       if (pathname.startsWith('/js/') || pathname.startsWith('/css/')) {
         const relative = pathname.startsWith('/js/')
           ? path.join('javascript', pathname.slice('/js/'.length))
@@ -232,31 +244,22 @@ const SCENARIOS = [
   ['entrada-mobile', 390, 844, '&tab=relatorios'],
   ['entrada-mobile', 390, 844, '&rt_view=lista'],
   ['entrada-mobile', 390, 844, '&rt_group=andamento'],
-  ['lista-e-filtros', 360, 780],
-  ['lista-e-filtros', 390, 844],
-  ['lista-e-filtros', 430, 932],
-  ['lista-e-filtros', 768, 1024],
-  ['busca-preservada', 390, 844],
-  ['busca-preservada', 768, 1024],
-  ['atendimento', 360, 780],
-  ['atendimento', 390, 844],
-  ['atendimento', 768, 1024],
-  ['atendimento-restrito', 390, 844],
-  ['cancelamento', 390, 844],
-  ['erros', 390, 844],
-  ['erros', 360, 780],
-  ['atualizacao', 390, 844],
-  ['cache-e-sessao', 390, 844],
-  ['alerta-e-audio', 360, 780],
-  ['alerta-e-audio', 390, 844],
+  ['phone-flow', 360, 780],
+  ['phone-flow', 390, 844],
+  ['phone-flow', 430, 932],
+  ['phone-flow', 768, 1024],
+  ['phone-errors', 390, 844, '&error=403'],
+  ['phone-errors', 390, 844, '&error=409'],
+  ['phone-errors', 390, 844, '&error=502'],
   ['desktop-e-tv', 1280, 900],
 ];
 
-(async () => {
+if (require.main === module) (async () => {
   const instance = await startServer();
   let failures = 0;
   let total = 0;
   for (const [name, w, h, extra] of SCENARIOS) {
+    if (process.env.GCC_TEST_SCENARIO && name !== process.env.GCC_TEST_SCENARIO) continue;
     const result = await runChrome(instance, name, w, h, extra);
     const label = name + (extra ? extra.replace(/&/, ' ') : '') + ' ' + w + 'x' + h;
     if (result.ok) {
@@ -277,3 +280,4 @@ const SCENARIOS = [
   console.log(failures ? `\n${failures} cenário(s) com falha.` : `\nTodos os cenários passaram. ${total} checks no total.`);
   process.exit(failures ? 1 : 0);
 })();
+module.exports = { startServer };

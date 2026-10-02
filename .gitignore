@@ -16,6 +16,8 @@
 # PHP
 vendor/
 composer.lock
+!Backend/composer.lock
+/Backend/data/push/
 
 # IDE
 .vscode/

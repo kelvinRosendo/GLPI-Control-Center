@@ -1,0 +1,7 @@
+{
+  "name": "gcc/notifications",
+  "description": "Web Push delivery for GCC room tickets",
+  "type": "project",
+  "require": { "php": ">=8.2", "minishlink/web-push": "^10.0" },
+  "config": { "platform": { "php": "8.3.6" }, "allow-plugins": {} }
+}

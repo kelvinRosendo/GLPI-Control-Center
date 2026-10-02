@@ -32,6 +32,15 @@ window.RoomTicketsMonitor = (() => {
   const CLAIM_SOUND = 'gcc-room-tickets-sound-claim';
   const PREF_MONITOR = 'gcc-room-tickets-monitor';
   const PREF_SOUND = 'gcc-room-tickets-sound';
+  // Volume deliberadamente limitado ao ganho digital seguro; o volume final
+  // continua sendo controlado pelo aparelho. A sequência é mais audível que
+  // o bip curto anterior sem ficar contínua ou agressiva.
+  const ALERT_VOLUME = 0.42;
+  const ALERT_TONES = [
+    { offset: 0, frequency: 740 },
+    { offset: 0.20, frequency: 1046 },
+    { offset: 0.40, frequency: 740 },
+  ];
   const SP_TO_UTC_MS = 3 * 3600 * 1000; // America/Sao_Paulo é UTC-3 o ano inteiro
   const TYPES = { projector: 'Projetor', pc: 'PC', mouse: 'Mouse', keyboard: 'Teclado',
     chromebook: 'Chromebook', cart: 'Carrinho', other: 'Outros', unknown: 'Não identificado' };
@@ -785,12 +794,12 @@ window.RoomTicketsMonitor = (() => {
     const context = ensureAudio();
     if (!context || String(context.state || '') === 'closed') return false;
     const start = context.currentTime;
-    [0, 0.22].forEach(offset => {
+    ALERT_TONES.forEach(({ offset, frequency }) => {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
-      oscillator.frequency.value = 880;
+      oscillator.frequency.value = frequency;
       gain.gain.setValueAtTime(0.0001, start + offset);
-      gain.gain.exponentialRampToValueAtTime(0.18, start + offset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(ALERT_VOLUME, start + offset + 0.025);
       gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.16);
       oscillator.connect(gain); gain.connect(context.destination);
       oscillator.start(start + offset); oscillator.stop(start + offset + 0.18);

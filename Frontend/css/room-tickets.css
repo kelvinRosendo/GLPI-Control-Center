@@ -414,3 +414,27 @@ dialog.rt-action-form::backdrop { background: rgba(0,0,0,.66); }
   #rt-detail { width: auto; max-width: none; inset: 8px; max-height: none; height: calc(100dvh - 16px); padding: 16px; }
 }
 
+.gcc-phone-setup { margin: 8px 0 16px; padding: 12px; background: #161e2c; border: 1px solid #354052; border-radius: 8px; }
+.gcc-phone-setup p { margin: 0 0 8px; font-size: 13px; line-height: 1.5; color: #c0cad8; }
+.gcc-phone-setup > div { display: flex; gap: 8px; flex-wrap: wrap; }
+.gcc-phone-setup button[data-phone="enable"] { background: #2f6df6; color: #fff; font-weight: 700; }
+.rt-phone-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 16px 0 12px; }
+.rt-phone-tabs button { padding: 8px 4px; font-size: 12px; border-radius: 6px; }
+.rt-phone-tabs button[aria-pressed="true"] { background: #315dcc; color: white; border-color: #7196fa; }
+.rt-phone-tabs small { display: block; font-size: 13px; margin-top: 4px; }
+.rt-phone-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+.rt-phone-ticket { padding: 16px; border: 1px solid #354052; border-radius: 8px; background: #161c28; min-width: 0; overflow-wrap: anywhere; }
+.rt-phone-room { display: flex; justify-content: space-between; gap: 12px; }
+.rt-phone-room strong { font-size: 20px; line-height: 1.3; }
+.rt-phone-ticket small { color: #b3bfd0; }
+.rt-phone-ticket p { margin: 12px 0 8px; line-height: 1.45; }
+.rt-phone-actions { display: flex; gap: 8px; margin-top: 14px; }
+.rt-phone-actions .rt-primary { flex: 1; }
+@media (max-width: 860px) {
+  .gcc-phone-active .rt-monitor-widget, .gcc-phone-active .agent-toggle { display: none; }
+  .gcc-phone-active .rt-header .rt-eyebrow, .gcc-phone-active .rt-header-subtitle { display: none; }
+  .gcc-phone-active .rt-header h1 { font-size: 23px; }
+  .gcc-phone-active .rt-dashboard { padding-bottom: env(safe-area-inset-bottom, 12px); }
+  .gcc-phone-active .rt-disclosure { margin-top: 20px; }
+  .gcc-phone-active button { min-height: 44px; }
+}

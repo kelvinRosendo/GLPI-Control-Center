@@ -1,0 +1,15 @@
+[Unit]
+Description=GCC room ticket push notifications
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/gcc/current/Backend
+ExecStart=/usr/bin/php /var/www/gcc/current/Backend/scripts/push-room-tickets.php
+TimeoutStartSec=240
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true

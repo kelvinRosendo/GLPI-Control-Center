@@ -43,6 +43,8 @@ final class AuthService
 
   public static function logout(): void
   {
+    require_once __DIR__ . '/services/RoomPushStore.php';
+    RoomPushStore::revokeSession();
     self::setSessionCookie('', time() - 3600);
     Responde::ok(['message' => 'Sessão encerrada.']);
   }

@@ -221,5 +221,27 @@ window.RoomTicketsList = (() => {
       (effective === ALL ? paginationHtml(data) : moreButton(data, effective));
   }
 
-  return { render, GROUPS, ALL };
+  function renderPhone(data, group) {
+    const key = GROUPS.some(meta => meta.key === group) ? group : 'abertos';
+    const column = data.kanban?.columns?.[key];
+    const tabs = GROUPS.map(meta => '<button type="button" data-rt-group="' + meta.key +
+      '" aria-pressed="' + (key === meta.key) + '">' +
+      ({ abertos: 'Para atender', andamento: 'Em atendimento', concluidos: 'Concluídos' })[meta.key] +
+      ' <small>' + (data.kanban?.columns?.[meta.key]?.count ?? 0) + '</small></button>').join('');
+    if (!column) return '<p class="rt-message" role="status">Atualize para consultar a fila de atendimento.</p>';
+    const items = column.items || [];
+    return '<nav class="rt-phone-tabs" aria-label="Fila de chamados">' + tabs + '</nav>' +
+      (items.length ? '<ul class="rt-phone-list">' + items.map(item => {
+        const assume = (item.actions || []).find(action => action.action === 'assumir');
+        const owner = item.work?.handlerName || item.assignee?.name || '';
+        return '<li class="rt-phone-ticket" data-rt-item="' + Number(item.id) + '">' +
+          '<div class="rt-phone-room"><strong>' + esc(item.room || 'Sala não identificada') + '</strong><small>#' + Number(item.id) + '</small></div>' +
+          '<p>' + esc(item.title || 'Novo chamado') + '</p>' +
+          '<small>' + esc(formatDate(item.openedAt)) + (owner ? ' · ' + esc(owner) : '') + '</small>' +
+          '<div class="rt-phone-actions">' + (assume ? '<button type="button" class="rt-primary" data-rt-move="assumir" data-rt-ticket="' + Number(item.id) + '">Vou atender</button>' : '') +
+          '<button type="button" data-rt-ticket="' + Number(item.id) + '">Detalhes</button></div></li>';
+      }).join('') + '</ul>' : '<p class="rt-list-empty">' + (key === 'abertos' ? 'Nenhum chamado aguardando atendimento.' : 'Nenhum chamado nesta fila.') + '</p>') + moreButton(data, key);
+  }
+
+  return { render, renderPhone, GROUPS, ALL };
 })();
