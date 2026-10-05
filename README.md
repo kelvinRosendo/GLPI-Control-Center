@@ -13,6 +13,16 @@ O GCC reúne informações de inventário, atendimento e fornecedores em uma int
 
 O acesso ao GCC utiliza autenticação Google com conta institucional autorizada do Colégio Satélite. As permissões dependem do perfil do usuário.
 
+## Status atual
+
+**Concluído e publicado em produção.** A release ativa é `cd946fc` em
+`gcc.colegiosatelite.cloud`. A sincronização completa com o GLPI foi validada em
+`05/10/2026`, com 575 ativos: 558 classificados e 17 não classificados.
+
+O inventário consulta computadores, impressoras, monitores e periféricos. Coleções
+vazias retornadas pelo GLPI são aceitas como resultado válido, sem invalidar toda a
+sincronização.
+
 ## Objetivos
 
 - Centralizar a consulta de ativos e chamados da equipe de TI.
@@ -69,6 +79,14 @@ Fluxo de referência:
 6. Registrar o chamado no GLPI.
 7. Seguir o encaminhamento da assistência.
 
+O módulo de chamados de salas está concluído e publicado com monitoramento automático,
+Kanban de estados, aceite com identificação do técnico, atualização no GLPI, alerta
+visual e sonoro, modo TV informativo e entrada mobile compacta.
+
+O GCC também possui suporte a instalação como aplicativo e Web Push. O worker da VPS
+consulta novos chamados a cada minuto e envia avisos aos aparelhos que foram inscritos
+e autorizados pelo usuário.
+
 As regras de mau uso e contrato fazem parte do desenho operacional do projeto. Sua aplicação deve acompanhar o fluxo e o contrato de cada assistência.
 
 ### Integrações com fornecedores
@@ -112,6 +130,9 @@ A documentação de infraestrutura registra a implantação inicial em **08/09/2
 | Banco do GLPI | MariaDB 10.11 |
 | Autenticação | Google Identity Services |
 | Organização de versões | Releases com link simbólico `current` |
+| Release ativa | `cd946fc` — correção de coleções GLPI vazias |
+| Push de chamados | `gcc-push.timer`, consulta a cada 60 segundos |
+| Dados persistentes | `/var/lib/gcc/data` e `/var/log/gcc` |
 
 O MariaDB é utilizado pelo GLPI. A integração do GCC com os dados do GLPI ocorre pela API REST.
 
@@ -472,7 +493,9 @@ O rollback do código consiste em apontar `current` novamente para a release ant
 
 Antes da troca, verifique a compatibilidade de configuração e dos dados graváveis. Reverter o código não desfaz operações já registradas no GLPI nem restaura automaticamente dados locais.
 
-A separação de `Backend/data` e `Backend/logs` para diretórios persistentes fora das releases permanece como melhoria técnica recomendada.
+A separação de `Backend/data` e `Backend/logs` para diretórios persistentes fora das releases
+está aplicada na VPS: `Backend/data` aponta para `/var/lib/gcc/data` e `Backend/logs`
+aponta para `/var/log/gcc`.
 
 ## Diagnóstico
 
@@ -539,6 +562,19 @@ Na infraestrutura documentada, as portas públicas `80` e `443` pertencem ao Tra
 - Ajustes de CSP e cabeçalhos relacionados ao login.
 - Organização da implantação em releases.
 
+### Chamados de salas e operação mobile — outubro de 2026
+
+- Dashboard operacional de chamados com atualização automática.
+- Kanban com estados Aberto, Em andamento e Concluído sincronizados com o GLPI.
+- Registro do técnico que assumiu o chamado.
+- Modo TV somente para exibição, sem ações de atendimento.
+- Alerta visual persistente e alerta sonoro iniciado por gesto do usuário.
+- Layout mobile focado na fila de chamados.
+- PWA com instalação e Web Push para aparelhos inscritos.
+- Worker `gcc-push.service` executado pelo `gcc-push.timer` a cada minuto.
+- Correção da leitura de coleções vazias do GLPI.
+- Sincronização de produção validada com 575 ativos.
+
 ### Sprint 5 — Dashboard Operacional
 
 - Dashboard modular em três camadas.
@@ -561,11 +597,14 @@ Na infraestrutura documentada, as portas públicas `80` e `443` pertencem ao Tra
 
 ## Próximas atualizações
 
+As entregas principais do GCC estão concluídas. Os itens abaixo são melhorias futuras,
+sem bloquear o uso atual do sistema.
+
 ### Desempenho e infraestrutura
 
 - [ ] Implementar cache temporário de inventário no backend.
 - [ ] Criar um endpoint agregado `/api/dashboard`.
-- [ ] Mover dados e logs para diretórios persistentes fora das releases.
+- [x] Mover dados e logs para diretórios persistentes fora das releases.
 - [ ] Adicionar cache de arquivos estáticos com versionamento.
 - [ ] Separar logs de aplicação, auditoria e integração.
 - [ ] Configurar monitoramento de disponibilidade e recursos.
@@ -574,11 +613,11 @@ Na infraestrutura documentada, as portas públicas `80` e `443` pertencem ao Tra
 ### Dashboard e interface
 
 - [ ] Ampliar gráficos e filtros por período.
-- [ ] Consolidar chamados em aberto por estado.
+- [x] Consolidar chamados em aberto por estado.
 - [ ] Destacar a distribuição de ativos por tipo.
 - [ ] Revisar carregamento dos ícones e estados de erro.
 - [ ] Aprimorar a pesquisa global.
-- [ ] Ajustar sidebar e identificação visual do GCC.
+- [x] Ajustar sidebar e identificação visual do GCC.
 
 ### Atendimento e relatórios
 
