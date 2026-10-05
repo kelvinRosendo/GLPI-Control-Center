@@ -383,7 +383,8 @@ function authorizeRequest(string $path, string $method, array $config): void
 
   if ($path === '/api/auth/logout') return;
   if ($path === '/api/notifications/push') {
-    PermissionMiddleware::requireAction('chamados', 'edit');
+    // Any authenticated GCC account may manage its own device subscription.
+    // Authentication and CSRF for writes have already been checked above.
     return;
   }
 

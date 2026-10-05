@@ -340,6 +340,13 @@
       check(!sidebar.classList.contains('sidebar--mobile-open'), 'menu fecha pela sobreposição');
       check(btn.getAttribute('aria-expanded') === 'false', 'aria-expanded volta a false');
       check(sidebar.getBoundingClientRect().right <= 1, 'gaveta recolhida fica fora da tela');
+      for (let i = 0; i < 3; i++) {
+        window.Sidebar.render();
+        btn.click();
+        check(sidebar.classList.contains('sidebar--mobile-open'), 'menu reabre após render ' + i);
+        overlay.click();
+        check(!sidebar.classList.contains('sidebar--mobile-open'), 'menu fecha uma vez após render ' + i);
+      }
     } else {
       check(window.STATE.tab === 'home', 'desktop continua abrindo no Dashboard · aba=' + window.STATE.tab);
     }
@@ -429,6 +436,13 @@
     // Primeiro o login termina, para as medições valerem com a tela visível.
     await until(() => document.getElementById('app').style.display === 'flex', 12000);
     window.App.go('chamados-salas');
+    for (let i = 0; i < 3; i++) {
+      window.Sidebar.render();
+      $('#sidebar-toggle').click();
+      check(window.Sidebar.isCollapsed(), 'recolhe após render ' + i);
+      $('#sidebar-toggle').click();
+      check(!window.Sidebar.isCollapsed(), 'expande novamente após render ' + i);
+    }
     const table = await until(() => $('.rt-table-wrap tbody tr'), 15000);
     check(!!table, 'tabela de chamados carregada no desktop');
     check(!$('.rt-list'), 'desktop não usa a lista compacta');

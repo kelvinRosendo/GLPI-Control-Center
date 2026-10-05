@@ -1,7 +1,7 @@
 /* Installation and real Web Push. No permission prompt without a user's click. */
 window.GccPhone = (() => {
   let host, registration, settings, installPrompt, busy = false, subscribed = false;
-  let message = '', started = false, epoch = 0;
+  let message = '', started = false, epoch = 0, failed = false;
   const installed = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const ios = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const email = () => window.UserContext?.getCurrentUser?.()?.email || '';
@@ -19,10 +19,10 @@ window.GccPhone = (() => {
       : Notification.permission === 'denied' ? 'Notificações bloqueadas. Libere nas configurações do navegador ou do aplicativo.'
       : settings && !settings.enabled ? settings.message : 'Receba os novos chamados mesmo com o GCC fechado.');
     host.innerHTML = '<section class="gcc-phone-setup"><p role="status">' + esc(status) + '</p><div>' +
-      (started && !settings && message ? '<button type="button" data-phone="retry">Tentar novamente</button>' : '') +
+      (failed || (settings && !settings.enabled) ? '<button type="button" data-phone="retry">Tentar novamente</button>' : '') +
       (!installed() ? '<button type="button" data-phone="install">Instalar GCC</button>' : '') +
       (subscribed ? '<button type="button" data-phone="disable">Desativar avisos</button>'
-        : '<button type="button" data-phone="enable"' + ((!canPush || needsInstall || !settings?.enabled || busy || Notification.permission === 'denied') ? ' disabled' : '') + '>Ativar notificações</button>') +
+        : '<button type="button" data-phone="enable"' + ((!canPush || needsInstall || !settings?.enabled || failed || busy || Notification.permission === 'denied') ? ' disabled' : '') + '>Ativar notificações</button>') +
       '</div></section>';
     host.querySelectorAll('button').forEach(button => {
       if (busy) button.disabled = true;
@@ -30,15 +30,22 @@ window.GccPhone = (() => {
     });
   }
   async function start() {
+    if (busy) return;
+    busy = true; failed = false; message = ''; settings = null;
     const turn = epoch;
     const owner = email();
+    paint();
     try {
       if (!window.isSecureContext || !('serviceWorker' in navigator)) { paint(); return; }
-      registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       // Never cache API responses or authentication in the service worker.
       const result = await api('GET');
       if (turn !== epoch || owner !== email()) return;
+      if (typeof result?.data?.enabled !== 'boolean') throw new Error('Invalid push settings');
       settings = result.data;
+      if (!settings.enabled) return;
+      const registered = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      if (turn !== epoch || owner !== email()) return;
+      registration = registered;
       const sub = await registration.pushManager?.getSubscription();
       if (turn !== epoch || owner !== email()) return;
       if (sub && settings?.enabled && remembered() === owner) {
@@ -46,8 +53,12 @@ window.GccPhone = (() => {
         if (turn !== epoch || owner !== email()) return;
         subscribed = true;
       }
-    } catch { if (turn === epoch) message = 'Não foi possível consultar as notificações. Reabra esta tela para tentar novamente.'; }
-    paint();
+    } catch {
+      if (turn === epoch && owner === email()) {
+        failed = true;
+        message = 'Não foi possível preparar as notificações. Verifique a conexão e toque em Tentar novamente.';
+      }
+    } finally { if (turn === epoch) { busy = false; paint(); } }
   }
   async function act(action) {
     if (busy) return;
@@ -91,8 +102,8 @@ window.GccPhone = (() => {
   window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; paint(); });
   window.addEventListener('appinstalled', () => { installPrompt = null; message = ''; paint(); });
   return {
-    mount(element) { host = element; paint(); if (!started && email()) { started = true; start(); } },
-    reset() { epoch++; started = false; subscribed = false; settings = null; host = null; message = ''; busy = false; },
+    mount(element) { const reopening = host !== element; host = element; paint(); if ((!started || (reopening && failed)) && email()) { started = true; start(); } },
+    reset() { epoch++; started = false; subscribed = false; settings = null; host = null; message = ''; busy = false; failed = false; },
     logout() { remember(''); registration?.pushManager?.getSubscription().then(sub => sub?.unsubscribe()).catch(() => {}); },
   };
 })();

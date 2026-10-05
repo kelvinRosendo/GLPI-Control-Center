@@ -155,7 +155,7 @@ window.Sidebar = (function () {
   // EVENTOS
   //
   // `render()` roda a cada troca de tela, mas o botão do topo, a sobreposição e
-  // o botão de recolher são elementos PERMANENTES do index.html. Ligar os
+  // são elementos PERMANENTES do index.html. Ligar os
   // ouvintes deles a cada `render()` acumularia cliques: o menu abriria e
   // fecharia no mesmo toque. Por isso os permanentes são ligados uma única vez
   // e os recriados a cada render.
@@ -166,12 +166,6 @@ window.Sidebar = (function () {
   function _bindShellEvents() {
     if (_shellBound) return;
     _shellBound = true;
-
-    // Toggle sidebar (desktop collapse)
-    const toggleBtn = document.getElementById('sidebar-toggle');
-    if (toggleBtn) {
-      toggleBtn.addEventListener('click', () => toggle());
-    }
 
     // Botão do menu recolhível
     const mobileToggle = document.getElementById('sidebar-mobile-toggle');
@@ -188,6 +182,9 @@ window.Sidebar = (function () {
 
   function _bindEvents() {
     _bindShellEvents();
+
+    // Este botão pertence ao conteúdo recriado por render().
+    document.getElementById('sidebar-toggle')?.addEventListener('click', () => toggle());
 
     const homeLink = document.getElementById('sidebar-home-link');
     if (homeLink) {

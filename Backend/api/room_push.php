@@ -10,12 +10,13 @@ final class RoomPushEndpoint
         $actor = AuthService::context() ?? [];
         $email = strtolower((string) ($actor['email'] ?? ''));
         $permitted = RoomPushStore::allowed($email, $config);
-        $enabled = RoomPushStore::configured() && $permitted;
+        $configured = RoomPushStore::configured();
+        $enabled = $configured && $permitted;
         if ($method === 'GET') {
-            $checked = RoomPushStore::transact(static fn(array &$s) => $s['checkedAt'] ?? null);
+            $checked = $enabled ? RoomPushStore::transact(static fn(array &$s) => $s['checkedAt'] ?? null) : null;
             Responde::ok(['data' => ['enabled' => $enabled, 'publicKey' => $enabled ? getenv('GCC_PUSH_PUBLIC_KEY') : null,
                 'workerHealthy' => $enabled && $checked && time() - $checked < 180,
-                'message' => !$permitted ? 'Notificações disponíveis apenas para a equipe de TI autorizada.' : 'Notificações aguardam configuração no servidor.']]);
+                'message' => !$configured ? 'Notificações aguardam configuração no servidor.' : (!$permitted ? 'Sua conta ainda não está autorizada a receber notificações. Solicite a liberação ao administrador.' : 'Notificações disponíveis.')]]);
             return;
         }
         if ($method !== 'POST') { Responde::erro('Método não permitido.', 405); return; }

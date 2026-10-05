@@ -33,12 +33,14 @@ de envio exige PHP >= 8.2 (VPS: 8.3.6).
    GCC_PUSH_PUBLIC_KEY=<publicKey gerada>
    GCC_PUSH_PRIVATE_KEY=<privateKey gerada>
    GCC_PUSH_SUBJECT=mailto:<email de contato do TI>
-   GCC_PUSH_EMAILS=<emails dos técnicos autorizados, separados por vírgula>
    GCC_PUSH_DIR=/var/lib/gcc/data/push
    ```
 
-   A lista explícita de técnicos é obrigatória; pertencer ao domínio da escola não
-   basta para receber push. A rota exige autenticação, permissão e CSRF para escrita.
+   Todas as contas autenticadas do GCC podem inscrever seus aparelhos. Não existe
+   lista adicional de técnicos: `GCC_PUSH_EMAILS` é legado e não é mais usado.
+   A rota mantém autenticação e CSRF para escrita; os domínios permitidos no login
+   continuam sendo verificados. Cada aparelho precisa conceder permissão e ativar
+   notificações; apenas ter feito login no passado não cria uma inscrição push.
 4. Criar o diretório persistente com proprietário `www-data` e modo 0700. Incluí-lo
    no backup protegido. O estado usa trava e gravação atômica; contém endpoints privados.
 5. Instalar `Backend/deploy/gcc-push.service` e `gcc-push.timer` em `/etc/systemd/system/`,
@@ -55,7 +57,11 @@ de envio exige PHP >= 8.2 (VPS: 8.3.6).
   exige nova ativação. Sair revoga a inscrição daquela sessão; expirar a sessão permite
   continuar recebendo durante a validade da inscrição, mas exige login ao abrir detalhes.
   Notificações já enviadas ao provedor podem continuar na bandeja após sair.
-- Remover um email de `GCC_PUSH_EMAILS` impede envio na próxima execução.
+- A consulta ocorre a cada 60 segundos. Um chamado novo elegível é enviado aos
+  aparelhos inscritos na execução que o detectar, sem depender de uma tela aberta.
+  Não há garantia de entrega instantânea; som local não comprova push configurado.
+- Remover um domínio dos domínios permitidos no login impede envio para ele na
+  próxima execução. Sair do GCC ou desativar avisos revoga a inscrição do aparelho.
 - Na tela bloqueada aparecem só sala e número, sem descrição ou solicitante.
 - Após falha, só recupera chamados novos com até 15 minutos. Leitura inicial não envia
   histórico. O recorte de 30 itens do monitor do navegador não limita o worker.
@@ -78,7 +84,7 @@ a versão anterior, pois a interface e as expectativas mudaram.
 Depois de configurar a VPS, homologar em Android e iPhone: instalar, permitir, fechar
 o aplicativo, bloquear a tela, criar chamado de teste, receber o aviso e assumir no GCC.
 Conferir responsável no GLPI. Repetir com permissão negada, perda de conexão, logout e
-revogação na lista de técnicos. **Esta homologação real ainda está pendente.**
+desativação dos avisos. **Esta homologação real ainda está pendente.**
 
 Fontes: https://webkit.org/blog/13878/web-push-for-web-apps-on-ios-and-ipados/
 e https://github.com/web-push-libs/web-push-php.

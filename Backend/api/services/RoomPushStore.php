@@ -33,9 +33,10 @@ final class RoomPushStore
 
     public static function allowed(string $email, array $config): bool
     {
-        $allowed = array_filter(array_map('trim', explode(',', strtolower(getenv('GCC_PUSH_EMAILS') ?: ''))));
+        // Subscriptions can only be created through the authenticated endpoint.
+        // Use the same domain policy as login; no separate list of technicians.
         $domain = strtolower(substr(strrchr($email, '@') ?: '', 1));
-        return in_array(strtolower($email), $allowed, true)
+        return filter_var($email, FILTER_VALIDATE_EMAIL) !== false
             && in_array($domain, $config['auth']['allowed_domains'] ?? [], true);
     }
 

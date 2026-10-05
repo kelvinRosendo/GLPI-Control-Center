@@ -22,8 +22,11 @@ try { RoomPushStore::validate($bad); throw new LogicException('accepted invalid 
 catch (InvalidArgumentException $expected) { $checks++; }
 putenv('GCC_PUSH_EMAILS=tech@school.test');
 $config = ['auth' => ['allowed_domains' => ['school.test']]];
-checkPush(RoomPushStore::allowed('tech@school.test', $config), 'explicit TI consent allowlist');
-checkPush(!RoomPushStore::allowed('student@school.test', $config), 'school domain alone insufficient');
+checkPush(RoomPushStore::allowed('tech@school.test', $config), 'authenticated school account eligible');
+checkPush(RoomPushStore::allowed('another-tech@school.test', $config), 'account need not appear in legacy push list');
+checkPush(!RoomPushStore::allowed('tech@other.test', $config), 'outside login domains denied');
+checkPush(!RoomPushStore::allowed('', $config), 'empty account denied');
+checkPush(!RoomPushStore::allowed('@school.test', $config), 'invalid account denied');
 checkPush(!RoomPushStore::allowed('tech@school.test', []), 'domain revoked');
 $now = 1790956800;
 $row = static function(int $id, int $opened) { return ['id' => $id, 'openedAt' => (new DateTimeImmutable('@' . $opened))->setTimezone(new DateTimeZone('America/Sao_Paulo'))->format('Y-m-d H:i:s'), 'eligible' => true, 'room' => 'Sala 10']; };
@@ -48,6 +51,16 @@ checkPush(empty($s['queue']), 'new subscription does not replay earlier calls');
 $s['subscriptions']['device']['expiresAt'] = $now + 430;
 RoomPushStore::plan($s, [$row(8, $now + 440)], $now + 480);
 checkPush(empty($s['queue']), 'expired subscription not notified');
+$fanout = ['checkedAt' => $now, 'known' => [], 'subscriptions' => [
+    'phoneA' => ['email' => 'tech@school.test', 'createdAt' => $now - 10, 'expiresAt' => $now + 1000],
+    'phoneB' => ['email' => 'another-tech@school.test', 'createdAt' => $now - 10, 'expiresAt' => $now + 1000],
+]];
+RoomPushStore::plan($fanout, [$row(9, $now + 1)], $now + 60);
+checkPush(isset($fanout['queue']['phoneA:9'], $fanout['queue']['phoneB:9']), 'new ticket reaches all subscribed accounts on next scan');
+checkPush($fanout['queue']['phoneA:9']['nextAt'] === $now + 60, 'delivery eligible immediately when detected');
+$fanout['queue'] = [];
+RoomPushStore::plan($fanout, [$row(9, $now + 1)], $now + 120);
+checkPush(empty($fanout['queue']), 'no repeat delivery to any account on next scan');
 // Files are isolated from Backend/data and any real subscription.
 $dir = sys_get_temp_dir() . '/gcc-push-test-' . bin2hex(random_bytes(8));
 putenv('GCC_PUSH_DIR=' . $dir);
@@ -60,4 +73,17 @@ try {
     foreach (glob($dir . '/*') ?: [] as $file) unlink($file);
     rmdir($dir); putenv('GCC_PUSH_DIR'); putenv('GCC_PUSH_EMAILS');
 }
+// A disabled installation must be inspectable even without writable push storage.
+require_once __DIR__ . '/../api/room_push.php';
+class AuthService { public static function context(): array { return ['email' => 'tech@school.test']; } }
+class Responde { public static array $result = []; public static function ok(array $value): void { self::$result = $value; } }
+$blockedDir = tempnam(sys_get_temp_dir(), 'gcc-push-blocked-');
+putenv('GCC_PUSH_DIR=' . $blockedDir . '/push');
+putenv('GCC_PUSH_ENABLED=0');
+try {
+    RoomPushEndpoint::handle('GET', $config);
+    checkPush(Responde::$result['data']['enabled'] === false, 'disabled configuration remains disabled');
+    checkPush(str_contains(Responde::$result['data']['message'], 'configuração'), 'configuration missing is not reported as account rejection');
+    checkPush(filesize($blockedDir) === 0, 'disabled status does not write storage');
+} finally { unlink($blockedDir); putenv('GCC_PUSH_DIR'); putenv('GCC_PUSH_ENABLED'); }
 echo "$checks push checks passed\n";
