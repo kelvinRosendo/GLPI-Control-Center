@@ -211,10 +211,21 @@ final class GlpiClient
   public function getAllWithParams(string $path, string $sessionToken, array $params = [], int $batchSize = 500): array
   {
     return GlpiCollectionReader::collect(
-      fn(int $offset, int $size): array => $this->getWithParamsRaw($path, $sessionToken, array_merge($params, [
-        'range' => $offset . '-' . ($offset + $size - 1),
-        'sort' => 'id', 'order' => 'ASC',
-      ])),
+      function (int $offset, int $size) use ($path, $sessionToken, $params): array {
+        $batch = $this->getWithParamsRaw($path, $sessionToken, array_merge($params, [
+          'range' => $offset . '-' . ($offset + $size - 1),
+          'sort' => 'id', 'order' => 'ASC',
+        ]));
+        // GLPI returns HTTP 200 with [] and no Content-Range for an empty
+        // collection. Treat that response as a verified zero-item snapshot;
+        // a non-empty collection still must provide its total for pagination.
+        if (($batch['_http_code'] ?? 0) === 200
+            && ($batch['items'] ?? null) === []
+            && !isset($batch['_content_range'])) {
+          $batch['_content_range'] = '0-0/0';
+        }
+        return $batch;
+      },
       $batchSize
     );
   }
