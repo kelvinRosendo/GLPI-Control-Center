@@ -37,6 +37,9 @@ window.RoomTicketsTV = (() => {
   let alertInfo = null;
   let monitorView = null;
   let unsubscribe = null;
+  let onCycleComplete = null;
+  let notificationsOpen = false;
+  let pauseBeforeNotifications = false;
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, char => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -211,8 +214,10 @@ window.RoomTicketsTV = (() => {
       ${connectionStatus()}</header>
       ${alertBanner()}${panel === 'assets' ? assetPanel() : callPanel()}
       <footer class="rt-tv-footer"><div><b data-tv-countdown>${String(rotationRemaining).padStart(2, '0')}</b><span>${alertInfo ? 'Rotação em espera durante o alerta' : paused ? 'Rotação pausada' : 'Próxima troca'}<small>Painel ${panel === 'assets' ? '01 · Ativos' : '02 · Chamados'}</small></span></div>
-      <div class="rt-tv-controls"><button type="button" data-tv-action="pause">${paused ? 'Retomar rotação' : 'Pausar rotação'}</button><button type="button" data-tv-action="switch">Trocar painel</button><button type="button" data-tv-action="sound">${monitorApi()?.isSoundEnabled?.() ? 'Silenciar' : 'Ativar som'}</button><button type="button" data-tv-action="fullscreen">${typeof document !== 'undefined' && document.fullscreenElement ? 'Sair da tela cheia' : 'Tela cheia'}</button><button type="button" data-tv-action="close">Sair do modo TV</button></div></footer>
+      <div class="rt-tv-controls"><button type="button" data-tv-action="pause">${paused ? 'Retomar rotação' : 'Pausar rotação'}</button><button type="button" data-tv-action="switch">Trocar painel</button><button type="button" data-tv-action="sound">${monitorApi()?.isSoundEnabled?.() ? 'Silenciar' : 'Ativar som'}</button><button type="button" data-tv-action="notifications">${notificationsOpen ? 'Fechar avisos' : 'Notificações do Windows'}</button><button type="button" data-tv-action="fullscreen">${typeof document !== 'undefined' && document.fullscreenElement ? 'Sair da tela cheia' : 'Tela cheia'}</button><button type="button" data-tv-action="close">Sair do modo TV</button></div></footer>
+      ${notificationsOpen ? '<aside class="rt-tv-notifications"><h2>Avisos neste computador</h2><p>Receba novos chamados mesmo com o SAT ou outro programa na frente. Permita as notificações no navegador e no Windows; desative o Não incomodar para ver os avisos.</p><div data-tv-push-setup></div><button type="button" data-tv-action="notifications">Concluir configuração e retomar painel</button></aside>' : ''}
     </div>`;
+    if (notificationsOpen) window.GccPhone?.mount?.(overlay.querySelector('[data-tv-push-setup]'));
   }
 
   function updateClock() {
@@ -234,7 +239,15 @@ window.RoomTicketsTV = (() => {
     }
     if (!paused && !alertInfo) {
       rotationRemaining -= 1;
-      if (rotationRemaining <= 0) switchPanel();
+      if (rotationRemaining <= 0) {
+        if (panel === 'calls' && onCycleComplete) {
+          const complete = onCycleComplete;
+          onCycleComplete = null;
+          complete();
+          return;
+        }
+        switchPanel();
+      }
     }
     updateClock();
   }
@@ -269,9 +282,10 @@ window.RoomTicketsTV = (() => {
     if (button.dataset.tvPanel) { switchPanel(button.dataset.tvPanel); return; }
     switch (button.dataset.tvAction) {
       case 'close': close(); break;
+      case 'notifications': showNotifications(!notificationsOpen); break;
       case 'switch': switchPanel(); break;
       case 'fullscreen': toggleFullscreen(); break;
-      case 'pause': paused = !paused; render(); break;
+      case 'pause': if (!notificationsOpen) paused = !paused; render(); break;
       case 'sound': {
         const api = monitorApi();
         const audio = api?.audioStatus?.() || { state: 'off' };
@@ -297,9 +311,19 @@ window.RoomTicketsTV = (() => {
     if (event.key === 'Escape' && active) close();
   }
 
-  function open(seedData = null) {
+  function showNotifications(show = true) {
+    if (!active || show === notificationsOpen) return;
+    if (show) { pauseBeforeNotifications = paused; paused = true; }
+    else paused = pauseBeforeNotifications;
+    notificationsOpen = show;
+    render();
+  }
+
+  function open(seedData = null, options = {}) {
     if (active) return;
     active = true; panel = 'assets'; paused = false; rotationRemaining = ROTATION_SECONDS;
+    notificationsOpen = false;
+    onCycleComplete = typeof options.onCycleComplete === 'function' ? options.onCycleComplete : null;
     if (seedData) callData = seedData;
     overlay = document.createElement('section');
     overlay.className = 'rt-tv';
@@ -321,12 +345,14 @@ window.RoomTicketsTV = (() => {
       // A TV tem o próprio alerta, então o banner global sai da tela.
       api.dismissBanner?.();
     }
-    overlay.requestFullscreen?.().catch(() => {});
+    if (options.fullscreen !== false) overlay.requestFullscreen?.().catch(() => {});
   }
 
   function close() {
     if (!active) return;
     active = false;
+    onCycleComplete = null;
+    notificationsOpen = false;
     if (tickTimer !== null) clearInterval(tickTimer);
     tickTimer = null;
     if (unsubscribe) { unsubscribe(); unsubscribe = null; }
@@ -337,5 +363,5 @@ window.RoomTicketsTV = (() => {
     if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   }
 
-  return { open, close, isActive: () => active, isReadOnly: () => true };
+  return { open, close, showNotifications, isActive: () => active, isReadOnly: () => true };
 })();

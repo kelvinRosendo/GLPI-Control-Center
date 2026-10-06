@@ -13,7 +13,7 @@ window.GccPhone = (() => {
     if (!host?.isConnected) return;
     const canPush = window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
     const needsInstall = ios() && !installed();
-    const status = message || (subscribed ? (settings?.workerHealthy ? 'Notificações ativadas neste celular.' : 'Inscrito. O envio pelo servidor está atrasado.')
+    const status = message || (subscribed ? (settings?.workerHealthy ? 'Notificações ativadas neste dispositivo.' : 'Inscrito. O envio pelo servidor está atrasado.')
       : !canPush ? 'Instale o GCC em um navegador compatível para receber avisos.'
       : needsInstall ? 'No iPhone: Compartilhar → Adicionar à Tela de Início. Depois abra o GCC pelo ícone.'
       : Notification.permission === 'denied' ? 'Notificações bloqueadas. Libere nas configurações do navegador ou do aplicativo.'
