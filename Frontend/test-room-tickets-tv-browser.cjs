@@ -70,6 +70,38 @@ check(document.querySelector('.rt-tv-connection-state'),'connection state shown'
   check(document.documentElement.scrollWidth<=innerWidth+1,'no horizontal overflow');
 RoomTicketsTV.close();check(!document.querySelector('.rt-tv'),'closes overlay');
 check(document.querySelector('.rt-monitor-widget'),'monitor keeps running after TV closes');
+// SAT cycle: reuse the two TV panels, pause for setup/alerts, then return once.
+RoomTicketsMonitor.reset();
+let monitorListener, mountedPush=0, completed=0, tvTick;
+window.GccPhone={mount:()=>{mountedPush++}};
+window.RoomTicketsMonitor={start(){},subscribe(fn){monitorListener=fn;return()=>{}},
+  snapshot:()=>({state:'ok',label:'Atualizado',data:seed,alert:null}),syncUi(){}};
+const originalInterval=window.setInterval;
+window.setInterval=(fn,ms)=>{if(ms===1000)tvTick=fn;return originalInterval(fn,ms)};
+RoomTicketsTV.open(seed,{fullscreen:false,onCycleComplete:()=>{completed++}});
+for(let i=0;i<29;i++)tvTick();
+check(document.querySelector('[data-tv-panel="assets"]').classList.contains('active'),'assets stays for 30 seconds');
+tvTick();
+check(document.querySelector('[data-tv-panel="calls"]').classList.contains('active'),'calls follows assets');
+RoomTicketsTV.showNotifications();
+check(mountedPush>0,'TV reuses existing push setup');
+for(let i=0;i<35;i++)tvTick();
+check(completed===0,'notification setup pauses the return to SAT');
+RoomTicketsTV.showNotifications(false);
+monitorListener({state:'ok',data:seed,alert:{ticket:latest,until:Date.now()+60000}});
+for(let i=0;i<35;i++)tvTick();
+check(completed===0,'new ticket alert pauses the SAT cycle');
+monitorListener({state:'ok',data:seed,alert:null});
+for(let i=0;i<30;i++)tvTick();
+check(completed===1,'returns to SAT after calls panel');
+for(let i=0;i<60;i++)tvTick();
+check(completed===1,'return callback runs once');
+RoomTicketsTV.close();
+RoomTicketsTV.open(seed,{fullscreen:false});
+for(let i=0;i<60;i++)tvTick();
+check(completed===1,'ordinary GCC TV never returns to SAT');
+RoomTicketsTV.close();
+window.setInterval=originalInterval;
 document.body.dataset.result='passed';document.body.dataset.checks=String(checks);document.body.dataset.viewport=String(innerWidth);
 }catch(error){document.body.dataset.result='failed';document.body.dataset.error=error.message}})();
 </script></body></html>`;

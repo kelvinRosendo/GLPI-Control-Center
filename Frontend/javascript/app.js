@@ -114,6 +114,7 @@ window.App = {
 
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app').style.display = 'flex';
+    window.GccSatTV?.onAuthenticated();
 
     this.assetsLoading = true;
     this.assetsLoaded = false;
@@ -123,6 +124,7 @@ window.App = {
     this.go(this._landingTab());
 
     await this._loadInitialData();
+    window.GccSatTV?.onReady();
   },
 
   /**
@@ -222,6 +224,7 @@ window.App = {
     try { window.Dashboard?.reset?.(); } catch {}
     document.getElementById('login-screen').style.display = 'flex';
     document.getElementById('app').style.display = 'none';
+    window.GccSatTV?.onLoginRequired();
     window.State?.resetFilters();
     window.State?.setTab('home');
     window.State?.setExpandedComputer(null);

@@ -1,0 +1,8 @@
+.rt-tv-notifications { position: fixed; z-index: 5; inset: auto 24px 110px auto; width: min(520px, calc(100vw - 48px)); max-height: calc(100vh - 160px); overflow: auto; box-sizing: border-box; padding: 24px; border: 1px solid #3974ef; border-radius: 16px; background: #111a2c; color: white; box-shadow: 0 12px 48px #0009; }
+.rt-tv-notifications h2 { margin: 0 0 12px; font-size: 22px; }
+.rt-tv-notifications p { color: #cfd6f0; line-height: 1.5; }
+.rt-tv-notifications button { margin: 6px 8px 0 0; padding: 12px; border: 1px solid #3974ef; border-radius: 8px; background: #1b2e54; color: white; cursor: pointer; }
+.rt-tv-notifications button:disabled { opacity: .5; cursor: default; }
+.gcc-sat-login-notice { margin-top: 18px; color: #cfd6f0; font-size: 14px; line-height: 1.5; }
+.gcc-sat-login-notice button { padding: 10px; border: 1px solid #3974ef; border-radius: 8px; background: #1b2e54; color: white; cursor: pointer; }
+.gcc-sat-login-notice a { color: #8cb9ff; }
