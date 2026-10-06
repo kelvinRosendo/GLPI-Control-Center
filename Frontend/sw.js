@@ -11,7 +11,7 @@ self.addEventListener('push', event => {
       body: typeof payload.body === 'string' ? payload.body.slice(0, 180) : 'Abra o GCC para consultar os chamados.',
       icon: '/assets/pwa/icon-192.png', badge: '/assets/pwa/badge.png',
       tag: ticketId ? 'gcc-ticket-' + ticketId : 'gcc-room-ticket',
-      renotify: false, data: { ticketId },
+      renotify: false, requireInteraction: true, data: { ticketId },
     }));
 });
 self.addEventListener('notificationclick', event => {
