@@ -16,7 +16,7 @@ function setup(search = '?tv=sat') {
   };
   let next = 0;
   vm.runInNewContext(fs.readFileSync(__dirname + '/javascript/gcc-sat-tv.js', 'utf8'), {
-    window, URLSearchParams,
+    window, URLSearchParams, URL,
     document: { createElement: () => notice, querySelector: () => ({ appendChild() {} }) },
     setTimeout(fn, ms) { const id = ++next; timers.set(id, { fn, ms }); return id; },
     clearTimeout: id => timers.delete(id),
@@ -55,4 +55,34 @@ test('slow startup returns to SAT without breaking the cycle', () => {
   const timer = [...s.timers.values()][0];
   assert.equal(timer.ms, 30000); timer.fn();
   assert.equal(s.returned(), 'https://aliceapp.ia.br/dashboard/view');
+});
+
+test('SAT entry opens TV automatically and returns to the supplied dashboard after its cycle', () => {
+  for (const destination of ['http://localhost:3000/dashboard/view', 'https://aliceapp.ia.br/dashboard/view']) {
+    const s = setup('?tv=sat&voltar=' + encodeURIComponent(destination));
+    s.app.onAuthenticated(); s.app.onReady();
+    assert.equal(s.timers.size, 0);
+    assert.equal(s.options().fullscreen, false);
+    s.options().onCycleComplete();
+    assert.equal(s.returned(), destination);
+  }
+});
+
+test('login and slow startup fallbacks preserve the supplied return address', () => {
+  const destination = 'http://localhost:3000/dashboard/view?filter=a&other=b';
+  for (const hook of ['onLoginRequired', 'onAuthenticated']) {
+    const s = setup('?tv=sat&voltar=' + encodeURIComponent(destination));
+    s.app[hook]();
+    [...s.timers.values()][0].fn();
+    assert.equal(s.returned(), destination);
+  }
+});
+
+test('invalid or executable return addresses use the default SAT dashboard', () => {
+  for (const destination of ['', '/dashboard/view', 'javascript:alert(1)', 'data:text/html,test', 'https://user:password@example.test/']) {
+    const s = setup('?tv=sat&voltar=' + encodeURIComponent(destination));
+    s.app.onAuthenticated();
+    [...s.timers.values()][0].fn();
+    assert.equal(s.returned(), 'https://aliceapp.ia.br/dashboard/view');
+  }
 });

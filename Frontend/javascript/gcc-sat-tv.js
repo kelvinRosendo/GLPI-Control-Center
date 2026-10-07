@@ -2,8 +2,15 @@
  * iframe, changes to the SAT database, or changes to GCC permissions. */
 window.GccSatTV = (() => {
   'use strict';
-  const SAT_URL = 'https://aliceapp.ia.br/dashboard/view';
-  const enabled = new URLSearchParams(window.location.search).get('tv') === 'sat';
+  const params = new URLSearchParams(window.location.search);
+  const enabled = params.get('tv') === 'sat';
+  const SAT_URL = (() => {
+    try {
+      const url = new URL(params.get('voltar'));
+      if (['https:', 'http:'].includes(url.protocol) && !url.username && !url.password) return url.href;
+    } catch (_) { /* Use the default SAT dashboard for missing or invalid URLs. */ }
+    return 'https://aliceapp.ia.br/dashboard/view';
+  })();
   let fallback = null;
   let loginNotice = null;
   let waitingForLogin = false;
@@ -18,7 +25,6 @@ window.GccSatTV = (() => {
     if (returning) return;
     returning = true;
     clearFallback();
-    // Fixed destination: never redirect to an address supplied by the URL.
     window.location.replace(SAT_URL);
   }
 
@@ -30,7 +36,8 @@ window.GccSatTV = (() => {
     loginNotice.className = 'gcc-sat-login-notice';
     loginNotice.innerHTML = '<p>Entre no GCC para exibir ativos e chamados. O painel volta ao SAT em 20 segundos.</p>' +
       '<button type="button">Fazer login e configurar avisos</button> ' +
-      '<a href="' + SAT_URL + '">Voltar ao SAT</a>';
+      '<a>Voltar ao SAT</a>';
+    loginNotice.querySelector('a').href = SAT_URL;
     loginNotice.querySelector('button').addEventListener('click', () => {
       waitingForLogin = true;
       clearFallback();

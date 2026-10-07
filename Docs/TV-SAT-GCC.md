@@ -5,7 +5,13 @@ ativos GCC (30 s), chamados GCC (30 s), voltando às tarefas. Alertas no GCC
 pausam temporariamente a troca. A seta manual de agendamentos para tarefas
 continua com o destino atual.
 
-O navegador visita o GCC na mesma aba, em `https://gcc.colegiosatelite.cloud/?tv=sat`.
+O navegador visita o GCC na mesma aba, em
+`https://gcc.colegiosatelite.cloud/?tv=sat&voltar=<endereço do SAT>/dashboard/view`.
+O SAT deve codificar o valor de `voltar` como parâmetro de URL. O GCC abre o modo
+TV automaticamente após o login e retorna a esse endereço ao concluir os dois
+painéis (30 s de ativos e 30 s de chamados, com pausas durante alertas).
+São aceitos endereços absolutos HTTP/HTTPS sem credenciais, incluindo o SAT local.
+Sem um endereço válido, o destino é `https://aliceapp.ia.br/dashboard/view`.
 Não há iframe, compartilhamento de credenciais, banco novo ou alteração de permissões.
 Somente a troca automática da página de agendamentos é alterada no SAT.
 
